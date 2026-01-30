@@ -1,5 +1,63 @@
 ---
-title: "Portfolio 2"
+title: "Portfolio 2: Exploring Eye-tracking Data in Reading"
+subtitle: "Analysis of the OneStop Eye Movements Dataset"
+author: "Barbara Mu" 
+Date: "Jan 29, 2026"
+output: html_document:
 ---
 
 > The projects should be numbered consecutively (i.e., in the order in which you began them), and should include for each project a description of the goal, the product (computer program, hand graph, computer graph, etc.), the data, and some interpretation. Reports must be reproducible and of high quality in terms of writing, grammar, presentation, etc.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  message = FALSE,
+  warning = FALSE,
+  fig.width = 10,
+  fig.height = 6,
+  fig.align = "center"
+)
+```
+
+
+---
+#Goal 
+The goal of this portfolio is to explore and visualize eye-tracking data during reading, demonstrating, key phenomena documented in the psycholinguistics and reading literature. Eye movements during reading provide a window into real-time cognitive processing, revealing how factors like word length, frequency, and predictability influence visual attention allocation (Rayner, 1998, 2009). 
+
+This analysis uses the **OneSteop Eye Movements Dataset** (Berzak et al., 2025), a large-scale corpus containing 360 participants, 2.6million word tokens, and 152 hours of recorded eye-tracking data. 
+
+---
+
+#Setup
+```{r}
+# Load packages
+library(tidyverse)   
+library(here)         
+library(scales)     
+library(viridis)  
+library(patchwork)  
+library(knitr) 
+```
+
+```{r}
+# Load data 
+data <- read_csv("~/Desktop/2025-2026/Courses/Data science for psych/Portfolio 1/fixations_Paragraph_ordinary.csv")
+
+```
+```{r}
+ia <- read_csv("~/Desktop/2025-2026/Courses/Data science for psych/Portfolio 1/ia_Paragraph_ordinary.csv")
+```
+
+```{r}
+variable_mapping <- list(
+  su
+```
+
+# Data Exploration 
+
+## Data Structure 
+
+
+
+
+
