@@ -240,7 +240,7 @@ ggplot(freq_summary, aes(x = freq_bin, y = mean_FFD)) +
   theme_minimal()
 ```
 
-From the plot above, high-frequency words are processed a bit faster than low-frequency words. Words in the "Very High" frequency bin receive shorter first fixations compared to words in the "Very Low" bin. This trend aligns with our prediction that common words have stronger lexical representations, allowing faster word recognition. 
+From the plot above, high-frequency words are processed a bit faster than low-frequency words. Words in the "Very High" frequency bin receive shorter first fixations compared to words in the "Very Low" bin, showing that common words have stronger lexical representations, allowing faster word recognition. 
 
 ---
 
