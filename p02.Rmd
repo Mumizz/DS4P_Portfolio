@@ -1,8 +1,5 @@
 ---
-title: "Portfolio 2: Exploring Eye-tracking Data in Reading"
-subtitle: "Analysis of the OneStop Eye Movements Dataset"
-author: "Barbara Mu" 
-date: "Jan 29, 2026"
+title: "Exploring Eye-tracking Data in Reading"
 ---
 
 > The projects should be numbered consecutively (i.e., in the order in which you began them), and should include for each project a description of the goal, the product (computer program, hand graph, computer graph, etc.), the data, and some interpretation. Reports must be reproducible and of high quality in terms of writing, grammar, presentation, etc.
@@ -23,15 +20,15 @@ knitr::opts_chunk$set(
 
 # Background
 
-Eye movements during reading provide a window into real-time cognitive processing. When we read, our eyes make rapid movements (saccades) and brief pauses (fixations). The duration of fixations and the probability of skipping words reveal how factors like word length, frequency, and predictability influence visual attention allocation (Rayner, 1998, 2009).
+Eye movements during reading provide a window into real-time cognitive processing. When we read, our eyes make rapid movements (saccades) and brief pauses (fixations). The duration of fixations and the probability of skipping words reveal how factors like word length, frequency, and predictability influence visual attention allocation.
 
 ## Data
 
-This analysis uses the OneStop Eye Movements Dataset (Berzak et al., 2025), a large-scale corpus containing 360 participants reading news articles with eye-tracking measures. It also includes rich lexical annotations, such as word frequency, GPT-2 surprisal, and part-of-speech tags. 
+This portfolio uses the OneStop Eye Movements Dataset (Berzak et al., 2025; 10.17605/OSF.IO/ZN9SQ), a large-scale corpus containing 360 participants reading news articles with eye-tracking measures. It also includes rich lexical annotations, such as word frequency, GPT-2 surprisal, and part-of-speech tags. This dataset will be used in portfolios as a practice of visualizing, analyzing, and interpreting eye-tracking data.
 
 # Goal
 
-The goal of this portfolio is to explore eye-tracking data from a reading study and investigate how word length and word frequency interact to influence reading behavior. Specifically, this portfolio:
+The goal of this portfolio is to explore and visualize eye-tracking data and investigate how word length and word frequency interact to influence reading behavior. Specifically, this portfolio:
 
 1. Explores and visualizes eye-tracking data during reading, demonstrating key phenomena documented in the psycholinguistics literature (e.g., effects of word length, frequency, predictability, and part of speech on fixation duration and skipping)
 
@@ -44,9 +41,12 @@ The goal of this portfolio is to explore eye-tracking data from a reading study 
 ```{r}
 # Load packages
 library(tidyverse)   
+library(ggplot2)
 library(scales)     
 library(patchwork)  
 library(knitr) 
+library(psych)
+library(dplyr)
 ```
 
 
@@ -61,67 +61,41 @@ ia <- read_csv("~/Desktop/2025-2026/Courses/Data science for psych/Portfolio 1/i
 
 ## Data Structure
 
-### Data Overview
-```{r}
-# Basic dimensions
-cat("Interest Area dataset dimensions:", dim(ia)[1], "rows x", dim(ia)[2], "columns\n")
+### Related Variables for Analysis
 
-# Check key eye-tracking measures
-ia %>%
-  select(IA_FIRST_FIXATION_DURATION, IA_FIRST_RUN_DWELL_TIME,
-         IA_DWELL_TIME, IA_FIXATION_COUNT, IA_SKIP) %>%
-  summary()
-```
-
-The dataset contains over 1 million word-level observations with 157 variables. The summary statistics show that eye-tracking measures are stored as character type, which will need conversion to numeric during cleaning. The `IA_SKIP` variable is binary (0/1), indicating whether each word was skipped during reading.
-
-### Key Variables for Analysis
-
-#### Dependent Variables: Eye-tracking Measures
-
-The data contains word-level reading measures that are central to eye-tracking research:
+The data contains word-level reading measures (eye-tracking + lexical) that are central to my goal:
 
 | Measure | Description | Type |
 |---------|-------------|------|
 | `IA_FIRST_FIXATION_DURATION` | Duration of first fixation on word (ms) | Early measure |
 | `IA_FIRST_RUN_DWELL_TIME` | Gaze duration: total time on word before leaving (ms) | Early measure |
-| `IA_DWELL_TIME` | Total reading time on word across all visits (ms) | Late measure |
 | `IA_SKIP` | Whether the word was skipped (0 = fixated, 1 = skipped) | Binary |
-| `IA_REGRESSION_IN` | Whether reader regressed back to this word | Late measure |
-| `IA_REGRESSION_OUT` | Whether reader regressed from this word | Late measure |
 
-**Early vs. Late measures:** Early measures (FFD, Gaze Duration) reflect initial word processing, while late measures (Total Time, Regressions) reflect re-reading and integration difficulties.
-
-#### Independent Variables: Lexical Predictors
-
-The dataset includes lexical properties for each word that are known to influence reading:
+Other measures such as IA_DWELL_TIME, fixation counts, and regressions are available in the dataset, but the main analyses focus on the three eye-tracking measures above. But they might be used to clean or prepare data for our main analysis. 
 
 | Variable | Description | Expected Effect |
 |----------|-------------|-----------------|
-| `word_length` | Number of characters in the word | Longer words → longer fixations, fewer skips |
-| `wordfreq_frequency` | How common the word is in everyday language (from wordfreq corpus) | Higher frequency → shorter fixations, more skips |
-| `gpt2_surprisal` | How predictable the word is given prior context (from GPT-2 language model) | Higher surprisal (less predictable) → longer fixations |
-| `Reduced_POS` | Part of speech category (ADJ, FUNC, NOUN, VERB, UNKNOWN) | Function words processed faster than content words |
+| `word_length_no_punctuation` | Number of characters in the word without counting punctuations | Longer words → longer fixations, fewer skips |
+| `wordfreq_frequency` | How common the word is in everyday language | Higher frequency → shorter fixations, more skips |
 
-**Word frequency** reflects how often a word appears in written/spoken language. Common words like "the" and "is" have high frequency, while rare words like "ubiquitous" have low frequency. Frequent words are processed faster because readers have stronger memory representations for them.
-
-**Surprisal** measures how unexpected a word is given its context. For example, in "The dog chased the ___", "cat" has low surprisal (predictable) while "helicopter" has high surprisal (unexpected). GPT-2, a neural language model, computes surprisal as the negative log probability of the word.
-
+### Dataset Overview
 ```{r}
-# Examine lexical predictors available
+# Basic dimensions
+cat("Interest Area dataset dimensions:", dim(ia)[1], "rows x", dim(ia)[2], "columns\n")
+
+# Check key variable measures
 ia %>%
-  select(word_length, word_length_no_punctuation,
-         wordfreq_frequency, subtlex_frequency,
-         gpt2_surprisal, Reduced_POS) %>%
+  select(IA_FIRST_FIXATION_DURATION, 
+         IA_FIRST_RUN_DWELL_TIME, 
+         IA_DWELL_TIME, 
+         IA_FIXATION_COUNT, 
+         IA_SKIP, 
+         word_length_no_punctuation, 
+         wordfreq_frequency) %>%
   summary()
 ```
 
-**Interpretation:**
-
-- **Word length** ranges from 1-20+ characters, with a median around 4-5 characters (typical for English text)
-- **Word frequency** values are on a logarithmic scale; higher values indicate more frequent words
-- **GPT-2 surprisal** ranges from near 0 (highly predictable) to 30+ (very unexpected)
-- **Reduced_POS** includes 5 categories: adjectives (ADJ), function words (FUNC), nouns (NOUN), verbs (VERB), and unknown (UNKNOWN)
+The dataset contains over 1 million word-level observations with 157 variables. The summary statistics show that eye-tracking measures are stored as character type, which will need conversion to numeric during cleaning. Word length ranges from 1-23 characters, with a median of 4 characters. Word frequency values are on a logarithmic scale, where higher values indicate more frequent words. 
 
 ---
 
@@ -134,17 +108,17 @@ ia %>%
 table(ia$practice_trial)
 ```
 
-**Interpretation:** The dataset contains both practice trials (TRUE) and experimental trials (FALSE). Practice trials are used for participants to familiarize themselves with the task and should be excluded from analysis to ensure data quality.
+The dataset contains both practice trials (TRUE) and experimental trials (FALSE). Practice trials are used for participants to familiarize themselves with the task and should be excluded from analysis to ensure data quality.
 
 ```{r warning=FALSE, message=FALSE}
 ia_clean <- ia %>%
   mutate(
     IA_FIRST_FIXATION_DURATION = as.numeric(IA_FIRST_FIXATION_DURATION),
     IA_FIRST_RUN_DWELL_TIME = as.numeric(IA_FIRST_RUN_DWELL_TIME),
-    IA_DWELL_TIME = as.numeric(IA_DWELL_TIME),
     IA_FIXATION_COUNT = as.numeric(IA_FIXATION_COUNT)
   )
 ```
+
 ```{r}
 ia_clean <- ia_clean %>%
   filter(practice_trial == FALSE, 
@@ -181,39 +155,13 @@ p4 <- ggplot(ia_clean, aes(x = log10(wordfreq_frequency + 1))) +
 (p1 + p2) / (p3 + p4)
 ```
 
-**Interpretation:** The distributions reveal several important patterns:
-
-- **First Fixation Duration** shows a right-skewed distribution centered around 150-250 ms, which is typical for reading fixations
-- **Gaze Duration** is also right-skewed but with a longer tail, reflecting cases where readers made multiple fixations on words before moving on
-- **Word Length** peaks at 2-4 characters (common function words like "the", "and") with decreasing frequency for longer words
-- **Word Frequency** (log-transformed) shows a roughly normal distribution, indicating good coverage across the frequency spectrum
-
-## Check for Missing Data in Key Variables
-
-```{r}
-# Missing data summary for key variables
-key_vars <- c("IA_FIRST_FIXATION_DURATION", "IA_FIRST_RUN_DWELL_TIME",
-              "IA_DWELL_TIME", "word_length_no_punctuation",
-              "wordfreq_frequency", "gpt2_surprisal", "Reduced_POS")
-
-missing_summary <- ia_clean %>%
-  select(all_of(key_vars)) %>%
-  summarise(across(everything(), ~sum(is.na(.)))) %>%
-  pivot_longer(everything(), names_to = "Variable", values_to = "Missing_Count") %>%
-  mutate(Missing_Percent = round(Missing_Count / nrow(ia_clean) * 100, 2))
-
-kable(missing_summary, caption = "Missing Data Summary")
-```
-
-**Interpretation:** The missing data table shows the percentage of missing values for each key variable. After cleaning, most variables should have minimal missing data. Any remaining missing values in reading measures (FFD, Gaze Duration) typically occur when words were skipped entirely, which is expected behavior in natural reading.
+The distributions reveal several patterns. First Fixation Duration shows a right-skewed distribution centered around 150-250 ms, which is typical for reading fixations. Gaze Duration is also right-skewed but with a longer tail, reflecting cases where readers made multiple fixations on words before moving on. Word Length peaks at 3-4 characters (might be common function words like "the", "and") with decreasing frequency for longer words. Word Frequency (log-transformed) shows a roughly normal distribution, indicating good coverage across the frequency spectrum.
 
 ---
 
 # Exploratory Visualizations
 
 ## Effect of Word Length on Reading
-
-Word length is one of the most robust predictors of eye movements during reading (Rayner, 1998).
 
 ```{r}
 # Summarize by word length
@@ -228,7 +176,10 @@ word_length_summary <- ia_clean %>%
     skip_rate = mean(IA_SKIP == 1, na.rm = TRUE),
     n = n()
   )
+word_length_summary
+```
 
+```{r}
 # Plot word length effects
 p_length <- ggplot(word_length_summary, aes(x = word_length_no_punctuation)) +
   geom_line(aes(y = mean_FFD), color = "steelblue", size = 1) +
@@ -252,21 +203,16 @@ p_skip <- ggplot(word_length_summary, aes(x = word_length_no_punctuation, y = sk
 p_length / p_skip
 ```
 
-**Interpretation:** These plots demonstrate the classic **word length effect** in reading:
-
-- **Top panel (First Fixation Duration):** There is a modest positive relationship between word length and fixation duration. Longer words tend to receive slightly longer first fixations, though the effect is relatively small for first fixation duration (typically 5-10 ms per character).
-
-- **Bottom panel (Skipping Rate):** The skipping rate shows a clear negative relationship with word length. Short words (1-3 characters) are skipped approximately 35-45% of the time, while longer words (10+ characters) are rarely skipped (<20%). This reflects the parafoveal preview benefit—readers can often identify short words before directly fixating them.
+From the two plots, we can see that word length is associated with eye movement patterns during reading. Specifically, the top panel shows a modest positive relationship between word length and fixation duration, where longer words tend to receive slightly longer first fixations. However, in the bottom panel, the skipping rate shows a clear negative relationship with word length. Short words with a few characters are skipped approximately 35-45% of the time, while longer words with above more than 10 characters are rarely skipped (<20%). This reflects the preview benefit—readers can often identify short words before directly fixating them.
 
 ## Effect of Word Frequency on Reading
-
-High-frequency words are processed faster and skipped more often (Inhoff & Rayner, 1986).
 
 ```{r}
 # Create frequency bins
 ia_clean <- ia_clean %>%
-  mutate(freq_bin = cut(log10(wordfreq_frequency + 1e-10),
-                        breaks = 5, labels = c("Very Low", "Low", "Medium", "High", "Very High")))
+  mutate(freq_bin = ntile(wordfreq_frequency, 5),
+         freq_bin = factor(freq_bin, levels = 1:5,
+                           labels = c("Very Low", "Low", "Medium", "High", "Very High")))
 
 # Summarize by frequency
 freq_summary <- ia_clean %>%
@@ -280,6 +226,10 @@ freq_summary <- ia_clean %>%
     n = n()
   )
 
+freq_summary
+```
+
+```{r}
 # Plot frequency effects
 ggplot(freq_summary, aes(x = freq_bin, y = mean_FFD)) +
   geom_col(fill = "steelblue", alpha = 0.7) +
@@ -290,53 +240,44 @@ ggplot(freq_summary, aes(x = freq_bin, y = mean_FFD)) +
   theme_minimal()
 ```
 
-**Interpretation:** The frequency effect shows that **high-frequency words are processed faster** than low-frequency words. Words in the "Very High" frequency bin receive shorter first fixations compared to words in the "Very Low" bin. This effect reflects the fact that common words have stronger lexical representations, allowing faster word recognition. The frequency effect is one of the most robust findings in reading research and has been replicated across many languages and experimental paradigms.
+From the plot above, high-frequency words are processed a bit faster than low-frequency words. Words in the "Very High" frequency bin receive shorter first fixations compared to words in the "Very Low" bin. This trend aligns with our prediction that common words have stronger lexical representations, allowing faster word recognition. 
 
 ---
 
 # Main Analysis: Word Length × Frequency Interaction
 
-The exploratory visualizations above reveal robust effects of word length, frequency, predictability, and part of speech on reading behavior. A natural question arises: **do these effects operate independently, or do they interact?**
+The exploratory visualizations above reveal robust effects of word length and frequency on reading behavior. A question arises: do these effects operate independently, or do they interact?
 
-This section investigates the interaction between word length and word frequency—two of the most fundamental predictors of eye movements during reading.
+This section investigates the interaction between word length and word frequency of the most fundamental predictors of eye movements during reading.
 
 ## Research Question
 
-**Does the effect of word length on fixation duration differ for high-frequency vs. low-frequency words?**
+Does the effect of word length on fixation duration differ for high-frequency vs. low-frequency words?
 
 ### Background
 
-Both word length and word frequency are well-established predictors of eye movements during reading:
-
-- **Word length effect**: Longer words receive longer fixations and are less likely to be skipped (Rayner, 1998)
-- **Frequency effect**: High-frequency words are processed faster and skipped more often (Inhoff & Rayner, 1986)
-
-However, these effects may interact. One hypothesis is that readers can recognize short, high-frequency words rapidly through holistic pattern recognition, while longer and less frequent words require more serial, letter-by-letter processing. This predicts:
+Both word length and word frequency are well-established predictors of eye movements during reading. Longer words receive longer fixations and are less likely to be skipped, and high-frequency words are processed faster and skipped more often. However, these effects may interact. One hypothesis is that readers can recognize short, high-frequency words rapidly through holistic pattern recognition, while longer and less frequent words require more serial, letter-by-letter processing. 
 
 > **Hypothesis**: The word length effect should be *stronger* for low-frequency words than for high-frequency words.
 
 ## Create Analysis Variables
 
 ```{r}
-# Create median split for frequency (high vs low)
+# Create median split for frequency (high vs low) - have equal size of high and low frequency group
 freq_median <- median(ia_clean$wordfreq_frequency, na.rm = TRUE)
 
 ia_analysis <- ia_clean %>%
-  filter(word_length_no_punctuation >= 2 & word_length_no_punctuation <= 12) %>%
+  filter(word_length_no_punctuation >= 2 & word_length_no_punctuation <= 11) %>%
   mutate(
     freq_group = ifelse(wordfreq_frequency >= freq_median, "High Frequency", "Low Frequency"),
     freq_group = factor(freq_group, levels = c("Low Frequency", "High Frequency"))
   ) %>%
   filter(!is.na(freq_group))
-
-# Check group sizes
-cat("Observations per frequency group:\n")
-table(ia_analysis$freq_group)
 ```
 
-**Interpretation:** The median split creates two roughly equal-sized groups: Low Frequency and High Frequency words. Having balanced group sizes ensures that our statistical comparisons have adequate power and that differences between groups are not driven by unequal sample sizes. Words with lengths 2-12 characters are included to focus on the range where most meaningful variation occurs.
+The median split creates two roughly equal-sized groups: Low Frequency and High Frequency words. Having balanced group sizes ensures that our statistical comparisons have adequate power and that differences between groups are not driven by unequal sample sizes. Words with lengths 2-11 characters are included to focus on the range where most meaningful variation and comparibility occurs.
 
-## Visualization: Interaction Plot
+## Discriptive Statistics and Visualization
 
 ```{r}
 # Summary by word length and frequency group (for plotting)
@@ -347,13 +288,16 @@ interaction_summary <- ia_analysis %>%
     se_FFD = sd(IA_FIRST_FIXATION_DURATION, na.rm = TRUE) / sqrt(n()),
     mean_gaze = mean(IA_FIRST_RUN_DWELL_TIME, na.rm = TRUE),
     se_gaze = sd(IA_FIRST_RUN_DWELL_TIME, na.rm = TRUE) / sqrt(n()),
+    skip_rate = mean(IA_SKIP == 1, na.rm = TRUE),
     n = n(),
     .groups = "drop"
   )
+
+kable(interaction_summary, digits = 2, caption = "Reading Measures by Word Length and Frequency")
 ```
 
 ```{r fig.width=12, fig.height=5}
-# First Fixation Duration interaction plot
+# First Fixation Duration 
 p_ffd_interaction <- ggplot(interaction_summary,
                              aes(x = word_length_no_punctuation, y = mean_FFD,
                                  color = freq_group, group = freq_group)) +
@@ -373,7 +317,7 @@ p_ffd_interaction <- ggplot(interaction_summary,
   theme(legend.position = "bottom") +
   scale_x_continuous(breaks = 2:12)
 
-# Gaze Duration interaction plot
+# Gaze Duration 
 p_gaze_interaction <- ggplot(interaction_summary,
                               aes(x = word_length_no_punctuation, y = mean_gaze,
                                   color = freq_group, group = freq_group)) +
@@ -384,7 +328,6 @@ p_gaze_interaction <- ggplot(interaction_summary,
   scale_color_manual(values = c("Low Frequency" = "#E41A1C", "High Frequency" = "#377EB8")) +
   labs(
     title = "Word Length × Frequency Interaction on Gaze Duration",
-    subtitle = "Error bars represent ±1 SE",
     x = "Word Length (characters)",
     y = "Mean Gaze Duration (ms)",
     color = "Frequency Group"
@@ -396,57 +339,40 @@ p_gaze_interaction <- ggplot(interaction_summary,
 p_ffd_interaction + p_gaze_interaction
 ```
 
-**Interpretation:** The interaction plots reveal the central finding of this analysis:
-
-- **Left panel (First Fixation Duration):** The lines for Low Frequency (red) and High Frequency (blue) words show different slopes. Low-frequency words show a steeper increase in fixation duration as word length increases, while high-frequency words remain relatively flat. This suggests that **word length matters more for unfamiliar words**.
-
-- **Right panel (Gaze Duration):** Both frequency groups show positive slopes (longer words receive more total viewing time), but the pattern is similar—low-frequency words show a steeper increase with length.
-
-- **Non-parallel lines** indicate an interaction effect: the magnitude of the word length effect depends on word frequency. This visual pattern will be tested statistically in the regression analysis.
+As shown in both plots, frequency group differences were observed in both eye-movement measures. For first fixation duration, mean fixation times were consistently higher for the high frequency group than the low frequency group across word lengths, with relatively small changes as a function of length, suggesting a weak length effect in this early measure. For gaze duration, mean reading times increased with word length for both groups; however, the increase was substantially steeper for the high frequency group, indicating a stronger interaction between word length and frequency in furst-run processing than in first fixation duration. 
 
 ## Statistical Analysis: Linear Regression
 
-We test the interaction using linear regression with word length, frequency, and their interaction as predictors.
+We test the interaction using linear regression with word length, frequency, and their interaction as predictors. Before building regressions, predictors were mean-centered to make the intercept interpretable as the expected reading time for an average-length word with average frequency and to ensure that main-effect coefficients reflect effects at the mean of the other predictor in the presence of an interaction.
 
 ```{r}
 # Center predictors for interpretable coefficients
 ia_analysis <- ia_analysis %>%
   mutate(
-    length_centered = word_length_no_punctuation - mean(word_length_no_punctuation),
+    length_centered = word_length_no_punctuation - mean(word_length_no_punctuation, na.rm = TRUE),
     freq_centered = wordfreq_frequency - mean(wordfreq_frequency, na.rm = TRUE)
   )
+```
 
+```{r}
 # Fit regression model for First Fixation Duration
 model_ffd <- lm(IA_FIRST_FIXATION_DURATION ~ length_centered * freq_centered,
                 data = ia_analysis)
 
-cat("=== First Fixation Duration Model ===\n")
 summary(model_ffd)
 ```
 
-**Interpretation of FFD Regression:**
-
-- **Intercept (~199 ms):** The predicted first fixation duration for a word of average length and average frequency
-- **length_centered:** The main effect of word length. A non-significant or small positive coefficient suggests word length has minimal effect on FFD when averaged across frequency levels
-- **freq_centered:** The main effect of frequency. A positive coefficient indicates that higher frequency words actually have slightly longer FFD (counterintuitive, but may reflect confounds)
-- **length_centered:freq_centered (INTERACTION):** This is the key test. A **negative coefficient** indicates that the word length effect is *weaker* for higher-frequency words, supporting our hypothesis. The p-value tells us whether this interaction is statistically significant.
+A multiple linear regression was conducted to test whether centered word length, word frequency, and their interaction predicted first fixation duration. The overall model was statistically significant, F(3, 629052) = 853.30, p < .001, R2 = .004. The main effect of word length was significant, b = −.15, SE = .05, t(629052) = −2.81, p = .005. Frequency was also a significant positive predictor, b = 1.02, SE = .02, t(629052) = 41.85, p < .001. The interaction between word length and frequency was significant, b = −.08, SE = .01, t(629052) = −8.91, p < .001, indicating that the association between word length and first fixation duration is slightly stronger for low-frequent words. 
 
 ```{r}
 # Fit regression model for Gaze Duration
 model_gaze <- lm(IA_FIRST_RUN_DWELL_TIME ~ length_centered * freq_centered,
                  data = ia_analysis)
 
-cat("=== Gaze Duration Model ===\n")
 summary(model_gaze)
 ```
 
-**Interpretation of Gaze Duration Regression:**
-
-- **Intercept (~260 ms):** Gaze duration is longer than FFD because it includes all fixations made on a word before the eyes move forward
-- **length_centered:** A positive coefficient indicates longer words receive more total viewing time (expected, as longer words often require refixations)
-- **freq_centered:** The frequency effect on gaze duration
-- **length_centered:freq_centered (INTERACTION):** Tests whether the word length effect on gaze duration differs by frequency. The direction and significance of this coefficient tells us whether the interaction pattern holds for this later measure of processing.
-
+We then fit a linear model predicting first-run dwell time (gaze duration) from centered word length, centered word frequency, and their interaction. The overall model was statistically significant, F(3,629052) = 6718.00, p < .001, R2 = .03. At the mean length and frequency, predicted first-run dwell time was approximately 218 ms. Word length is a positive predictor of first-run dwell time, such that longer words were associated with longer dwell times, b = 3.17, SE = .008, t(629052) = 40.86, p < .001. Frequency also significantly predicted dwell time, b = 2.68, SE = .004, t(629052) = 75.54, p < .001. Importantly, the effect of word length in dwell time spending on reading depends on word frequency: the length penalty becomes larger as frequency values increase.b = 0.42, SE = 0.01, t(629052) = 33.12, p < .001. 
 
 ---
 
@@ -454,6 +380,4 @@ summary(model_gaze)
 
 This analysis explored the interaction between word length and word frequency on eye movements during reading using the OneStop Eye Movements Dataset. Both word length and word frequency significantly predict fixation durations, consistent with decades of reading research. The interaction between word length and frequency was statistically significant, revealing that the effect of word length on fixation duration depends on word frequency. Additionally, the word length effect (longer words → longer fixations) is stronger for low-frequency words than for high-frequency words. This suggests that (1) High-frequency words may be recognized more holistically, reducing sensitivity to word length and (2) Low-frequency words require more analytical processing that scales with the number of letters
 
-However, there is some limitations. First, this portfolio used aggregated data; a more rigorous analysis would use mixed-effects models to account for participant and item random effects
-- Word length and frequency are correlated, which could complicate interpretation
-- The frequency measure used is corpus-based and may not perfectly reflect individual readers' experience
+However, there is some limitations. First, this portfolio used aggregated data; a more rigorous analysis would use mixed-effects models to account for participant and item random effects. Besides, the frequency measure used is corpus-based and may not perfectly reflect individual readers' experience
