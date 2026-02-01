@@ -9,10 +9,9 @@
 <meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
 
 
-<meta name="author" content="Barbara Mu" />
 
 
-<title>Portfolio 2: Exploring Eye-tracking Data in Reading</title>
+<title>Exploring Eye-tracking Data in Reading</title>
 
 <script src="site_libs/header-attrs-2.30/header-attrs.js"></script>
 <script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
@@ -291,11 +290,7 @@ $(document).ready(function () {
 
 
 
-<h1 class="title toc-ignore">Portfolio 2: Exploring Eye-tracking Data in
-Reading</h1>
-<h3 class="subtitle">Analysis of the OneStop Eye Movements Dataset</h3>
-<h4 class="author">Barbara Mu</h4>
-<h4 class="date">Jan 29, 2026</h4>
+<h1 class="title toc-ignore">Exploring Eye-tracking Data in Reading</h1>
 
 </div>
 
@@ -314,23 +309,23 @@ and of high quality in terms of writing, grammar, presentation, etc.</p>
 cognitive processing. When we read, our eyes make rapid movements
 (saccades) and brief pauses (fixations). The duration of fixations and
 the probability of skipping words reveal how factors like word length,
-frequency, and predictability influence visual attention allocation
-(Rayner, 1998, 2009).</p>
+frequency, and predictability influence visual attention allocation.</p>
 <div id="data" class="section level2">
 <h2>Data</h2>
-<p>This analysis uses the OneStop Eye Movements Dataset (Berzak et al.,
-2025), a large-scale corpus containing 360 participants reading news
-articles with eye-tracking measures. It also includes rich lexical
-annotations, such as word frequency, GPT-2 surprisal, and part-of-speech
-tags.</p>
+<p>This portfolio uses the OneStop Eye Movements Dataset (Berzak et al.,
+2025; 10.17605/OSF.IO/ZN9SQ), a large-scale corpus containing 360
+participants reading news articles with eye-tracking measures. It also
+includes rich lexical annotations, such as word frequency, GPT-2
+surprisal, and part-of-speech tags. This dataset will be used in
+portfolios as a practice of visualizing, analyzing, and interpreting
+eye-tracking data.</p>
 </div>
 </div>
 <div id="goal" class="section level1">
 <h1>Goal</h1>
-<p>The goal of this portfolio is to explore eye-tracking data from a
-reading study and investigate how word length and word frequency
-interact to influence reading behavior. Specifically, this
-portfolio:</p>
+<p>The goal of this portfolio is to explore and visualize eye-tracking
+data and investigate how word length and word frequency interact to
+influence reading behavior. Specifically, this portfolio:</p>
 <ol style="list-style-type: decimal">
 <li><p>Explores and visualizes eye-tracking data during reading,
 demonstrating key phenomena documented in the psycholinguistics
@@ -348,9 +343,12 @@ word recognition.</p></li>
 <h1>Setup</h1>
 <pre class="r"><code># Load packages
 library(tidyverse)   
+library(ggplot2)
 library(scales)     
 library(patchwork)  
-library(knitr) </code></pre>
+library(knitr) 
+library(psych)
+library(dplyr)</code></pre>
 <pre class="r"><code># Load data 
 ia &lt;- read_csv(&quot;~/Desktop/2025-2026/Courses/Data science for psych/Portfolio 1/ia_Paragraph_ordinary.csv&quot;)</code></pre>
 </div>
@@ -358,44 +356,10 @@ ia &lt;- read_csv(&quot;~/Desktop/2025-2026/Courses/Data science for psych/Portf
 <h1>Data Exploration</h1>
 <div id="data-structure" class="section level2">
 <h2>Data Structure</h2>
-<div id="data-overview" class="section level3">
-<h3>Data Overview</h3>
-<pre class="r"><code># Basic dimensions
-cat(&quot;Interest Area dataset dimensions:&quot;, dim(ia)[1], &quot;rows x&quot;, dim(ia)[2], &quot;columns\n&quot;)</code></pre>
-<pre><code>## Interest Area dataset dimensions: 1104883 rows x 157 columns</code></pre>
-<pre class="r"><code># Check key eye-tracking measures
-ia %&gt;%
-  select(IA_FIRST_FIXATION_DURATION, IA_FIRST_RUN_DWELL_TIME,
-         IA_DWELL_TIME, IA_FIXATION_COUNT, IA_SKIP) %&gt;%
-  summary()</code></pre>
-<pre><code>##  IA_FIRST_FIXATION_DURATION IA_FIRST_RUN_DWELL_TIME IA_DWELL_TIME  
-##  Length:1104883             Length:1104883          Min.   :    0  
-##  Class :character           Class :character        1st Qu.:    0  
-##  Mode  :character           Mode  :character        Median :  159  
-##                                                     Mean   :  203  
-##                                                     3rd Qu.:  287  
-##                                                     Max.   :16729  
-##  IA_FIXATION_COUNT    IA_SKIP      
-##  Min.   : 0.000    Min.   :0.0000  
-##  1st Qu.: 0.000    1st Qu.:0.0000  
-##  Median : 1.000    Median :1.0000  
-##  Mean   : 1.047    Mean   :0.5479  
-##  3rd Qu.: 1.000    3rd Qu.:1.0000  
-##  Max.   :43.000    Max.   :1.0000</code></pre>
-<p><strong>Interpretation:</strong> The dataset contains over 1 million
-word-level observations (interest areas) with 157 variables. The summary
-statistics show that eye-tracking measures are stored as character type
-(due to missing values coded as “.”), which will need conversion to
-numeric during cleaning. The <code>IA_SKIP</code> variable is binary
-(0/1), indicating whether each word was skipped during reading.</p>
-</div>
-<div id="key-variables-for-analysis" class="section level3">
-<h3>Key Variables for Analysis</h3>
-<div id="dependent-variables-eye-tracking-measures"
-class="section level4">
-<h4>Dependent Variables: Eye-tracking Measures</h4>
-<p>The Interest Area (IA) data contains word-level reading measures that
-are central to eye-tracking research:</p>
+<div id="related-variables-for-analysis" class="section level3">
+<h3>Related Variables for Analysis</h3>
+<p>The data contains word-level reading measures (eye-tracking +
+lexical) that are central to my goal:</p>
 <table>
 <colgroup>
 <col width="32%" />
@@ -421,36 +385,16 @@ are central to eye-tracking research:</p>
 <td>Early measure</td>
 </tr>
 <tr class="odd">
-<td><code>IA_DWELL_TIME</code></td>
-<td>Total reading time on word across all visits (ms)</td>
-<td>Late measure</td>
-</tr>
-<tr class="even">
 <td><code>IA_SKIP</code></td>
 <td>Whether the word was skipped (0 = fixated, 1 = skipped)</td>
 <td>Binary</td>
 </tr>
-<tr class="odd">
-<td><code>IA_REGRESSION_IN</code></td>
-<td>Whether reader regressed back to this word</td>
-<td>Late measure</td>
-</tr>
-<tr class="even">
-<td><code>IA_REGRESSION_OUT</code></td>
-<td>Whether reader regressed from this word</td>
-<td>Late measure</td>
-</tr>
 </tbody>
 </table>
-<p><strong>Early vs. Late measures:</strong> Early measures (FFD, Gaze
-Duration) reflect initial word processing, while late measures (Total
-Time, Regressions) reflect re-reading and integration difficulties.</p>
-</div>
-<div id="independent-variables-lexical-predictors"
-class="section level4">
-<h4>Independent Variables: Lexical Predictors</h4>
-<p>The dataset includes lexical properties for each word that are known
-to influence reading:</p>
+<p>Other measures such as IA_DWELL_TIME, fixation counts, and
+regressions are available in the dataset, but the main analyses focus on
+the three eye-tracking measures above. But they might be used to clean
+or prepare data for our main analysis.</p>
 <table>
 <colgroup>
 <col width="25%" />
@@ -466,73 +410,61 @@ to influence reading:</p>
 </thead>
 <tbody>
 <tr class="odd">
-<td><code>word_length</code></td>
-<td>Number of characters in the word</td>
+<td><code>word_length_no_punctuation</code></td>
+<td>Number of characters in the word without counting punctuations</td>
 <td>Longer words → longer fixations, fewer skips</td>
 </tr>
 <tr class="even">
 <td><code>wordfreq_frequency</code></td>
-<td>How common the word is in everyday language (from wordfreq
-corpus)</td>
+<td>How common the word is in everyday language</td>
 <td>Higher frequency → shorter fixations, more skips</td>
-</tr>
-<tr class="odd">
-<td><code>gpt2_surprisal</code></td>
-<td>How predictable the word is given prior context (from GPT-2 language
-model)</td>
-<td>Higher surprisal (less predictable) → longer fixations</td>
-</tr>
-<tr class="even">
-<td><code>Reduced_POS</code></td>
-<td>Part of speech category (ADJ, FUNC, NOUN, VERB, UNKNOWN)</td>
-<td>Function words processed faster than content words</td>
 </tr>
 </tbody>
 </table>
-<p><strong>Word frequency</strong> reflects how often a word appears in
-written/spoken language. Common words like “the” and “is” have high
-frequency, while rare words like “ubiquitous” have low frequency.
-Frequent words are processed faster because readers have stronger memory
-representations for them.</p>
-<p><strong>Surprisal</strong> measures how unexpected a word is given
-its context. For example, in “The dog chased the ___“,”cat” has low
-surprisal (predictable) while “helicopter” has high surprisal
-(unexpected). GPT-2, a neural language model, computes surprisal as the
-negative log probability of the word.</p>
-<pre class="r"><code># Examine lexical predictors available
-ia %&gt;%
-  select(word_length, word_length_no_punctuation,
-         wordfreq_frequency, subtlex_frequency,
-         gpt2_surprisal, Reduced_POS) %&gt;%
-  summary()</code></pre>
-<pre><code>##   word_length    word_length_no_punctuation wordfreq_frequency
-##  Min.   : 1.00   Min.   : 0.000             Min.   : 4.219    
-##  1st Qu.: 3.00   1st Qu.: 3.000             1st Qu.: 7.241    
-##  Median : 4.00   Median : 4.000             Median :10.630    
-##  Mean   : 4.83   Mean   : 4.655             Mean   :11.147    
-##  3rd Qu.: 6.00   3rd Qu.: 6.000             3rd Qu.:14.017    
-##  Max.   :24.00   Max.   :23.000             Max.   :36.541    
-##  subtlex_frequency gpt2_surprisal      Reduced_POS       
-##  Min.   : 1.945    Min.   : 0.000121   Length:1104883    
-##  1st Qu.: 7.144    1st Qu.: 1.571023   Class :character  
-##  Median :10.740    Median : 3.339208   Mode  :character  
-##  Mean   :   Inf    Mean   : 4.134529                     
-##  3rd Qu.:15.685    3rd Qu.: 5.827203                     
-##  Max.   :   Inf    Max.   :42.688316</code></pre>
-<p><strong>Interpretation:</strong></p>
-<ul>
-<li><strong>Word length</strong> ranges from 1-20+ characters, with a
-median around 4-5 characters (typical for English text)</li>
-<li><strong>Word frequency</strong> values are on a logarithmic scale;
-higher values indicate more frequent words</li>
-<li><strong>GPT-2 surprisal</strong> ranges from near 0 (highly
-predictable) to 30+ (very unexpected)</li>
-<li><strong>Reduced_POS</strong> includes 5 categories: adjectives
-(ADJ), function words (FUNC), nouns (NOUN), verbs (VERB), and unknown
-(UNKNOWN)</li>
-</ul>
-<hr />
 </div>
+<div id="dataset-overview" class="section level3">
+<h3>Dataset Overview</h3>
+<pre class="r"><code># Basic dimensions
+cat(&quot;Interest Area dataset dimensions:&quot;, dim(ia)[1], &quot;rows x&quot;, dim(ia)[2], &quot;columns\n&quot;)</code></pre>
+<pre><code>## Interest Area dataset dimensions: 1104883 rows x 157 columns</code></pre>
+<pre class="r"><code># Check key variable measures
+ia %&gt;%
+  select(IA_FIRST_FIXATION_DURATION, 
+         IA_FIRST_RUN_DWELL_TIME, 
+         IA_DWELL_TIME, 
+         IA_FIXATION_COUNT, 
+         IA_SKIP, 
+         word_length_no_punctuation, 
+         wordfreq_frequency) %&gt;%
+  summary()</code></pre>
+<pre><code>##  IA_FIRST_FIXATION_DURATION IA_FIRST_RUN_DWELL_TIME IA_DWELL_TIME  
+##  Length:1104883             Length:1104883          Min.   :    0  
+##  Class :character           Class :character        1st Qu.:    0  
+##  Mode  :character           Mode  :character        Median :  159  
+##                                                     Mean   :  203  
+##                                                     3rd Qu.:  287  
+##                                                     Max.   :16729  
+##  IA_FIXATION_COUNT    IA_SKIP       word_length_no_punctuation
+##  Min.   : 0.000    Min.   :0.0000   Min.   : 0.000            
+##  1st Qu.: 0.000    1st Qu.:0.0000   1st Qu.: 3.000            
+##  Median : 1.000    Median :1.0000   Median : 4.000            
+##  Mean   : 1.047    Mean   :0.5479   Mean   : 4.655            
+##  3rd Qu.: 1.000    3rd Qu.:1.0000   3rd Qu.: 6.000            
+##  Max.   :43.000    Max.   :1.0000   Max.   :23.000            
+##  wordfreq_frequency
+##  Min.   : 4.219    
+##  1st Qu.: 7.241    
+##  Median :10.630    
+##  Mean   :11.147    
+##  3rd Qu.:14.017    
+##  Max.   :36.541</code></pre>
+<p>The dataset contains over 1 million word-level observations with 157
+variables. The summary statistics show that eye-tracking measures are
+stored as character type, which will need conversion to numeric during
+cleaning. Word length ranges from 1-23 characters, with a median of 4
+characters. Word frequency values are on a logarithmic scale, where
+higher values indicate more frequent words.</p>
+<hr />
 </div>
 </div>
 </div>
@@ -546,15 +478,14 @@ table(ia$practice_trial)</code></pre>
 <pre><code>## 
 ##   FALSE    TRUE 
 ## 1055203   49680</code></pre>
-<p><strong>Interpretation:</strong> The dataset contains both practice
-trials (TRUE) and experimental trials (FALSE). Practice trials are used
-for participants to familiarize themselves with the task and should be
-excluded from analysis to ensure data quality.</p>
+<p>The dataset contains both practice trials (TRUE) and experimental
+trials (FALSE). Practice trials are used for participants to familiarize
+themselves with the task and should be excluded from analysis to ensure
+data quality.</p>
 <pre class="r"><code>ia_clean &lt;- ia %&gt;%
   mutate(
     IA_FIRST_FIXATION_DURATION = as.numeric(IA_FIRST_FIXATION_DURATION),
     IA_FIRST_RUN_DWELL_TIME = as.numeric(IA_FIRST_RUN_DWELL_TIME),
-    IA_DWELL_TIME = as.numeric(IA_DWELL_TIME),
     IA_FIXATION_COUNT = as.numeric(IA_FIXATION_COUNT)
   )</code></pre>
 <pre class="r"><code>ia_clean &lt;- ia_clean %&gt;%
@@ -588,91 +519,16 @@ p4 &lt;- ggplot(ia_clean, aes(x = log10(wordfreq_frequency + 1))) +
   theme_minimal()
 
 (p1 + p2) / (p3 + p4)</code></pre>
-<p><img src="p02_files/figure-html/unnamed-chunk-8-1.png" width="960" style="display: block; margin: auto;" /></p>
-<p><strong>Interpretation:</strong> The distributions reveal several
-important patterns:</p>
-<ul>
-<li><strong>First Fixation Duration</strong> shows a right-skewed
-distribution centered around 150-250 ms, which is typical for reading
-fixations</li>
-<li><strong>Gaze Duration</strong> is also right-skewed but with a
-longer tail, reflecting cases where readers made multiple fixations on
-words before moving on</li>
-<li><strong>Word Length</strong> peaks at 2-4 characters (common
-function words like “the”, “and”) with decreasing frequency for longer
-words</li>
-<li><strong>Word Frequency</strong> (log-transformed) shows a roughly
-normal distribution, indicating good coverage across the frequency
-spectrum</li>
-</ul>
-</div>
-<div id="check-for-missing-data-in-key-variables"
-class="section level2">
-<h2>Check for Missing Data in Key Variables</h2>
-<pre class="r"><code># Missing data summary for key variables
-key_vars &lt;- c(&quot;IA_FIRST_FIXATION_DURATION&quot;, &quot;IA_FIRST_RUN_DWELL_TIME&quot;,
-              &quot;IA_DWELL_TIME&quot;, &quot;word_length_no_punctuation&quot;,
-              &quot;wordfreq_frequency&quot;, &quot;gpt2_surprisal&quot;, &quot;Reduced_POS&quot;)
-
-missing_summary &lt;- ia_clean %&gt;%
-  select(all_of(key_vars)) %&gt;%
-  summarise(across(everything(), ~sum(is.na(.)))) %&gt;%
-  pivot_longer(everything(), names_to = &quot;Variable&quot;, values_to = &quot;Missing_Count&quot;) %&gt;%
-  mutate(Missing_Percent = round(Missing_Count / nrow(ia_clean) * 100, 2))
-
-kable(missing_summary, caption = &quot;Missing Data Summary&quot;)</code></pre>
-<table>
-<caption>Missing Data Summary</caption>
-<thead>
-<tr class="header">
-<th align="left">Variable</th>
-<th align="right">Missing_Count</th>
-<th align="right">Missing_Percent</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td align="left">IA_FIRST_FIXATION_DURATION</td>
-<td align="right">0</td>
-<td align="right">0</td>
-</tr>
-<tr class="even">
-<td align="left">IA_FIRST_RUN_DWELL_TIME</td>
-<td align="right">0</td>
-<td align="right">0</td>
-</tr>
-<tr class="odd">
-<td align="left">IA_DWELL_TIME</td>
-<td align="right">0</td>
-<td align="right">0</td>
-</tr>
-<tr class="even">
-<td align="left">word_length_no_punctuation</td>
-<td align="right">0</td>
-<td align="right">0</td>
-</tr>
-<tr class="odd">
-<td align="left">wordfreq_frequency</td>
-<td align="right">0</td>
-<td align="right">0</td>
-</tr>
-<tr class="even">
-<td align="left">gpt2_surprisal</td>
-<td align="right">0</td>
-<td align="right">0</td>
-</tr>
-<tr class="odd">
-<td align="left">Reduced_POS</td>
-<td align="right">0</td>
-<td align="right">0</td>
-</tr>
-</tbody>
-</table>
-<p><strong>Interpretation:</strong> The missing data table shows the
-percentage of missing values for each key variable. After cleaning, most
-variables should have minimal missing data. Any remaining missing values
-in reading measures (FFD, Gaze Duration) typically occur when words were
-skipped entirely, which is expected behavior in natural reading.</p>
+<p><img src="p02_files/figure-html/unnamed-chunk-7-1.png" width="960" style="display: block; margin: auto;" /></p>
+<p>The distributions reveal several patterns. First Fixation Duration
+shows a right-skewed distribution centered around 150-250 ms, which is
+typical for reading fixations. Gaze Duration is also right-skewed but
+with a longer tail, reflecting cases where readers made multiple
+fixations on words before moving on. Word Length peaks at 3-4 characters
+(might be common function words like “the”, “and”) with decreasing
+frequency for longer words. Word Frequency (log-transformed) shows a
+roughly normal distribution, indicating good coverage across the
+frequency spectrum.</p>
 <hr />
 </div>
 </div>
@@ -680,8 +536,6 @@ skipped entirely, which is expected behavior in natural reading.</p>
 <h1>Exploratory Visualizations</h1>
 <div id="effect-of-word-length-on-reading" class="section level2">
 <h2>Effect of Word Length on Reading</h2>
-<p>Word length is one of the most robust predictors of eye movements
-during reading (Rayner, 1998).</p>
 <pre class="r"><code># Summarize by word length
 word_length_summary &lt;- ia_clean %&gt;%
   filter(word_length_no_punctuation &gt;= 1 &amp; word_length_no_punctuation &lt;= 15) %&gt;%
@@ -694,8 +548,26 @@ word_length_summary &lt;- ia_clean %&gt;%
     skip_rate = mean(IA_SKIP == 1, na.rm = TRUE),
     n = n()
   )
-
-# Plot word length effects
+word_length_summary</code></pre>
+<pre><code>## # A tibble: 15 × 7
+##    word_length_no_punctuation mean_FFD se_FFD mean_gaze se_gaze skip_rate      n
+##                         &lt;dbl&gt;    &lt;dbl&gt;  &lt;dbl&gt;     &lt;dbl&gt;   &lt;dbl&gt;     &lt;dbl&gt;  &lt;int&gt;
+##  1                          1     195.  0.809      198.   0.849     0.436   9107
+##  2                          2     195.  0.293      200.   0.331     0.405  68467
+##  3                          3     195.  0.236      204.   0.288     0.364 102697
+##  4                          4     199.  0.229      214.   0.302     0.326 117274
+##  5                          5     201.  0.266      220.   0.367     0.281  86359
+##  6                          6     202.  0.285      227.   0.426     0.257  75542
+##  7                          7     202.  0.304      232.   0.471     0.230  65772
+##  8                          8     202.  0.364      239.   0.617     0.209  45100
+##  9                          9     203.  0.416      244.   0.760     0.189  34349
+## 10                         10     203.  0.530      258.   1.09      0.178  21514
+## 11                         11     203.  0.710      271.   1.68      0.151  11982
+## 12                         12     208.  1.06       282.   2.40      0.147   5767
+## 13                         13     205.  1.51       289.   3.51      0.147   2654
+## 14                         14     207.  1.72       316.   4.40      0.114   1944
+## 15                         15     214.  3.02       382.  11.3       0.112    714</code></pre>
+<pre class="r"><code># Plot word length effects
 p_length &lt;- ggplot(word_length_summary, aes(x = word_length_no_punctuation)) +
   geom_line(aes(y = mean_FFD), color = &quot;steelblue&quot;, size = 1) +
   geom_point(aes(y = mean_FFD), color = &quot;steelblue&quot;, size = 2) +
@@ -716,31 +588,25 @@ p_skip &lt;- ggplot(word_length_summary, aes(x = word_length_no_punctuation, y =
   scale_y_continuous(labels = percent)
 
 p_length / p_skip</code></pre>
-<p><img src="p02_files/figure-html/unnamed-chunk-10-1.png" width="960" style="display: block; margin: auto;" /></p>
-<p><strong>Interpretation:</strong> These plots demonstrate the classic
-<strong>word length effect</strong> in reading:</p>
-<ul>
-<li><p><strong>Top panel (First Fixation Duration):</strong> There is a
-modest positive relationship between word length and fixation duration.
-Longer words tend to receive slightly longer first fixations, though the
-effect is relatively small for first fixation duration (typically 5-10
-ms per character).</p></li>
-<li><p><strong>Bottom panel (Skipping Rate):</strong> The skipping rate
-shows a clear negative relationship with word length. Short words (1-3
-characters) are skipped approximately 35-45% of the time, while longer
-words (10+ characters) are rarely skipped (&lt;20%). This reflects the
-parafoveal preview benefit—readers can often identify short words before
-directly fixating them.</p></li>
-</ul>
+<p><img src="p02_files/figure-html/unnamed-chunk-9-1.png" width="960" style="display: block; margin: auto;" /></p>
+<p>From the two plots, we can see that word length is associated with
+eye movement patterns during reading. Specifically, the top panel shows
+a modest positive relationship between word length and fixation
+duration, where longer words tend to receive slightly longer first
+fixations. However, in the bottom panel, the skipping rate shows a clear
+negative relationship with word length. Short words with a few
+characters are skipped approximately 35-45% of the time, while longer
+words with above more than 10 characters are rarely skipped (&lt;20%).
+This reflects the preview benefit—readers can often identify short words
+before directly fixating them.</p>
 </div>
 <div id="effect-of-word-frequency-on-reading" class="section level2">
 <h2>Effect of Word Frequency on Reading</h2>
-<p>High-frequency words are processed faster and skipped more often
-(Inhoff &amp; Rayner, 1986).</p>
 <pre class="r"><code># Create frequency bins
 ia_clean &lt;- ia_clean %&gt;%
-  mutate(freq_bin = cut(log10(wordfreq_frequency + 1e-10),
-                        breaks = 5, labels = c(&quot;Very Low&quot;, &quot;Low&quot;, &quot;Medium&quot;, &quot;High&quot;, &quot;Very High&quot;)))
+  mutate(freq_bin = ntile(wordfreq_frequency, 5),
+         freq_bin = factor(freq_bin, levels = 1:5,
+                           labels = c(&quot;Very Low&quot;, &quot;Low&quot;, &quot;Medium&quot;, &quot;High&quot;, &quot;Very High&quot;)))
 
 # Summarize by frequency
 freq_summary &lt;- ia_clean %&gt;%
@@ -754,7 +620,16 @@ freq_summary &lt;- ia_clean %&gt;%
     n = n()
   )
 
-# Plot frequency effects
+freq_summary</code></pre>
+<pre><code>## # A tibble: 5 × 6
+##   freq_bin  mean_FFD se_FFD mean_gaze skip_rate      n
+##   &lt;fct&gt;        &lt;dbl&gt;  &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;  &lt;int&gt;
+## 1 Very Low      192.  0.207      199.     0.392 130114
+## 2 Low           197.  0.211      210.     0.338 130114
+## 3 Medium        200.  0.214      221.     0.270 130114
+## 4 High          201.  0.214      230.     0.235 130113
+## 5 Very High     207.  0.226      252.     0.224 130113</code></pre>
+<pre class="r"><code># Plot frequency effects
 ggplot(freq_summary, aes(x = freq_bin, y = mean_FFD)) +
   geom_col(fill = &quot;steelblue&quot;, alpha = 0.7) +
   geom_errorbar(aes(ymin = mean_FFD - se_FFD, ymax = mean_FFD + se_FFD),
@@ -763,14 +638,11 @@ ggplot(freq_summary, aes(x = freq_bin, y = mean_FFD)) +
        x = &quot;Word Frequency (binned)&quot;, y = &quot;Mean First Fixation Duration (ms)&quot;) +
   theme_minimal()</code></pre>
 <p><img src="p02_files/figure-html/unnamed-chunk-11-1.png" width="960" style="display: block; margin: auto;" /></p>
-<p><strong>Interpretation:</strong> The frequency effect shows that
-<strong>high-frequency words are processed faster</strong> than
-low-frequency words. Words in the “Very High” frequency bin receive
+<p>From the plot above, high-frequency words are processed a bit faster
+than low-frequency words. Words in the “Very High” frequency bin receive
 shorter first fixations compared to words in the “Very Low” bin. This
-effect reflects the fact that common words have stronger lexical
-representations, allowing faster word recognition. The frequency effect
-is one of the most robust findings in reading research and has been
-replicated across many languages and experimental paradigms.</p>
+trend aligns with our prediction that common words have stronger lexical
+representations, allowing faster word recognition.</p>
 <hr />
 </div>
 </div>
@@ -778,30 +650,25 @@ replicated across many languages and experimental paradigms.</p>
 class="section level1">
 <h1>Main Analysis: Word Length × Frequency Interaction</h1>
 <p>The exploratory visualizations above reveal robust effects of word
-length, frequency, predictability, and part of speech on reading
-behavior. A natural question arises: <strong>do these effects operate
-independently, or do they interact?</strong></p>
+length and frequency on reading behavior. A question arises: do these
+effects operate independently, or do they interact?</p>
 <p>This section investigates the interaction between word length and
-word frequency—two of the most fundamental predictors of eye movements
+word frequency of the most fundamental predictors of eye movements
 during reading.</p>
 <div id="research-question" class="section level2">
 <h2>Research Question</h2>
-<p><strong>Does the effect of word length on fixation duration differ
-for high-frequency vs. low-frequency words?</strong></p>
+<p>Does the effect of word length on fixation duration differ for
+high-frequency vs. low-frequency words?</p>
 <div id="background-1" class="section level3">
 <h3>Background</h3>
 <p>Both word length and word frequency are well-established predictors
-of eye movements during reading:</p>
-<ul>
-<li><strong>Word length effect</strong>: Longer words receive longer
-fixations and are less likely to be skipped (Rayner, 1998)</li>
-<li><strong>Frequency effect</strong>: High-frequency words are
-processed faster and skipped more often (Inhoff &amp; Rayner, 1986)</li>
-</ul>
-<p>However, these effects may interact. One hypothesis is that readers
-can recognize short, high-frequency words rapidly through holistic
-pattern recognition, while longer and less frequent words require more
-serial, letter-by-letter processing. This predicts:</p>
+of eye movements during reading. Longer words receive longer fixations
+and are less likely to be skipped, and high-frequency words are
+processed faster and skipped more often. However, these effects may
+interact. One hypothesis is that readers can recognize short,
+high-frequency words rapidly through holistic pattern recognition, while
+longer and less frequent words require more serial, letter-by-letter
+processing.</p>
 <blockquote>
 <p><strong>Hypothesis</strong>: The word length effect should be
 <em>stronger</em> for low-frequency words than for high-frequency
@@ -811,33 +678,26 @@ words.</p>
 </div>
 <div id="create-analysis-variables" class="section level2">
 <h2>Create Analysis Variables</h2>
-<pre class="r"><code># Create median split for frequency (high vs low)
+<pre class="r"><code># Create median split for frequency (high vs low) - have equal size of high and low frequency group
 freq_median &lt;- median(ia_clean$wordfreq_frequency, na.rm = TRUE)
 
 ia_analysis &lt;- ia_clean %&gt;%
-  filter(word_length_no_punctuation &gt;= 2 &amp; word_length_no_punctuation &lt;= 12) %&gt;%
+  filter(word_length_no_punctuation &gt;= 2 &amp; word_length_no_punctuation &lt;= 11) %&gt;%
   mutate(
     freq_group = ifelse(wordfreq_frequency &gt;= freq_median, &quot;High Frequency&quot;, &quot;Low Frequency&quot;),
     freq_group = factor(freq_group, levels = c(&quot;Low Frequency&quot;, &quot;High Frequency&quot;))
   ) %&gt;%
-  filter(!is.na(freq_group))
-
-# Check group sizes
-cat(&quot;Observations per frequency group:\n&quot;)</code></pre>
-<pre><code>## Observations per frequency group:</code></pre>
-<pre class="r"><code>table(ia_analysis$freq_group)</code></pre>
-<pre><code>## 
-##  Low Frequency High Frequency 
-##         315767         319056</code></pre>
-<p><strong>Interpretation:</strong> The median split creates two roughly
-equal-sized groups: Low Frequency and High Frequency words. Having
-balanced group sizes ensures that our statistical comparisons have
-adequate power and that differences between groups are not driven by
-unequal sample sizes. Words with lengths 2-12 characters are included to
-focus on the range where most meaningful variation occurs.</p>
+  filter(!is.na(freq_group))</code></pre>
+<p>The median split creates two roughly equal-sized groups: Low
+Frequency and High Frequency words. Having balanced group sizes ensures
+that our statistical comparisons have adequate power and that
+differences between groups are not driven by unequal sample sizes. Words
+with lengths 2-11 characters are included to focus on the range where
+most meaningful variation and comparibility occurs.</p>
 </div>
-<div id="visualization-interaction-plot" class="section level2">
-<h2>Visualization: Interaction Plot</h2>
+<div id="discriptive-statistics-and-visualization"
+class="section level2">
+<h2>Discriptive Statistics and Visualization</h2>
 <pre class="r"><code># Summary by word length and frequency group (for plotting)
 interaction_summary &lt;- ia_analysis %&gt;%
   group_by(word_length_no_punctuation, freq_group) %&gt;%
@@ -846,10 +706,240 @@ interaction_summary &lt;- ia_analysis %&gt;%
     se_FFD = sd(IA_FIRST_FIXATION_DURATION, na.rm = TRUE) / sqrt(n()),
     mean_gaze = mean(IA_FIRST_RUN_DWELL_TIME, na.rm = TRUE),
     se_gaze = sd(IA_FIRST_RUN_DWELL_TIME, na.rm = TRUE) / sqrt(n()),
+    skip_rate = mean(IA_SKIP == 1, na.rm = TRUE),
     n = n(),
     .groups = &quot;drop&quot;
-  )</code></pre>
-<pre class="r"><code># First Fixation Duration interaction plot
+  )
+
+kable(interaction_summary, digits = 2, caption = &quot;Reading Measures by Word Length and Frequency&quot;)</code></pre>
+<table style="width:100%;">
+<caption>Reading Measures by Word Length and Frequency</caption>
+<colgroup>
+<col width="29%" />
+<col width="16%" />
+<col width="9%" />
+<col width="7%" />
+<col width="10%" />
+<col width="8%" />
+<col width="10%" />
+<col width="6%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th align="right">word_length_no_punctuation</th>
+<th align="left">freq_group</th>
+<th align="right">mean_FFD</th>
+<th align="right">se_FFD</th>
+<th align="right">mean_gaze</th>
+<th align="right">se_gaze</th>
+<th align="right">skip_rate</th>
+<th align="right">n</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="right">2</td>
+<td align="left">Low Frequency</td>
+<td align="right">193.70</td>
+<td align="right">0.30</td>
+<td align="right">198.36</td>
+<td align="right">0.34</td>
+<td align="right">0.41</td>
+<td align="right">63580</td>
+</tr>
+<tr class="even">
+<td align="right">2</td>
+<td align="left">High Frequency</td>
+<td align="right">205.73</td>
+<td align="right">1.16</td>
+<td align="right">216.96</td>
+<td align="right">1.50</td>
+<td align="right">0.36</td>
+<td align="right">4887</td>
+</tr>
+<tr class="odd">
+<td align="right">3</td>
+<td align="left">Low Frequency</td>
+<td align="right">194.00</td>
+<td align="right">0.25</td>
+<td align="right">201.80</td>
+<td align="right">0.29</td>
+<td align="right">0.37</td>
+<td align="right">91390</td>
+</tr>
+<tr class="even">
+<td align="right">3</td>
+<td align="left">High Frequency</td>
+<td align="right">206.33</td>
+<td align="right">0.79</td>
+<td align="right">223.48</td>
+<td align="right">1.09</td>
+<td align="right">0.31</td>
+<td align="right">11307</td>
+</tr>
+<tr class="odd">
+<td align="right">4</td>
+<td align="left">Low Frequency</td>
+<td align="right">197.15</td>
+<td align="right">0.26</td>
+<td align="right">209.64</td>
+<td align="right">0.33</td>
+<td align="right">0.34</td>
+<td align="right">85084</td>
+</tr>
+<tr class="even">
+<td align="right">4</td>
+<td align="left">High Frequency</td>
+<td align="right">204.38</td>
+<td align="right">0.46</td>
+<td align="right">223.93</td>
+<td align="right">0.66</td>
+<td align="right">0.30</td>
+<td align="right">32190</td>
+</tr>
+<tr class="odd">
+<td align="right">5</td>
+<td align="left">Low Frequency</td>
+<td align="right">198.77</td>
+<td align="right">0.39</td>
+<td align="right">215.22</td>
+<td align="right">0.53</td>
+<td align="right">0.30</td>
+<td align="right">38366</td>
+</tr>
+<tr class="even">
+<td align="right">5</td>
+<td align="left">High Frequency</td>
+<td align="right">203.04</td>
+<td align="right">0.36</td>
+<td align="right">223.49</td>
+<td align="right">0.50</td>
+<td align="right">0.27</td>
+<td align="right">47993</td>
+</tr>
+<tr class="odd">
+<td align="right">6</td>
+<td align="left">Low Frequency</td>
+<td align="right">198.21</td>
+<td align="right">0.56</td>
+<td align="right">218.44</td>
+<td align="right">0.80</td>
+<td align="right">0.27</td>
+<td align="right">17903</td>
+</tr>
+<tr class="even">
+<td align="right">6</td>
+<td align="left">High Frequency</td>
+<td align="right">202.86</td>
+<td align="right">0.33</td>
+<td align="right">229.91</td>
+<td align="right">0.50</td>
+<td align="right">0.25</td>
+<td align="right">57639</td>
+</tr>
+<tr class="odd">
+<td align="right">7</td>
+<td align="left">Low Frequency</td>
+<td align="right">198.53</td>
+<td align="right">0.73</td>
+<td align="right">222.66</td>
+<td align="right">1.06</td>
+<td align="right">0.23</td>
+<td align="right">10598</td>
+</tr>
+<tr class="even">
+<td align="right">7</td>
+<td align="left">High Frequency</td>
+<td align="right">203.25</td>
+<td align="right">0.33</td>
+<td align="right">233.40</td>
+<td align="right">0.52</td>
+<td align="right">0.23</td>
+<td align="right">55174</td>
+</tr>
+<tr class="odd">
+<td align="right">8</td>
+<td align="left">Low Frequency</td>
+<td align="right">195.75</td>
+<td align="right">1.10</td>
+<td align="right">222.44</td>
+<td align="right">1.76</td>
+<td align="right">0.21</td>
+<td align="right">4407</td>
+</tr>
+<tr class="even">
+<td align="right">8</td>
+<td align="left">High Frequency</td>
+<td align="right">203.12</td>
+<td align="right">0.39</td>
+<td align="right">241.19</td>
+<td align="right">0.66</td>
+<td align="right">0.21</td>
+<td align="right">40693</td>
+</tr>
+<tr class="odd">
+<td align="right">9</td>
+<td align="left">Low Frequency</td>
+<td align="right">201.24</td>
+<td align="right">1.45</td>
+<td align="right">229.75</td>
+<td align="right">2.01</td>
+<td align="right">0.20</td>
+<td align="right">2667</td>
+</tr>
+<tr class="even">
+<td align="right">9</td>
+<td align="left">High Frequency</td>
+<td align="right">202.65</td>
+<td align="right">0.43</td>
+<td align="right">244.71</td>
+<td align="right">0.81</td>
+<td align="right">0.19</td>
+<td align="right">31682</td>
+</tr>
+<tr class="odd">
+<td align="right">10</td>
+<td align="left">Low Frequency</td>
+<td align="right">194.26</td>
+<td align="right">1.76</td>
+<td align="right">235.33</td>
+<td align="right">2.85</td>
+<td align="right">0.17</td>
+<td align="right">1667</td>
+</tr>
+<tr class="even">
+<td align="right">10</td>
+<td align="left">High Frequency</td>
+<td align="right">203.88</td>
+<td align="right">0.55</td>
+<td align="right">259.90</td>
+<td align="right">1.16</td>
+<td align="right">0.18</td>
+<td align="right">19847</td>
+</tr>
+<tr class="odd">
+<td align="right">11</td>
+<td align="left">Low Frequency</td>
+<td align="right">194.18</td>
+<td align="right">5.36</td>
+<td align="right">213.79</td>
+<td align="right">7.60</td>
+<td align="right">0.20</td>
+<td align="right">105</td>
+</tr>
+<tr class="even">
+<td align="right">11</td>
+<td align="left">High Frequency</td>
+<td align="right">203.02</td>
+<td align="right">0.71</td>
+<td align="right">271.66</td>
+<td align="right">1.70</td>
+<td align="right">0.15</td>
+<td align="right">11877</td>
+</tr>
+</tbody>
+</table>
+<pre class="r"><code># First Fixation Duration 
 p_ffd_interaction &lt;- ggplot(interaction_summary,
                              aes(x = word_length_no_punctuation, y = mean_FFD,
                                  color = freq_group, group = freq_group)) +
@@ -869,7 +959,7 @@ p_ffd_interaction &lt;- ggplot(interaction_summary,
   theme(legend.position = &quot;bottom&quot;) +
   scale_x_continuous(breaks = 2:12)
 
-# Gaze Duration interaction plot
+# Gaze Duration 
 p_gaze_interaction &lt;- ggplot(interaction_summary,
                               aes(x = word_length_no_punctuation, y = mean_gaze,
                                   color = freq_group, group = freq_group)) +
@@ -880,7 +970,6 @@ p_gaze_interaction &lt;- ggplot(interaction_summary,
   scale_color_manual(values = c(&quot;Low Frequency&quot; = &quot;#E41A1C&quot;, &quot;High Frequency&quot; = &quot;#377EB8&quot;)) +
   labs(
     title = &quot;Word Length × Frequency Interaction on Gaze Duration&quot;,
-    subtitle = &quot;Error bars represent ±1 SE&quot;,
     x = &quot;Word Length (characters)&quot;,
     y = &quot;Mean Gaze Duration (ms)&quot;,
     color = &quot;Frequency Group&quot;
@@ -891,43 +980,37 @@ p_gaze_interaction &lt;- ggplot(interaction_summary,
 
 p_ffd_interaction + p_gaze_interaction</code></pre>
 <p><img src="p02_files/figure-html/unnamed-chunk-14-1.png" width="1152" style="display: block; margin: auto;" /></p>
-<p><strong>Interpretation:</strong> The interaction plots reveal the
-central finding of this analysis:</p>
-<ul>
-<li><p><strong>Left panel (First Fixation Duration):</strong> The lines
-for Low Frequency (red) and High Frequency (blue) words show different
-slopes. Low-frequency words show a steeper increase in fixation duration
-as word length increases, while high-frequency words remain relatively
-flat. This suggests that <strong>word length matters more for unfamiliar
-words</strong>.</p></li>
-<li><p><strong>Right panel (Gaze Duration):</strong> Both frequency
-groups show positive slopes (longer words receive more total viewing
-time), but the pattern is similar—low-frequency words show a steeper
-increase with length.</p></li>
-<li><p><strong>Non-parallel lines</strong> indicate an interaction
-effect: the magnitude of the word length effect depends on word
-frequency. This visual pattern will be tested statistically in the
-regression analysis.</p></li>
-</ul>
+<p>As shown in both plots, frequency group differences were observed in
+both eye-movement measures. For first fixation duration, mean fixation
+times were consistently higher for the high frequency group than the low
+frequency group across word lengths, with relatively small changes as a
+function of length, suggesting a weak length effect in this early
+measure. For gaze duration, mean reading times increased with word
+length for both groups; however, the increase was substantially steeper
+for the high frequency group, indicating a stronger interaction between
+word length and frequency in furst-run processing than in first fixation
+duration.</p>
 </div>
 <div id="statistical-analysis-linear-regression" class="section level2">
 <h2>Statistical Analysis: Linear Regression</h2>
 <p>We test the interaction using linear regression with word length,
-frequency, and their interaction as predictors.</p>
+frequency, and their interaction as predictors. Before building
+regressions, predictors were mean-centered to make the intercept
+interpretable as the expected reading time for an average-length word
+with average frequency and to ensure that main-effect coefficients
+reflect effects at the mean of the other predictor in the presence of an
+interaction.</p>
 <pre class="r"><code># Center predictors for interpretable coefficients
 ia_analysis &lt;- ia_analysis %&gt;%
   mutate(
-    length_centered = word_length_no_punctuation - mean(word_length_no_punctuation),
+    length_centered = word_length_no_punctuation - mean(word_length_no_punctuation, na.rm = TRUE),
     freq_centered = wordfreq_frequency - mean(wordfreq_frequency, na.rm = TRUE)
-  )
-
-# Fit regression model for First Fixation Duration
+  )</code></pre>
+<pre class="r"><code># Fit regression model for First Fixation Duration
 model_ffd &lt;- lm(IA_FIRST_FIXATION_DURATION ~ length_centered * freq_centered,
                 data = ia_analysis)
 
-cat(&quot;=== First Fixation Duration Model ===\n&quot;)</code></pre>
-<pre><code>## === First Fixation Duration Model ===</code></pre>
-<pre class="r"><code>summary(model_ffd)</code></pre>
+summary(model_ffd)</code></pre>
 <pre><code>## 
 ## Call:
 ## lm(formula = IA_FIRST_FIXATION_DURATION ~ length_centered * freq_centered, 
@@ -935,43 +1018,35 @@ cat(&quot;=== First Fixation Duration Model ===\n&quot;)</code></pre>
 ## 
 ## Residuals:
 ##     Min      1Q  Median      3Q     Max 
-## -145.09  -50.98  -16.00   34.26  606.89 
+## -145.55  -50.96  -16.01   34.21  606.95 
 ## 
 ## Coefficients:
 ##                                 Estimate Std. Error  t value Pr(&gt;|t|)    
-## (Intercept)                   200.209472   0.114335 1751.076   &lt;2e-16 ***
-## length_centered                -0.071966   0.051544   -1.396    0.163    
-## freq_centered                   1.000413   0.024153   41.420   &lt;2e-16 ***
-## length_centered:freq_centered  -0.072818   0.008088   -9.004   &lt;2e-16 ***
+## (Intercept)                   200.146156   0.115892 1727.013  &lt; 2e-16 ***
+## length_centered                -0.149938   0.053352   -2.810  0.00495 ** 
+## freq_centered                   1.022320   0.024429   41.848  &lt; 2e-16 ***
+## length_centered:freq_centered  -0.078010   0.008753   -8.912  &lt; 2e-16 ***
 ## ---
 ## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
 ## 
-## Residual standard error: 77.42 on 634819 degrees of freedom
-## Multiple R-squared:  0.004067,   Adjusted R-squared:  0.004063 
-## F-statistic: 864.2 on 3 and 634819 DF,  p-value: &lt; 2.2e-16</code></pre>
-<p><strong>Interpretation of FFD Regression:</strong></p>
-<ul>
-<li><strong>Intercept (~199 ms):</strong> The predicted first fixation
-duration for a word of average length and average frequency</li>
-<li><strong>length_centered:</strong> The main effect of word length. A
-non-significant or small positive coefficient suggests word length has
-minimal effect on FFD when averaged across frequency levels</li>
-<li><strong>freq_centered:</strong> The main effect of frequency. A
-positive coefficient indicates that higher frequency words actually have
-slightly longer FFD (counterintuitive, but may reflect confounds)</li>
-<li><strong>length_centered:freq_centered (INTERACTION):</strong> This
-is the key test. A <strong>negative coefficient</strong> indicates that
-the word length effect is <em>weaker</em> for higher-frequency words,
-supporting our hypothesis. The p-value tells us whether this interaction
-is statistically significant.</li>
-</ul>
+## Residual standard error: 77.39 on 629052 degrees of freedom
+## Multiple R-squared:  0.004053,   Adjusted R-squared:  0.004048 
+## F-statistic: 853.3 on 3 and 629052 DF,  p-value: &lt; 2.2e-16</code></pre>
+<p>A multiple linear regression was conducted to test whether centered
+word length, word frequency, and their interaction predicted first
+fixation duration. The overall model was statistically significant, F(3,
+629052) = 853.30, p &lt; .001, R2 = .004. The main effect of word length
+was significant, b = −.15, SE = .05, t(629052) = −2.81, p = .005.
+Frequency was also a significant positive predictor, b = 1.02, SE = .02,
+t(629052) = 41.85, p &lt; .001. The interaction between word length and
+frequency was significant, b = −.08, SE = .01, t(629052) = −8.91, p &lt;
+.001, indicating that the association between word length and first
+fixation duration is slightly stronger for low-frequent words.</p>
 <pre class="r"><code># Fit regression model for Gaze Duration
 model_gaze &lt;- lm(IA_FIRST_RUN_DWELL_TIME ~ length_centered * freq_centered,
                  data = ia_analysis)
 
-cat(&quot;=== Gaze Duration Model ===\n&quot;)</code></pre>
-<pre><code>## === Gaze Duration Model ===</code></pre>
-<pre class="r"><code>summary(model_gaze)</code></pre>
+summary(model_gaze)</code></pre>
 <pre><code>## 
 ## Call:
 ## lm(formula = IA_FIRST_RUN_DWELL_TIME ~ length_centered * freq_centered, 
@@ -979,35 +1054,33 @@ cat(&quot;=== Gaze Duration Model ===\n&quot;)</code></pre>
 ## 
 ## Residuals:
 ##    Min     1Q Median     3Q    Max 
-## -288.0  -67.1  -26.1   36.1 4827.2 
+## -281.6  -66.8  -26.0   36.0 4827.8 
 ## 
 ## Coefficients:
 ##                                Estimate Std. Error t value Pr(&gt;|t|)    
-## (Intercept)                   218.56776    0.16749 1304.97   &lt;2e-16 ***
-## length_centered                 3.37710    0.07551   44.73   &lt;2e-16 ***
-## freq_centered                   2.65375    0.03538   75.00   &lt;2e-16 ***
-## length_centered:freq_centered   0.40266    0.01185   33.99   &lt;2e-16 ***
+## (Intercept)                   218.00152    0.16860 1293.03   &lt;2e-16 ***
+## length_centered                 3.17152    0.07762   40.86   &lt;2e-16 ***
+## freq_centered                   2.68456    0.03554   75.54   &lt;2e-16 ***
+## length_centered:freq_centered   0.42173    0.01273   33.12   &lt;2e-16 ***
 ## ---
 ## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
 ## 
-## Residual standard error: 113.4 on 634819 degrees of freedom
-## Multiple R-squared:  0.03283,    Adjusted R-squared:  0.03282 
-## F-statistic:  7183 on 3 and 634819 DF,  p-value: &lt; 2.2e-16</code></pre>
-<p><strong>Interpretation of Gaze Duration Regression:</strong></p>
-<ul>
-<li><strong>Intercept (~260 ms):</strong> Gaze duration is longer than
-FFD because it includes all fixations made on a word before the eyes
-move forward</li>
-<li><strong>length_centered:</strong> A positive coefficient indicates
-longer words receive more total viewing time (expected, as longer words
-often require refixations)</li>
-<li><strong>freq_centered:</strong> The frequency effect on gaze
-duration</li>
-<li><strong>length_centered:freq_centered (INTERACTION):</strong> Tests
-whether the word length effect on gaze duration differs by frequency.
-The direction and significance of this coefficient tells us whether the
-interaction pattern holds for this later measure of processing.</li>
-</ul>
+## Residual standard error: 112.6 on 629052 degrees of freedom
+## Multiple R-squared:  0.03104,    Adjusted R-squared:  0.03104 
+## F-statistic:  6718 on 3 and 629052 DF,  p-value: &lt; 2.2e-16</code></pre>
+<p>We then fit a linear model predicting first-run dwell time (gaze
+duration) from centered word length, centered word frequency, and their
+interaction. The overall model was statistically significant,
+F(3,629052) = 6718.00, p &lt; .001, R2 = .03. At the mean length and
+frequency, predicted first-run dwell time was approximately 218 ms. Word
+length is a positive predictor of first-run dwell time, such that longer
+words were associated with longer dwell times, b = 3.17, SE = .008,
+t(629052) = 40.86, p &lt; .001. Frequency also significantly predicted
+dwell time, b = 2.68, SE = .004, t(629052) = 75.54, p &lt; .001.
+Importantly, the effect of word length in dwell time spending on reading
+depends on word frequency: the length penalty becomes larger as
+frequency values increase.b = 0.42, SE = 0.01, t(629052) = 33.12, p &lt;
+.001.</p>
 <hr />
 </div>
 </div>
@@ -1027,8 +1100,7 @@ length and (2) Low-frequency words require more analytical processing
 that scales with the number of letters</p>
 <p>However, there is some limitations. First, this portfolio used
 aggregated data; a more rigorous analysis would use mixed-effects models
-to account for participant and item random effects - Word length and
-frequency are correlated, which could complicate interpretation - The
+to account for participant and item random effects. Besides, the
 frequency measure used is corpus-based and may not perfectly reflect
 individual readers’ experience</p>
 </div>

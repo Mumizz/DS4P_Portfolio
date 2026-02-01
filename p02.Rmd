@@ -65,11 +65,11 @@ ia <- read_csv("~/Desktop/2025-2026/Courses/Data science for psych/Portfolio 1/i
 
 The data contains word-level reading measures (eye-tracking + lexical) that are central to my goal:
 
-| Measure | Description | Type |
-|---------|-------------|------|
-| `IA_FIRST_FIXATION_DURATION` | Duration of first fixation on word (ms) | Early measure |
-| `IA_FIRST_RUN_DWELL_TIME` | Gaze duration: total time on word before leaving (ms) | Early measure |
-| `IA_SKIP` | Whether the word was skipped (0 = fixated, 1 = skipped) | Binary |
+| Measure | Description | 
+|---------|-------------|
+| `IA_FIRST_FIXATION_DURATION` | Duration of first fixation on word (ms) | 
+| `IA_FIRST_RUN_DWELL_TIME` | Gaze duration: total time on word before leaving (ms) |
+| `IA_SKIP` | Whether the word was skipped (0 = fixated, 1 = skipped) |
 
 Other measures such as IA_DWELL_TIME, fixation counts, and regressions are available in the dataset, but the main analyses focus on the three eye-tracking measures above. But they might be used to clean or prepare data for our main analysis. 
 
@@ -339,7 +339,7 @@ p_gaze_interaction <- ggplot(interaction_summary,
 p_ffd_interaction + p_gaze_interaction
 ```
 
-As shown in both plots, frequency group differences were observed in both eye-movement measures. For first fixation duration, mean fixation times were consistently higher for the high frequency group than the low frequency group across word lengths, with relatively small changes as a function of length, suggesting a weak length effect in this early measure. For gaze duration, mean reading times increased with word length for both groups; however, the increase was substantially steeper for the high frequency group, indicating a stronger interaction between word length and frequency in furst-run processing than in first fixation duration. 
+As shown in both plots, frequency group differences were observed in both eye-movement measures. For first fixation duration, mean fixation times were consistently higher for the high frequency group than the low frequency group across word lengths, with relatively small changes as a function of length, suggesting a weak length effect in this early measure. For gaze duration, mean reading times increased with word length for both groups; however, the increase was substantially steeper for the high frequency group, indicating a stronger interaction between word length and frequency in first-run processing than in first fixation duration. 
 
 ## Statistical Analysis: Linear Regression
 
