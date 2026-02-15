@@ -1,5 +1,281 @@
 ---
-title: "Portfolio 3"
+title: "Portfolio 3: Contextual Predictability and Word Frequency Effects on Reading Time"
 ---
 
 > The projects should be numbered consecutively (i.e., in the order in which you began them), and should include for each project a description of the goal, the product (computer program, hand graph, computer graph, etc.), the data, and some interpretation. Reports must be reproducible and of high quality in terms of writing, grammar, presentation, etc.
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  message = FALSE,
+  warning = FALSE,
+  fig.width = 10,
+  fig.height = 6,
+  fig.align = "center"
+)
+```
+
+
+# Background
+
+This portfolio investigates the interaction between contextual predictability (measured by GPT-2 surprisal) and word frequency effects on reading time. Building upon Portfolio 2, which examined the interaction between word length and word frequency using simple linear regression, this work extends the analysis in two key ways: (1) incorporating contextual predictability as a predictor, and (2) employing linear mixed-effects models to account for the hierarchical structure of the data (observations nested within participants and paragraphs), directly addressing a limitation noted in Portfolio 2.
+
+Contextual predictability refers to how expected a word is given the preceding context. Smith and Levy (2013) demonstrated that the effect of word predictability on reading time is logarithmic: each doubling of a word's probability reduces reading time by a roughly constant amount. GPT-2 surprisal, measured in bits (i.e., negative log-probability), provides a natural operationalization of this logarithmic relationship, as surprisal is already on a log scale.
+
+## Data
+
+This portfolio uses the OneStop Eye Movements Dataset (Berzak et al., 2025; 10.17605/OSF.IO/ZN9SQ), a large-scale corpus containing 360 participants reading news articles with eye-tracking measures.
+
+# Goal
+
+The goal of this portfolio is to investigate how contextual predictability interacts with word frequency effects on reading behavior. We anticipate that both word frequency and contextual predictability will individually influence reading times: lower-frequency words and words with higher surprisal (i.e., less predictable from context) are generally associated with longer processing times. The key focus is to examine whether and how these two effects interact, drawing on the theoretical framework of Smith and Levy (2013), who argue for a logarithmic effect of predictability on reading time.
+
+
+# Setup
+
+```{r}
+# Load packages
+library(tidyverse)
+library(scales)
+library(patchwork)
+library(knitr)
+library(psych)
+library(sjPlot)
+library(lme4)
+library(lmerTest)
+library(broom.mixed)
+```
+
+```{r}
+# Load data
+ia <- read_csv("~/Desktop/2025-2026/Courses/Data science for psych/Portfolio 1/ia_Paragraph_ordinary.csv")
+```
+
+# Data Cleaning and Transformation
+
+In this section, we conduct data cleaning by checking for missing values in critical measures, converting variables to numeric types, filtering out practice and repeated trials, and removing extreme values. Following standard practice in psycholinguistics, we apply a logarithmic transformation to dwell time, as reading time distributions are typically positively skewed. Predictors are mean-centered to improve interpretability of the mixed-effects model coefficients: each main-effect coefficient then reflects the effect at the mean of the other predictors.
+
+## Filter and Transform
+
+```{r}
+ia %>% 
+  select(IA_DWELL_TIME, word_length_no_punctuation, wordfreq_frequency, gpt2_surprisal) %>%
+  summary()
+```
+
+```{r}
+# Convert character columns to numeric
+ia_clean <- ia %>%
+  mutate(
+    IA_DWELL_TIME = as.numeric(IA_DWELL_TIME),
+    IA_FIRST_FIXATION_DURATION = as.numeric(IA_FIRST_FIXATION_DURATION),
+    IA_FIXATION_COUNT = as.numeric(IA_FIXATION_COUNT)
+  )
+
+# Filter out practice trials, repeated readings, and missing/extreme values
+ia_clean <- ia_clean %>%
+  filter(
+    practice_trial == FALSE,
+    repeated_reading_trial == FALSE,
+    !is.na(IA_DWELL_TIME),
+    !is.na(wordfreq_frequency),
+    !is.na(gpt2_surprisal),
+    !is.na(word_length_no_punctuation),
+    IA_DWELL_TIME > 0, # Remove skipped words (0 ms)
+    IA_DWELL_TIME >= 50 & IA_DWELL_TIME <= 3000 # Remove extreme values(I realized the cutoffs I applied for the last portfolio is too strict, after going through some literature)
+  )
+```
+
+```{r}
+# Log-transform dwell time and center predictors
+ia_clean <- ia_clean %>%
+  mutate(
+    log_dwell = log(IA_DWELL_TIME),
+    freq_centered = wordfreq_frequency - mean(wordfreq_frequency, na.rm = TRUE),
+    surprisal_centered = gpt2_surprisal - mean(gpt2_surprisal, na.rm = TRUE),
+    length_centered = word_length_no_punctuation - mean(word_length_no_punctuation, na.rm = TRUE)
+  )
+```
+
+## Check Distributions
+
+```{r fig.height=8}
+p1 <- ggplot(ia_clean, aes(x = IA_DWELL_TIME)) +
+  geom_histogram(bins = 50, fill = "steelblue", alpha = 0.7) +
+  labs(title = "Dwell Time (Raw)", x = "Dwell Time (ms)", y = "Count") +
+  theme_minimal()
+
+p2 <- ggplot(ia_clean, aes(x = log_dwell)) +
+  geom_histogram(bins = 50, fill = "steelblue", alpha = 0.7) +
+  labs(title = "Dwell Time (Log-Transformed)", x = "Log Dwell Time", y = "Count") +
+  theme_minimal()
+
+p3 <- ggplot(ia_clean, aes(x = gpt2_surprisal)) +
+  geom_histogram(bins = 50, fill = "darkgreen", alpha = 0.7) +
+  labs(title = "GPT-2 Surprisal Distribution", x = "Surprisal (bits)", y = "Count") +
+  theme_minimal()
+
+p4 <- ggplot(ia_clean, aes(x = wordfreq_frequency)) +
+  geom_histogram(bins = 50, fill = "purple", alpha = 0.7) +
+  labs(title = "Word Frequency Distribution", x = "Log Frequency", y = "Count") +
+  theme_minimal()
+
+(p1 + p2) / (p3 + p4)
+```
+
+The raw dwell time distribution is right-skewed, as is typical for reading time data. The log transformation produces a more symmetric distribution, which better satisfies the normality assumption of linear models. GPT-2 surprisal and word frequency both show reasonable spread across their ranges.
+
+
+# Data Exploration
+
+## Bivariate Relationships
+
+Before fitting models, we examine the bivariate relationships between each predictor and dwell time to verify that the expected patterns are present in the data.
+
+```{r}
+surprisal_summary <- ia_clean %>%
+  mutate(surprisal_bin = ntile(gpt2_surprisal, 10)) %>%
+  group_by(surprisal_bin) %>%
+  summarise(
+    mean_surprisal = mean(gpt2_surprisal, na.rm = TRUE),
+    mean_dwell = mean(IA_DWELL_TIME, na.rm = TRUE),
+    se_dwell = sd(IA_DWELL_TIME, na.rm = TRUE) / sqrt(n()),
+    n = n()
+  )
+```
+
+```{r fig.width=12, fig.height=5}
+# Effect of surprisal on dwell time 
+p_surp <- ggplot(surprisal_summary, aes(x = mean_surprisal, y = mean_dwell)) +
+  geom_point(size = 3, color = "darkgreen") +
+  geom_line(color = "darkgreen", linewidth = 1) +
+  geom_errorbar(aes(ymin = mean_dwell - se_dwell, ymax = mean_dwell + se_dwell),
+                width = 0.2, color = "darkgreen") +
+  labs(
+    title = "Contextual Predictability and Dwell Time",
+    subtitle = "Binned by GPT-2 Surprisal deciles",
+    x = "Mean GPT-2 Surprisal (bits)",
+    y = "Mean Dwell Time (ms)"
+  ) +
+  theme_minimal()
+```
+
+```{r fig.width=12, fig.height=5}
+# Effect of frequency on dwell time 
+freq_summary <- ia_clean %>%
+  mutate(freq_bin = ntile(wordfreq_frequency, 10)) %>%
+  group_by(freq_bin) %>%
+  summarise(
+    mean_freq = mean(wordfreq_frequency, na.rm = TRUE),
+    mean_dwell = mean(IA_DWELL_TIME, na.rm = TRUE),
+    se_dwell = sd(IA_DWELL_TIME, na.rm = TRUE) / sqrt(n()),
+    n = n()
+  )
+
+p_freq <- ggplot(freq_summary, aes(x = mean_freq, y = mean_dwell)) +
+  geom_point(size = 3, color = "steelblue") +
+  geom_line(color = "steelblue", linewidth = 1) +
+  geom_errorbar(aes(ymin = mean_dwell - se_dwell, ymax = mean_dwell + se_dwell),
+                width = 0.1, color = "steelblue") +
+  labs(
+    title = "Word Frequency and Dwell Time",
+    subtitle = "Binned by word frequency deciles",
+    x = "Mean Word Frequency (log)",
+    y = "Mean Dwell Time (ms)"
+  ) +
+  theme_minimal()
+```
+
+```{r}
+p_surp + p_freq
+```
+
+The left panel shows a positive relationship between GPT-2 surprisal and dwell time: as words become less predictable from context (higher surprisal), readers spend more time fixating on them. This pattern is consistent with the prediction that contextually surprising words require additional cognitive effort during processing. The right panel shows a positive relationship between word frequency and dwell time, such that more frequent words are associated with longer fixation times, reflecting the well-established frequency effect in reading. 
+
+(I was thinking if I should look at the correlations between these key variables. After a self-fight, I thought it may not much necessary to do it, since the relationships between the IVs and DVs are obvious enough.)
+
+# Main Analysis: Mixed-Effects Models
+
+To account for the hierarchical structure of the data — words nested within participants and paragraphs — we use linear mixed-effects models. This directly addresses the limitation of Portfolio 1, which used ordinary linear regression and did not account for the non-independence of observations within participants and paragraphs
+
+I built three models of increasing complexity to test (1) whether contextual predictability adds predictive value beyond word frequency, and (2) whether the two interact.
+
+## Model 1: Frequency + Word Length (Baseline)
+
+```{r}
+model1 <- lmer(log_dwell ~ freq_centered + length_centered +
+                 (1 | participant_id) + (1 | paragraph_id),
+               data = ia_clean)
+
+summary(model1)
+```
+
+## Model 2: Adding Surprisal
+
+```{r}
+model2 <- lmer(log_dwell ~ freq_centered + surprisal_centered + length_centered +
+                 (1 | participant_id) + (1 | paragraph_id),
+               data = ia_clean)
+
+summary(model2)
+```
+
+## Model 3: Frequency × Surprisal Interaction
+
+```{r}
+model3 <- lmer(log_dwell ~ freq_centered * surprisal_centered + length_centered +
+                 (1 | participant_id) + (1 | paragraph_id),
+               data = ia_clean)
+
+summary(model3)
+```
+
+## Model Comparison
+
+```{r}
+anova(model1, model2, model3)
+```
+
+The model comparison via likelihood ratio tests revealed that each successive model significantly improved fit. Adding GPT-2 surprisal (Model 2) significantly improved fit over the baseline frequency + word length model, Χ²(1) = 6382.20, p < .001, indicating that contextual predictability explains additional variance in dwell time beyond what word frequency and word length already capture. Adding the frequency × surprisal interaction (Model 3) further improved fit over the additive model, Χ²(1) = 64.82, p < .001, suggesting that the effects of frequency and surprisal on reading time are not purely additive but depend on each other.
+
+
+## Model Diagnostics
+
+```{r fig.width=12, fig.height=5}
+par(mfrow = c(1, 2))
+
+plot(fitted(model3), resid(model3),
+     xlab = "Fitted Values", ylab = "Residuals",
+     main = "Residuals vs Fitted", pch = ".", col = "steelblue")
+abline(h = 0, col = "red", lty = 2)
+
+qqnorm(resid(model3), main = "QQ Plot of Residuals", pch = ".")
+qqline(resid(model3), col = "red")
+```
+
+The residuals vs. fitted plot shows residuals roughly centered around zero with no strong systematic pattern, suggesting that the model does not exhibit major violations of linearity or homoscedasticity. The QQ plot indicates that the residuals are approximately normally distributed.
+
+## Model Results
+
+```{r}
+tab_model(model3,
+          title = "Mixed-Effects Model: Frequency × Surprisal Interaction",
+          dv.labels = "Log Dwell Time",
+          show.stat = TRUE)
+```
+
+The fixed effects from the interaction model are summarized in the table above. The intercept, b = 5.52, 95% CI[5.49, 5.55], t = 338.58, p < .001, represents the predicted log dwell time for a word of average frequency, average surprisal, and average length. The main effect of word frequency was significant, b = 0.01, 95% CI [0.01, 0.01], t = 44.70, p < .001, indicating that higher word frequency values were associated with longer log dwell times. The main effect of GPT-2 surprisal was also significant, b = 0.02, 95% CI [0.02, 0.02], t = 75.38, p < .001, confirming that less predictable words (higher surprisal) incurred longer processing times. Word length, included as a control variable, was a significant predictor as well, b = 0.04, 95% CI [0.03, 0.04], t = 103.77, p < .001, with longer words receiving longer fixations.
+
+Critically, the interaction between word frequency and GPT-2 surprisal was significant, b = -0.00, t = -8.05, p < .001. The negative interaction coefficient indicates that the positive effect of surprisal on dwell time is attenuated at higher levels of word frequency. In other words, the processing cost of encountering a contextually unexpected word is slightly reduced for higher-frequency words, suggesting that word frequency provides some buffer against the difficulty of contextual unpredictability.
+
+
+# Discussion
+
+This portfolio examined the interaction between contextual predictability and word frequency effects on total dwell time during reading. Building upon Portfolio 2, which used ordinary linear regression to investigate word length × frequency interaction, this portfolio employed linear mixed-effects models with random intercepts for participants and paragraphs to appropriately account for the hierarchical structure of the eye-tracking data.
+
+Both word frequency and GPT-2 surprisal were significant predictors of log-transformed dwell time. Higher word frequency values were associated with longer dwell times, and higher-surprisal words — those less predictable from the preceding context — also incurred longer processing times, confirming that readers are sensitive to contextual expectations during reading. The model comparison demonstrated that adding surprisal significantly improved model fit beyond frequency and word length alone, and that the frequency × surprisal interaction further improved fit. The negative interaction coefficient indicates that the surprisal cost is attenuated at higher frequency levels, suggesting that frequency provides a partial buffer against the processing difficulty of contextual unpredictability.
+
+These findings are broadly consistent with the theoretical framework proposed by Smith and Levy (2013), who argued that the effect of word predictability on reading time is logarithmic. Because GPT-2 surprisal is measured in bits (negative log-probability), it naturally captures this logarithmic relationship: a one-bit increase in surprisal corresponds to a halving of the word's contextual probability. The significant main effect of surprisal on dwell time aligns with their prediction that predictability has a continuous, graded influence on reading effort. The significant interaction with frequency further suggests that contextual and lexical factors jointly shape the cognitive cost of word recognition, consistent with models of reading that emphasize the integration of multiple information sources during processing.
+
+There are several limitations to note. First, GPT-2 surprisal is a model-based estimate derived from a language model, and it may not perfectly reflect the contextual predictions that human readers generate during reading (Wilcox et al., 2020). Individual readers differ in their language experience and predictive processing, and a single surprisal value cannot capture this variability. Second, the random effects structure used here includes only random intercepts; including random slopes for frequency and surprisal could capture individual differences in sensitivity to these factors, though such models are more computationally demanding and may encounter convergence issues. Third, the dependent variable, total dwell time (`IA_DWELL_TIME`), combines both first-pass and re-reading fixations on a word. These components may reflect distinct cognitive processes - first-pass reading is thought to reflect initial lexical access, while re-reading may reflect comprehension difficulty or integration processes. Future work could separate these measures to gain a more fine-grained understanding of when contextual predictability exerts its influence during reading.
+

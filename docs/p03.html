@@ -11,7 +11,7 @@
 
 
 
-<title>Portfolio 3</title>
+<title>Portfolio 3: Contextual Predictability and Word Frequency Effects on Reading Time</title>
 
 <script src="site_libs/header-attrs-2.30/header-attrs.js"></script>
 <script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
@@ -290,7 +290,8 @@ $(document).ready(function () {
 
 
 
-<h1 class="title toc-ignore">Portfolio 3</h1>
+<h1 class="title toc-ignore">Portfolio 3: Contextual Predictability and
+Word Frequency Effects on Reading Time</h1>
 
 </div>
 
@@ -302,6 +303,661 @@ of the goal, the product (computer program, hand graph, computer graph,
 etc.), the data, and some interpretation. Reports must be reproducible
 and of high quality in terms of writing, grammar, presentation, etc.</p>
 </blockquote>
+<div id="background" class="section level1">
+<h1>Background</h1>
+<p>This portfolio investigates the interaction between contextual
+predictability (measured by GPT-2 surprisal) and word frequency effects
+on reading time. Building upon Portfolio 2, which examined the
+interaction between word length and word frequency using simple linear
+regression, this work extends the analysis in two key ways: (1)
+incorporating contextual predictability as a predictor, and (2)
+employing linear mixed-effects models to account for the hierarchical
+structure of the data (observations nested within participants and
+paragraphs), directly addressing a limitation noted in Portfolio 2.</p>
+<p>Contextual predictability refers to how expected a word is given the
+preceding context. Smith and Levy (2013) demonstrated that the effect of
+word predictability on reading time is logarithmic: each doubling of a
+word’s probability reduces reading time by a roughly constant amount.
+GPT-2 surprisal, measured in bits (i.e., negative log-probability),
+provides a natural operationalization of this logarithmic relationship,
+as surprisal is already on a log scale.</p>
+<div id="data" class="section level2">
+<h2>Data</h2>
+<p>This portfolio uses the OneStop Eye Movements Dataset (Berzak et al.,
+2025; 10.17605/OSF.IO/ZN9SQ), a large-scale corpus containing 360
+participants reading news articles with eye-tracking measures.</p>
+</div>
+</div>
+<div id="goal" class="section level1">
+<h1>Goal</h1>
+<p>The goal of this portfolio is to investigate how contextual
+predictability interacts with word frequency effects on reading
+behavior. We anticipate that both word frequency and contextual
+predictability will individually influence reading times:
+lower-frequency words and words with higher surprisal (i.e., less
+predictable from context) are generally associated with longer
+processing times. The key focus is to examine whether and how these two
+effects interact, drawing on the theoretical framework of Smith and Levy
+(2013), who argue for a logarithmic effect of predictability on reading
+time.</p>
+</div>
+<div id="setup" class="section level1">
+<h1>Setup</h1>
+<pre class="r"><code># Load packages
+library(tidyverse)
+library(scales)
+library(patchwork)
+library(knitr)
+library(psych)
+library(sjPlot)
+library(lme4)
+library(lmerTest)
+library(broom.mixed)</code></pre>
+<pre class="r"><code># Load data
+ia &lt;- read_csv(&quot;~/Desktop/2025-2026/Courses/Data science for psych/Portfolio 1/ia_Paragraph_ordinary.csv&quot;)</code></pre>
+</div>
+<div id="data-cleaning-and-transformation" class="section level1">
+<h1>Data Cleaning and Transformation</h1>
+<p>In this section, we conduct data cleaning by checking for missing
+values in critical measures, converting variables to numeric types,
+filtering out practice and repeated trials, and removing extreme values.
+Following standard practice in psycholinguistics, we apply a logarithmic
+transformation to dwell time, as reading time distributions are
+typically positively skewed. Predictors are mean-centered to improve
+interpretability of the mixed-effects model coefficients: each
+main-effect coefficient then reflects the effect at the mean of the
+other predictors.</p>
+<div id="filter-and-transform" class="section level2">
+<h2>Filter and Transform</h2>
+<pre class="r"><code>ia %&gt;% 
+  select(IA_DWELL_TIME, word_length_no_punctuation, wordfreq_frequency, gpt2_surprisal) %&gt;%
+  summary()</code></pre>
+<pre><code>##  IA_DWELL_TIME   word_length_no_punctuation wordfreq_frequency
+##  Min.   :    0   Min.   : 0.000             Min.   : 4.219    
+##  1st Qu.:    0   1st Qu.: 3.000             1st Qu.: 7.241    
+##  Median :  159   Median : 4.000             Median :10.630    
+##  Mean   :  203   Mean   : 4.655             Mean   :11.147    
+##  3rd Qu.:  287   3rd Qu.: 6.000             3rd Qu.:14.017    
+##  Max.   :16729   Max.   :23.000             Max.   :36.541    
+##  gpt2_surprisal     
+##  Min.   : 0.000121  
+##  1st Qu.: 1.571023  
+##  Median : 3.339208  
+##  Mean   : 4.134529  
+##  3rd Qu.: 5.827203  
+##  Max.   :42.688316</code></pre>
+<pre class="r"><code># Convert character columns to numeric
+ia_clean &lt;- ia %&gt;%
+  mutate(
+    IA_DWELL_TIME = as.numeric(IA_DWELL_TIME),
+    IA_FIRST_FIXATION_DURATION = as.numeric(IA_FIRST_FIXATION_DURATION),
+    IA_FIXATION_COUNT = as.numeric(IA_FIXATION_COUNT)
+  )
+
+# Filter out practice trials, repeated readings, and missing/extreme values
+ia_clean &lt;- ia_clean %&gt;%
+  filter(
+    practice_trial == FALSE,
+    repeated_reading_trial == FALSE,
+    !is.na(IA_DWELL_TIME),
+    !is.na(wordfreq_frequency),
+    !is.na(gpt2_surprisal),
+    !is.na(word_length_no_punctuation),
+    IA_DWELL_TIME &gt; 0, # Remove skipped words (0 ms)
+    IA_DWELL_TIME &gt;= 50 &amp; IA_DWELL_TIME &lt;= 3000 # Remove extreme values(I realized the cutoffs I applied for the last portfolio is too strict, after going through some literature)
+  )</code></pre>
+<pre class="r"><code># Log-transform dwell time and center predictors
+ia_clean &lt;- ia_clean %&gt;%
+  mutate(
+    log_dwell = log(IA_DWELL_TIME),
+    freq_centered = wordfreq_frequency - mean(wordfreq_frequency, na.rm = TRUE),
+    surprisal_centered = gpt2_surprisal - mean(gpt2_surprisal, na.rm = TRUE),
+    length_centered = word_length_no_punctuation - mean(word_length_no_punctuation, na.rm = TRUE)
+  )</code></pre>
+</div>
+<div id="check-distributions" class="section level2">
+<h2>Check Distributions</h2>
+<pre class="r"><code>p1 &lt;- ggplot(ia_clean, aes(x = IA_DWELL_TIME)) +
+  geom_histogram(bins = 50, fill = &quot;steelblue&quot;, alpha = 0.7) +
+  labs(title = &quot;Dwell Time (Raw)&quot;, x = &quot;Dwell Time (ms)&quot;, y = &quot;Count&quot;) +
+  theme_minimal()
+
+p2 &lt;- ggplot(ia_clean, aes(x = log_dwell)) +
+  geom_histogram(bins = 50, fill = &quot;steelblue&quot;, alpha = 0.7) +
+  labs(title = &quot;Dwell Time (Log-Transformed)&quot;, x = &quot;Log Dwell Time&quot;, y = &quot;Count&quot;) +
+  theme_minimal()
+
+p3 &lt;- ggplot(ia_clean, aes(x = gpt2_surprisal)) +
+  geom_histogram(bins = 50, fill = &quot;darkgreen&quot;, alpha = 0.7) +
+  labs(title = &quot;GPT-2 Surprisal Distribution&quot;, x = &quot;Surprisal (bits)&quot;, y = &quot;Count&quot;) +
+  theme_minimal()
+
+p4 &lt;- ggplot(ia_clean, aes(x = wordfreq_frequency)) +
+  geom_histogram(bins = 50, fill = &quot;purple&quot;, alpha = 0.7) +
+  labs(title = &quot;Word Frequency Distribution&quot;, x = &quot;Log Frequency&quot;, y = &quot;Count&quot;) +
+  theme_minimal()
+
+(p1 + p2) / (p3 + p4)</code></pre>
+<p><img src="p03_files/figure-html/unnamed-chunk-6-1.png" width="960" style="display: block; margin: auto;" /></p>
+<p>The raw dwell time distribution is right-skewed, as is typical for
+reading time data. The log transformation produces a more symmetric
+distribution, which better satisfies the normality assumption of linear
+models. GPT-2 surprisal and word frequency both show reasonable spread
+across their ranges.</p>
+</div>
+</div>
+<div id="data-exploration" class="section level1">
+<h1>Data Exploration</h1>
+<div id="bivariate-relationships" class="section level2">
+<h2>Bivariate Relationships</h2>
+<p>Before fitting models, we examine the bivariate relationships between
+each predictor and dwell time to verify that the expected patterns are
+present in the data.</p>
+<pre class="r"><code>surprisal_summary &lt;- ia_clean %&gt;%
+  mutate(surprisal_bin = ntile(gpt2_surprisal, 10)) %&gt;%
+  group_by(surprisal_bin) %&gt;%
+  summarise(
+    mean_surprisal = mean(gpt2_surprisal, na.rm = TRUE),
+    mean_dwell = mean(IA_DWELL_TIME, na.rm = TRUE),
+    se_dwell = sd(IA_DWELL_TIME, na.rm = TRUE) / sqrt(n()),
+    n = n()
+  )</code></pre>
+<pre class="r"><code># Effect of surprisal on dwell time 
+p_surp &lt;- ggplot(surprisal_summary, aes(x = mean_surprisal, y = mean_dwell)) +
+  geom_point(size = 3, color = &quot;darkgreen&quot;) +
+  geom_line(color = &quot;darkgreen&quot;, linewidth = 1) +
+  geom_errorbar(aes(ymin = mean_dwell - se_dwell, ymax = mean_dwell + se_dwell),
+                width = 0.2, color = &quot;darkgreen&quot;) +
+  labs(
+    title = &quot;Contextual Predictability and Dwell Time&quot;,
+    subtitle = &quot;Binned by GPT-2 Surprisal deciles&quot;,
+    x = &quot;Mean GPT-2 Surprisal (bits)&quot;,
+    y = &quot;Mean Dwell Time (ms)&quot;
+  ) +
+  theme_minimal()</code></pre>
+<pre class="r"><code># Effect of frequency on dwell time 
+freq_summary &lt;- ia_clean %&gt;%
+  mutate(freq_bin = ntile(wordfreq_frequency, 10)) %&gt;%
+  group_by(freq_bin) %&gt;%
+  summarise(
+    mean_freq = mean(wordfreq_frequency, na.rm = TRUE),
+    mean_dwell = mean(IA_DWELL_TIME, na.rm = TRUE),
+    se_dwell = sd(IA_DWELL_TIME, na.rm = TRUE) / sqrt(n()),
+    n = n()
+  )
+
+p_freq &lt;- ggplot(freq_summary, aes(x = mean_freq, y = mean_dwell)) +
+  geom_point(size = 3, color = &quot;steelblue&quot;) +
+  geom_line(color = &quot;steelblue&quot;, linewidth = 1) +
+  geom_errorbar(aes(ymin = mean_dwell - se_dwell, ymax = mean_dwell + se_dwell),
+                width = 0.1, color = &quot;steelblue&quot;) +
+  labs(
+    title = &quot;Word Frequency and Dwell Time&quot;,
+    subtitle = &quot;Binned by word frequency deciles&quot;,
+    x = &quot;Mean Word Frequency (log)&quot;,
+    y = &quot;Mean Dwell Time (ms)&quot;
+  ) +
+  theme_minimal()</code></pre>
+<pre class="r"><code>p_surp + p_freq</code></pre>
+<p><img src="p03_files/figure-html/unnamed-chunk-10-1.png" width="960" style="display: block; margin: auto;" /></p>
+<p>The left panel shows a positive relationship between GPT-2 surprisal
+and dwell time: as words become less predictable from context (higher
+surprisal), readers spend more time fixating on them. This pattern is
+consistent with the prediction that contextually surprising words
+require additional cognitive effort during processing. The right panel
+shows a positive relationship between word frequency and dwell time,
+such that more frequent words are associated with longer fixation times,
+reflecting the well-established frequency effect in reading.</p>
+<p>(I was thinking if I should look at the correlations between these
+key variables. After a self-fight, I thought it may not much necessary
+to do it, since the relationships between the IVs and DVs are obvious
+enough.)</p>
+</div>
+</div>
+<div id="main-analysis-mixed-effects-models" class="section level1">
+<h1>Main Analysis: Mixed-Effects Models</h1>
+<p>To account for the hierarchical structure of the data — words nested
+within participants and paragraphs — we use linear mixed-effects models.
+This directly addresses the limitation of Portfolio 1, which used
+ordinary linear regression and did not account for the non-independence
+of observations within participants and paragraphs</p>
+<p>I built three models of increasing complexity to test (1) whether
+contextual predictability adds predictive value beyond word frequency,
+and (2) whether the two interact.</p>
+<div id="model-1-frequency-word-length-baseline" class="section level2">
+<h2>Model 1: Frequency + Word Length (Baseline)</h2>
+<pre class="r"><code>model1 &lt;- lmer(log_dwell ~ freq_centered + length_centered +
+                 (1 | participant_id) + (1 | paragraph_id),
+               data = ia_clean)
+
+summary(model1)</code></pre>
+<pre><code>## Linear mixed model fit by REML. t-tests use Satterthwaite&#39;s method [
+## lmerModLmerTest]
+## Formula: log_dwell ~ freq_centered + length_centered + (1 | participant_id) +  
+##     (1 | paragraph_id)
+##    Data: ia_clean
+## 
+## REML criterion at convergence: 1129004
+## 
+## Scaled residuals: 
+##     Min      1Q  Median      3Q     Max 
+## -4.2947 -0.6845 -0.0846  0.6521  4.7464 
+## 
+## Random effects:
+##  Groups         Name        Variance  Std.Dev.
+##  participant_id (Intercept) 0.0381865 0.19541 
+##  paragraph_id   (Intercept) 0.0003513 0.01874 
+##  Residual                   0.3131059 0.55956 
+## Number of obs: 672671, groups:  participant_id, 180; paragraph_id, 7
+## 
+## Fixed effects:
+##                  Estimate Std. Error        df t value Pr(&gt;|t|)    
+## (Intercept)     5.522e+00  1.622e-02 1.012e+02  340.46   &lt;2e-16 ***
+## freq_centered   1.609e-02  1.638e-04 6.725e+05   98.24   &lt;2e-16 ***
+## length_centered 3.723e-02  3.317e-04 6.725e+05  112.24   &lt;2e-16 ***
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+## 
+## Correlation of Fixed Effects:
+##             (Intr) frq_cn
+## freq_centrd  0.000       
+## lngth_cntrd  0.000 -0.595</code></pre>
+</div>
+<div id="model-2-adding-surprisal" class="section level2">
+<h2>Model 2: Adding Surprisal</h2>
+<pre class="r"><code>model2 &lt;- lmer(log_dwell ~ freq_centered + surprisal_centered + length_centered +
+                 (1 | participant_id) + (1 | paragraph_id),
+               data = ia_clean)
+
+summary(model2)</code></pre>
+<pre><code>## Linear mixed model fit by REML. t-tests use Satterthwaite&#39;s method [
+## lmerModLmerTest]
+## Formula: log_dwell ~ freq_centered + surprisal_centered + length_centered +  
+##     (1 | participant_id) + (1 | paragraph_id)
+##    Data: ia_clean
+## 
+## REML criterion at convergence: 1122636
+## 
+## Scaled residuals: 
+##     Min      1Q  Median      3Q     Max 
+## -4.3397 -0.6830 -0.0825  0.6524  4.7819 
+## 
+## Random effects:
+##  Groups         Name        Variance  Std.Dev.
+##  participant_id (Intercept) 0.0382293 0.19552 
+##  paragraph_id   (Intercept) 0.0003695 0.01922 
+##  Residual                   0.3101486 0.55691 
+## Number of obs: 672671, groups:  participant_id, 180; paragraph_id, 7
+## 
+## Fixed effects:
+##                     Estimate Std. Error        df t value Pr(&gt;|t|)    
+## (Intercept)        5.521e+00  1.631e-02 9.654e+01  338.59   &lt;2e-16 ***
+## freq_centered      8.351e-03  1.896e-04 6.725e+05   44.05   &lt;2e-16 ***
+## surprisal_centered 1.811e-02  2.261e-04 6.725e+05   80.08   &lt;2e-16 ***
+## length_centered    3.630e-02  3.303e-04 6.725e+05  109.90   &lt;2e-16 ***
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+## 
+## Correlation of Fixed Effects:
+##             (Intr) frq_cn srprs_
+## freq_centrd  0.000              
+## srprsl_cntr -0.001 -0.510       
+## lngth_cntrd  0.000 -0.493 -0.035</code></pre>
+</div>
+<div id="model-3-frequency-surprisal-interaction"
+class="section level2">
+<h2>Model 3: Frequency × Surprisal Interaction</h2>
+<pre class="r"><code>model3 &lt;- lmer(log_dwell ~ freq_centered * surprisal_centered + length_centered +
+                 (1 | participant_id) + (1 | paragraph_id),
+               data = ia_clean)
+
+summary(model3)</code></pre>
+<pre><code>## Linear mixed model fit by REML. t-tests use Satterthwaite&#39;s method [
+## lmerModLmerTest]
+## Formula: log_dwell ~ freq_centered * surprisal_centered + length_centered +  
+##     (1 | participant_id) + (1 | paragraph_id)
+##    Data: ia_clean
+## 
+## REML criterion at convergence: 1122592
+## 
+## Scaled residuals: 
+##     Min      1Q  Median      3Q     Max 
+## -4.2465 -0.6832 -0.0822  0.6523  4.7932 
+## 
+## Random effects:
+##  Groups         Name        Variance Std.Dev.
+##  participant_id (Intercept) 0.03824  0.19556 
+##  paragraph_id   (Intercept) 0.00037  0.01923 
+##  Residual                   0.31012  0.55688 
+## Number of obs: 672671, groups:  participant_id, 180; paragraph_id, 7
+## 
+## Fixed effects:
+##                                    Estimate Std. Error         df t value
+## (Intercept)                       5.523e+00  1.631e-02  9.651e+01 338.578
+## freq_centered                     8.725e-03  1.952e-04  6.725e+05  44.705
+## surprisal_centered                1.900e-02  2.521e-04  6.725e+05  75.379
+## length_centered                   3.557e-02  3.428e-04  6.725e+05 103.769
+## freq_centered:surprisal_centered -1.566e-04  1.945e-05  6.725e+05  -8.051
+##                                  Pr(&gt;|t|)    
+## (Intercept)                       &lt; 2e-16 ***
+## freq_centered                     &lt; 2e-16 ***
+## surprisal_centered                &lt; 2e-16 ***
+## length_centered                   &lt; 2e-16 ***
+## freq_centered:surprisal_centered 8.22e-16 ***
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+## 
+## Correlation of Fixed Effects:
+##             (Intr) frq_cn srprs_ lngth_
+## freq_centrd  0.004                     
+## srprsl_cntr  0.006 -0.339              
+## lngth_cntrd -0.004 -0.525 -0.148       
+## frq_cntrd:_ -0.014 -0.238 -0.442  0.267</code></pre>
+</div>
+<div id="model-comparison" class="section level2">
+<h2>Model Comparison</h2>
+<pre class="r"><code>anova(model1, model2, model3)</code></pre>
+<pre><code>## Data: ia_clean
+## Models:
+## model1: log_dwell ~ freq_centered + length_centered + (1 | participant_id) + (1 | paragraph_id)
+## model2: log_dwell ~ freq_centered + surprisal_centered + length_centered + (1 | participant_id) + (1 | paragraph_id)
+## model3: log_dwell ~ freq_centered * surprisal_centered + length_centered + (1 | participant_id) + (1 | paragraph_id)
+##        npar     AIC     BIC  logLik -2*log(L)    Chisq Df Pr(&gt;Chisq)    
+## model1    6 1128979 1129048 -564484   1128967                           
+## model2    7 1122599 1122679 -561292   1122585 6382.195  1  &lt; 2.2e-16 ***
+## model3    8 1122536 1122627 -561260   1122520   64.818  1  8.216e-16 ***
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1</code></pre>
+<p>The model comparison via likelihood ratio tests revealed that each
+successive model significantly improved fit. Adding GPT-2 surprisal
+(Model 2) significantly improved fit over the baseline frequency + word
+length model, Χ²(1) = 6382.20, p &lt; .001, indicating that contextual
+predictability explains additional variance in dwell time beyond what
+word frequency and word length already capture. Adding the frequency ×
+surprisal interaction (Model 3) further improved fit over the additive
+model, Χ²(1) = 64.82, p &lt; .001, suggesting that the effects of
+frequency and surprisal on reading time are not purely additive but
+depend on each other.</p>
+</div>
+<div id="model-diagnostics" class="section level2">
+<h2>Model Diagnostics</h2>
+<pre class="r"><code>par(mfrow = c(1, 2))
+
+plot(fitted(model3), resid(model3),
+     xlab = &quot;Fitted Values&quot;, ylab = &quot;Residuals&quot;,
+     main = &quot;Residuals vs Fitted&quot;, pch = &quot;.&quot;, col = &quot;steelblue&quot;)
+abline(h = 0, col = &quot;red&quot;, lty = 2)
+
+qqnorm(resid(model3), main = &quot;QQ Plot of Residuals&quot;, pch = &quot;.&quot;)
+qqline(resid(model3), col = &quot;red&quot;)</code></pre>
+<p><img src="p03_files/figure-html/unnamed-chunk-15-1.png" width="1152" style="display: block; margin: auto;" /></p>
+<p>The residuals vs. fitted plot shows residuals roughly centered around
+zero with no strong systematic pattern, suggesting that the model does
+not exhibit major violations of linearity or homoscedasticity. The QQ
+plot indicates that the residuals are approximately normally
+distributed.</p>
+</div>
+<div id="model-results" class="section level2">
+<h2>Model Results</h2>
+<pre class="r"><code>tab_model(model3,
+          title = &quot;Mixed-Effects Model: Frequency × Surprisal Interaction&quot;,
+          dv.labels = &quot;Log Dwell Time&quot;,
+          show.stat = TRUE)</code></pre>
+<table style="border-collapse:collapse; border:none;">
+<caption style="font-weight: bold; text-align:left;">
+Mixed-Effects Model: Frequency × Surprisal Interaction
+</caption>
+<tr>
+<th style="border-top: double; text-align:center; font-style:normal; font-weight:bold; padding:0.2cm;  text-align:left; ">
+ 
+</th>
+<th colspan="4" style="border-top: double; text-align:center; font-style:normal; font-weight:bold; padding:0.2cm; ">
+Log Dwell Time
+</th>
+</tr>
+<tr>
+<td style=" text-align:center; border-bottom:1px solid; font-style:italic; font-weight:normal;  text-align:left; ">
+Predictors
+</td>
+<td style=" text-align:center; border-bottom:1px solid; font-style:italic; font-weight:normal;  ">
+Estimates
+</td>
+<td style=" text-align:center; border-bottom:1px solid; font-style:italic; font-weight:normal;  ">
+CI
+</td>
+<td style=" text-align:center; border-bottom:1px solid; font-style:italic; font-weight:normal;  ">
+Statistic
+</td>
+<td style=" text-align:center; border-bottom:1px solid; font-style:italic; font-weight:normal;  ">
+p
+</td>
+</tr>
+<tr>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; ">
+(Intercept)
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+5.52
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+5.49 – 5.55
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+338.58
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+<strong>&lt;0.001</strong>
+</td>
+</tr>
+<tr>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; ">
+freq centered
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+0.01
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+0.01 – 0.01
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+44.70
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+<strong>&lt;0.001</strong>
+</td>
+</tr>
+<tr>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; ">
+surprisal centered
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+0.02
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+0.02 – 0.02
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+75.38
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+<strong>&lt;0.001</strong>
+</td>
+</tr>
+<tr>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; ">
+length centered
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+0.04
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+0.03 – 0.04
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+103.77
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+<strong>&lt;0.001</strong>
+</td>
+</tr>
+<tr>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; ">
+freq centered × surprisal<br>centered
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+-0.00
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+-0.00 – -0.00
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+-8.05
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+<strong>&lt;0.001</strong>
+</td>
+</tr>
+<tr>
+<td colspan="5" style="font-weight:bold; text-align:left; padding-top:.8em;">
+Random Effects
+</td>
+</tr>
+<tr>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; padding-top:0.1cm; padding-bottom:0.1cm;">
+σ<sup>2</sup>
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
+0.31
+</td>
+</tr>
+<tr>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; padding-top:0.1cm; padding-bottom:0.1cm;">
+τ<sub>00</sub> <sub>participant_id</sub>
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
+0.04
+</td>
+<tr>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; padding-top:0.1cm; padding-bottom:0.1cm;">
+τ<sub>00</sub> <sub>paragraph_id</sub>
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
+0.00
+</td>
+<tr>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; padding-top:0.1cm; padding-bottom:0.1cm;">
+ICC
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
+0.11
+</td>
+<tr>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; padding-top:0.1cm; padding-bottom:0.1cm;">
+N <sub>participant_id</sub>
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
+180
+</td>
+<tr>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; padding-top:0.1cm; padding-bottom:0.1cm;">
+N <sub>paragraph_id</sub>
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
+7
+</td>
+<tr>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; padding-top:0.1cm; padding-bottom:0.1cm; border-top:1px solid;">
+Observations
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left; border-top:1px solid;" colspan="4">
+672671
+</td>
+</tr>
+<tr>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; padding-top:0.1cm; padding-bottom:0.1cm;">
+Marginal R<sup>2</sup> / Conditional R<sup>2</sup>
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
+0.076 / 0.178
+</td>
+</tr>
+</table>
+<p>The fixed effects from the interaction model are summarized in the
+table above. The intercept, b = 5.52, 95% CI[5.49, 5.55], t = 338.58, p
+&lt; .001, represents the predicted log dwell time for a word of average
+frequency, average surprisal, and average length. The main effect of
+word frequency was significant, b = 0.01, 95% CI [0.01, 0.01], t =
+44.70, p &lt; .001, indicating that higher word frequency values were
+associated with longer log dwell times. The main effect of GPT-2
+surprisal was also significant, b = 0.02, 95% CI [0.02, 0.02], t =
+75.38, p &lt; .001, confirming that less predictable words (higher
+surprisal) incurred longer processing times. Word length, included as a
+control variable, was a significant predictor as well, b = 0.04, 95% CI
+[0.03, 0.04], t = 103.77, p &lt; .001, with longer words receiving
+longer fixations.</p>
+<p>Critically, the interaction between word frequency and GPT-2
+surprisal was significant, b = -0.00, t = -8.05, p &lt; .001. The
+negative interaction coefficient indicates that the positive effect of
+surprisal on dwell time is attenuated at higher levels of word
+frequency. In other words, the processing cost of encountering a
+contextually unexpected word is slightly reduced for higher-frequency
+words, suggesting that word frequency provides some buffer against the
+difficulty of contextual unpredictability.</p>
+</div>
+</div>
+<div id="discussion" class="section level1">
+<h1>Discussion</h1>
+<p>This portfolio examined the interaction between contextual
+predictability and word frequency effects on total dwell time during
+reading. Building upon Portfolio 2, which used ordinary linear
+regression to investigate word length × frequency interaction, this
+portfolio employed linear mixed-effects models with random intercepts
+for participants and paragraphs to appropriately account for the
+hierarchical structure of the eye-tracking data.</p>
+<p>Both word frequency and GPT-2 surprisal were significant predictors
+of log-transformed dwell time. Higher word frequency values were
+associated with longer dwell times, and higher-surprisal words — those
+less predictable from the preceding context — also incurred longer
+processing times, confirming that readers are sensitive to contextual
+expectations during reading. The model comparison demonstrated that
+adding surprisal significantly improved model fit beyond frequency and
+word length alone, and that the frequency × surprisal interaction
+further improved fit. The negative interaction coefficient indicates
+that the surprisal cost is attenuated at higher frequency levels,
+suggesting that frequency provides a partial buffer against the
+processing difficulty of contextual unpredictability.</p>
+<p>These findings are broadly consistent with the theoretical framework
+proposed by Smith and Levy (2013), who argued that the effect of word
+predictability on reading time is logarithmic. Because GPT-2 surprisal
+is measured in bits (negative log-probability), it naturally captures
+this logarithmic relationship: a one-bit increase in surprisal
+corresponds to a halving of the word’s contextual probability. The
+significant main effect of surprisal on dwell time aligns with their
+prediction that predictability has a continuous, graded influence on
+reading effort. The significant interaction with frequency further
+suggests that contextual and lexical factors jointly shape the cognitive
+cost of word recognition, consistent with models of reading that
+emphasize the integration of multiple information sources during
+processing.</p>
+<p>There are several limitations to note. First, GPT-2 surprisal is a
+model-based estimate derived from a language model, and it may not
+perfectly reflect the contextual predictions that human readers generate
+during reading (Wilcox et al., 2020). Individual readers differ in their
+language experience and predictive processing, and a single surprisal
+value cannot capture this variability. Second, the random effects
+structure used here includes only random intercepts; including random
+slopes for frequency and surprisal could capture individual differences
+in sensitivity to these factors, though such models are more
+computationally demanding and may encounter convergence issues. Third,
+the dependent variable, total dwell time (<code>IA_DWELL_TIME</code>),
+combines both first-pass and re-reading fixations on a word. These
+components may reflect distinct cognitive processes - first-pass reading
+is thought to reflect initial lexical access, while re-reading may
+reflect comprehension difficulty or integration processes. Future work
+could separate these measures to gain a more fine-grained understanding
+of when contextual predictability exerts its influence during
+reading.</p>
+</div>
 
 
 
