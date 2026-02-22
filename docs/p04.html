@@ -302,6 +302,819 @@ of the goal, the product (computer program, hand graph, computer graph,
 etc.), the data, and some interpretation. Reports must be reproducible
 and of high quality in terms of writing, grammar, presentation, etc.</p>
 </blockquote>
+<div id="background" class="section level1">
+<h1>Background</h1>
+<p>In portfolio 3, I found a significant interaction between word
+frequency and GPT-2 suprisal on total dwell time - the processing cost
+of contextually unexpected words was attenuated at higher frequency
+levels. However, total dwell time combines both first-pass and
+re-reading fixations, which are thought to reflect distinct cognitive
+processes. First-pass measures capture initial word recognition and
+early lexical access, while re-reading reflects later comprehension
+difficulty or integration failure. By combining these together,
+portfolio 3 could not determine <em>when</em> the interaction exerts its
+influence.</p>
+<p>This portfolio address the limitation by decomposing the analysis
+across three reading measures that tap into different stages of
+processing.</p>
+</div>
+<div id="data" class="section level1">
+<h1>Data</h1>
+<p>This portfolio uses the same Onestop dataset as portfolio 2 and
+3.</p>
+</div>
+<div id="goal" class="section level1">
+<h1>Goal</h1>
+<p>The goal of portfolio 4 is to address the limitation mentioned in
+portfolio 3 by testing whether the surprisal x frequency interaction
+observed in portfolio 3 operates at the level of initial word
+recognition, i.e., first-pass measures, later comprehension processes
+(re-reading), or both. If the interaction appears only in first-pass
+measures, it would suggest that frequency buffers against surprisal
+during early lexical access. If it appears only in re-reading, the
+buffering effect operates during later integration. If it appears in
+both, frequency modulates the processing cost of unpredictable words
+across multiple stages of reading</p>
+</div>
+<div id="setup" class="section level1">
+<h1>Setup</h1>
+<pre class="r"><code># Load packages
+library(tidyverse)</code></pre>
+<pre><code>## ── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
+## ✔ dplyr     1.1.4     ✔ readr     2.1.5
+## ✔ forcats   1.0.1     ✔ stringr   1.5.2
+## ✔ ggplot2   4.0.0     ✔ tibble    3.3.0
+## ✔ lubridate 1.9.4     ✔ tidyr     1.3.1
+## ✔ purrr     1.1.0     
+## ── Conflicts ────────────────────────────────────────── tidyverse_conflicts() ──
+## ✖ dplyr::filter() masks stats::filter()
+## ✖ dplyr::lag()    masks stats::lag()
+## ℹ Use the conflicted package (&lt;http://conflicted.r-lib.org/&gt;) to force all conflicts to become errors</code></pre>
+<pre class="r"><code>library(scales)</code></pre>
+<pre><code>## 
+## Attaching package: &#39;scales&#39;
+## 
+## The following object is masked from &#39;package:purrr&#39;:
+## 
+##     discard
+## 
+## The following object is masked from &#39;package:readr&#39;:
+## 
+##     col_factor</code></pre>
+<pre class="r"><code>library(patchwork)
+library(knitr)
+library(psych)</code></pre>
+<pre><code>## 
+## Attaching package: &#39;psych&#39;
+## 
+## The following objects are masked from &#39;package:scales&#39;:
+## 
+##     alpha, rescale
+## 
+## The following objects are masked from &#39;package:ggplot2&#39;:
+## 
+##     %+%, alpha</code></pre>
+<pre class="r"><code>library(sjPlot)</code></pre>
+<pre><code>## 
+## Attaching package: &#39;sjPlot&#39;
+## 
+## The following object is masked from &#39;package:ggplot2&#39;:
+## 
+##     set_theme</code></pre>
+<pre class="r"><code>library(lme4)</code></pre>
+<pre><code>## Loading required package: Matrix
+## 
+## Attaching package: &#39;Matrix&#39;
+## 
+## The following objects are masked from &#39;package:tidyr&#39;:
+## 
+##     expand, pack, unpack</code></pre>
+<pre class="r"><code>library(lmerTest)</code></pre>
+<pre><code>## 
+## Attaching package: &#39;lmerTest&#39;
+## 
+## The following object is masked from &#39;package:lme4&#39;:
+## 
+##     lmer
+## 
+## The following object is masked from &#39;package:stats&#39;:
+## 
+##     step</code></pre>
+<pre class="r"><code>library(broom.mixed)</code></pre>
+<pre class="r"><code># Load data
+ia &lt;- read_csv(&quot;~/Desktop/2025-2026/Courses/Data science for psych/Portfolio 1/ia_Paragraph_ordinary.csv&quot;)</code></pre>
+<pre><code>## Rows: 1104883 Columns: 157
+## ── Column specification ────────────────────────────────────────────────────────
+## Delimiter: &quot;,&quot;
+## chr (102): participant_id, EYE_REPORTED, EYE_TRACKED, IA_AVERAGE_FIX_PUPIL_S...
+## dbl  (51): TRIAL_INDEX, IA_AREA, IA_BOTTOM, IA_DWELL_TIME, IA_DWELL_TIME_%, ...
+## lgl   (4): question_preview, practice_trial, repeated_reading_trial, is_correct
+## 
+## ℹ Use `spec()` to retrieve the full column specification for this data.
+## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.</code></pre>
+</div>
+<div id="data-cleaning-and-transformation" class="section level1">
+<h1>Data Cleaning and Transformation</h1>
+<p>We apply the same cleaning steps as portfolio 3 - filtering out
+practice trials and repeated readings, converting variables to numeric,
+and removing extreme values. For this portfolio, we prepare three
+dependent variables: first fixation duration (FFD), gaze duration
+(first-run dwell time), and a binary re-reading indicator.</p>
+<div id="filter-and-transform" class="section level2">
+<h2>Filter and Transform</h2>
+<pre class="r"><code># Convert character columns to numeric
+ia_clean &lt;- ia %&gt;%
+  mutate(
+    IA_DWELL_TIME = as.numeric(IA_DWELL_TIME),
+    IA_FIRST_RUN_DWELL_TIME = as.numeric(IA_FIRST_RUN_DWELL_TIME),
+    IA_FIRST_FIXATION_DURATION = as.numeric(IA_FIRST_FIXATION_DURATION),
+    IA_FIXATION_COUNT = as.numeric(IA_FIXATION_COUNT)
+  )</code></pre>
+<pre><code>## Warning: There were 2 warnings in `mutate()`.
+## The first warning was:
+## ℹ In argument: `IA_FIRST_RUN_DWELL_TIME = as.numeric(IA_FIRST_RUN_DWELL_TIME)`.
+## Caused by warning:
+## ! NAs introduced by coercion
+## ℹ Run `dplyr::last_dplyr_warnings()` to see the 1 remaining warning.</code></pre>
+<pre class="r"><code># Filter out practice trials, repeated readings, and missing/extreme values
+ia_clean &lt;- ia_clean %&gt;%
+  filter(
+    practice_trial == FALSE,
+    repeated_reading_trial == FALSE,
+    !is.na(IA_DWELL_TIME),
+    !is.na(wordfreq_frequency),
+    !is.na(gpt2_surprisal),
+    !is.na(word_length_no_punctuation),
+    IA_FIRST_FIXATION_DURATION &gt;=80 &amp; IA_FIRST_FIXATION_DURATION &lt;= 800,
+    IA_DWELL_TIME &gt;= 50 &amp; IA_DWELL_TIME &lt;= 3000 
+  )</code></pre>
+<pre class="r"><code># Create re-reading indicator
+ia_clean &lt;- ia_clean %&gt;%  
+  mutate(
+    reread = ifelse(!is.na(IA_DWELL_TIME) &amp; !is.na(IA_FIRST_RUN_DWELL_TIME) &amp; IA_DWELL_TIME &gt; IA_FIRST_RUN_DWELL_TIME, 1, 0)
+  )</code></pre>
+<pre class="r"><code># Log-transform dwell time and center predictors
+ia_clean &lt;- ia_clean %&gt;%
+  mutate(
+    log_ffd = log(IA_FIRST_FIXATION_DURATION),
+    log_gaze = log(IA_FIRST_RUN_DWELL_TIME), 
+    freq_centered = wordfreq_frequency - mean(wordfreq_frequency, na.rm = TRUE),
+    surprisal_centered = gpt2_surprisal - mean(gpt2_surprisal, na.rm = TRUE),
+    length_centered = word_length_no_punctuation - mean(word_length_no_punctuation, na.rm = TRUE)
+  )</code></pre>
+<pre class="r"><code>ia_analysis &lt;- ia_clean %&gt;%
+  select(participant_id, paragraph_id,
+         IA_FIRST_FIXATION_DURATION, IA_FIRST_RUN_DWELL_TIME, IA_DWELL_TIME,
+         log_ffd, log_gaze, reread,
+         freq_centered, surprisal_centered, length_centered,
+         wordfreq_frequency, gpt2_surprisal, word_length_no_punctuation)</code></pre>
+</div>
+<div id="check-distribution" class="section level2">
+<h2>Check Distribution</h2>
+<pre class="r"><code>p1 &lt;- ggplot(ia_analysis, aes(x = log_ffd)) +
+  geom_histogram(bins = 50, fill = &quot;steelblue&quot;, alpha = 0.7) +
+  labs(title = &quot;First Fixation Duration&quot;, x = &quot;Log FFD&quot;, y = &quot;Count&quot;) +
+  theme_minimal()
+
+p2 &lt;- ggplot(ia_analysis, aes(x = log_gaze)) +
+  geom_histogram(bins = 50, fill = &quot;darkgreen&quot;, alpha = 0.7) +
+  labs(title = &quot;Gaze Duration (Log)&quot;, x = &quot;Log Gaze Duration&quot;, y = &quot;Count&quot;) +
+  theme_minimal()
+
+p3 &lt;- ggplot(ia_analysis, aes(x = factor(reread))) +
+  geom_bar(fill = &quot;coral&quot;, alpha = 0.7) +
+  labs(title = &quot;Re-reading Distribution&quot;, x = &quot;Re-read (0 = No, 1 = Yes)&quot;, y = &quot;Count&quot;) +
+  theme_minimal()
+
+(p1 + p2) / (p3 + plot_spacer())</code></pre>
+<p><img src="p04_files/figure-html/unnamed-chunk-7-1.png" width="672" />
+Both log-transformed first-pass measures show approximately normal
+distributions, sutable for linear mixed-effect modeling. The re-reading
+distribution shows that the majority of words are not re-read, which is
+consistent with my expectation as readers generally move forward through
+text and only return to words that caused difficulty. The binary
+re-reading variable will be analyzed with logistic mixed-effects
+models.</p>
+</div>
+</div>
+<div id="analysis-1-first-fixation-duration" class="section level1">
+<h1>Analysis 1: First Fixation Duration</h1>
+<p>First fixation duration is the earliest measure of word processing.
+If the surprisal × frequency interaction appears here, it would suggest
+that frequency modulates the predictability effect during the very first
+moment of encountering the word.</p>
+<pre class="r"><code>model_ffd &lt;- lmer(log_ffd ~ freq_centered * surprisal_centered + length_centered + (1 | participant_id) + (1 | paragraph_id), data = ia_analysis)
+summary(model_ffd)</code></pre>
+<pre><code>## Linear mixed model fit by REML. t-tests use Satterthwaite&#39;s method [
+## lmerModLmerTest]
+## Formula: log_ffd ~ freq_centered * surprisal_centered + length_centered +  
+##     (1 | participant_id) + (1 | paragraph_id)
+##    Data: ia_analysis
+## 
+## REML criterion at convergence: 416508.9
+## 
+## Scaled residuals: 
+##     Min      1Q  Median      3Q     Max 
+## -3.5006 -0.6392 -0.0291  0.6247  4.8752 
+## 
+## Random effects:
+##  Groups         Name        Variance  Std.Dev.
+##  participant_id (Intercept) 1.319e-02 0.114850
+##  paragraph_id   (Intercept) 1.135e-05 0.003369
+##  Residual                   1.109e-01 0.333006
+## Number of obs: 650295, groups:  participant_id, 180; paragraph_id, 7
+## 
+## Fixed effects:
+##                                    Estimate Std. Error         df t value
+## (Intercept)                       5.227e+00  8.670e-03  1.835e+02 602.889
+## freq_centered                     2.783e-03  1.188e-04  6.501e+05  23.430
+## surprisal_centered                5.359e-03  1.533e-04  6.490e+05  34.962
+## length_centered                   6.233e-04  2.085e-04  6.491e+05   2.989
+## freq_centered:surprisal_centered -2.211e-04  1.183e-05  6.500e+05 -18.681
+##                                  Pr(&gt;|t|)    
+## (Intercept)                        &lt;2e-16 ***
+## freq_centered                      &lt;2e-16 ***
+## surprisal_centered                 &lt;2e-16 ***
+## length_centered                    0.0028 ** 
+## freq_centered:surprisal_centered   &lt;2e-16 ***
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+## 
+## Correlation of Fixed Effects:
+##             (Intr) frq_cn srprs_ lngth_
+## freq_centrd  0.004                     
+## srprsl_cntr  0.007 -0.339              
+## lngth_cntrd -0.004 -0.526 -0.148       
+## frq_cntrd:_ -0.016 -0.238 -0.442  0.267</code></pre>
+<p>The main effect of word frequency was significant, b = .0003, t =
+23.43, p &lt; .001, indicating that higher word frequency values were
+associated with longer first fixation durations. The main effect of
+GPT-2 surprisal was also significant, b = .005, t = 34.96, p &lt; .001,
+confirming that less predictable words received longer initial
+fixations. Word length was a significant but smaller predictor, b =
+.001, t = 2.99, p = .003. Critically, the frequency x surprisal
+interaction was significant, b = -.0002, t = -18.68, p &lt; .001. The
+negative coefficient matches the direction found in portfolio 3’s dwell
+time model, indicating that the frequency buffering effect is already
+present at the eariest stage of word processing - the very first
+fixation on the word.</p>
+</div>
+<div id="analysis-2-gaze-duration-first-run-dwell-time"
+class="section level1">
+<h1>Analysis 2: Gaze Duration (first-run dwell time)</h1>
+<p>Gaze duration captures the full first-pass processing of a word,
+including any within-word re-fixations before the eyes move on. It
+reflects a slightly later and more complete stage of first-pass
+processing than FFD.</p>
+<pre class="r"><code>model_gaze &lt;- lmer(log_gaze ~ freq_centered * surprisal_centered + length_centered + (1 | participant_id) + (1 | paragraph_id), data = ia_analysis)
+summary(model_gaze)</code></pre>
+<pre><code>## Linear mixed model fit by REML. t-tests use Satterthwaite&#39;s method [
+## lmerModLmerTest]
+## Formula: log_gaze ~ freq_centered * surprisal_centered + length_centered +  
+##     (1 | participant_id) + (1 | paragraph_id)
+##    Data: ia_analysis
+## 
+## REML criterion at convergence: 612667
+## 
+## Scaled residuals: 
+##     Min      1Q  Median      3Q     Max 
+## -3.7137 -0.6490 -0.0707  0.5923  6.8990 
+## 
+## Random effects:
+##  Groups         Name        Variance  Std.Dev.
+##  participant_id (Intercept) 1.742e-02 0.131986
+##  paragraph_id   (Intercept) 4.393e-05 0.006628
+##  Residual                   1.499e-01 0.387216
+## Number of obs: 650295, groups:  participant_id, 180; paragraph_id, 7
+## 
+## Fixed effects:
+##                                    Estimate Std. Error         df t value
+## (Intercept)                       5.293e+00  1.017e-02  1.765e+02 520.496
+## freq_centered                     3.831e-03  1.381e-04  6.501e+05  27.731
+## surprisal_centered                9.167e-03  1.782e-04  6.499e+05  51.431
+## length_centered                   1.811e-02  2.425e-04  6.500e+05  74.707
+## freq_centered:surprisal_centered -9.937e-06  1.376e-05  6.501e+05  -0.722
+##                                  Pr(&gt;|t|)    
+## (Intercept)                        &lt;2e-16 ***
+## freq_centered                      &lt;2e-16 ***
+## surprisal_centered                 &lt;2e-16 ***
+## length_centered                    &lt;2e-16 ***
+## freq_centered:surprisal_centered     0.47    
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+## 
+## Correlation of Fixed Effects:
+##             (Intr) frq_cn srprs_ lngth_
+## freq_centrd  0.004                     
+## srprsl_cntr  0.007 -0.340              
+## lngth_cntrd -0.004 -0.526 -0.148       
+## frq_cntrd:_ -0.016 -0.238 -0.442  0.267</code></pre>
+<p>The main effect of word frequency was significant, b = 0.004, t =
+27.73, p &lt; .001, with higher frequency values associated with longer
+gaze durations. The main effect of GPT-2 surprisal was also significant,
+b = 0.009, t = 51.43, p &lt; .001, indicating that less predictable
+words received longer first-pass processing time. Word length was a
+strong predictor, b = 0.018, t = 74.71, p &lt; .001, with a notably
+larger effect than in the FFD model, reflecting that longer words
+require more within-word refixations during first-pass reading. However,
+the frequency × surprisal interaction was not significant, b &lt;
+-0.001, t = -0.72, p = .47. This is a striking contrast with the FFD
+results. The frequency buffering effect was highly significant in first
+fixation duration but absent in gaze duration. This dissociation
+suggests that the interaction operates at the very earliest moment of
+word contact — the initial fixation — but does not persist through the
+full first-pass processing of the word. One possible interpretation is
+that frequency provides a brief initial advantage in processing
+unexpected words, but once the reader engages in fuller first-pass
+processing (including within-word refixations), the surprisal cost is
+similar regardless of frequency.</p>
+</div>
+<div id="analysis-3-re-reading-probability" class="section level1">
+<h1>Analysis 3: Re-reading Probability</h1>
+<p>Re-reading captures late processing, i.e., whether the reader returns
+to a word after initially moving past it. Since this is a binary outcome
+(0 = no re-reading, 1 = re-reading), we use a logistic mixed-effects
+model.</p>
+<pre class="r"><code>model_reread &lt;- glmer(reread ~ freq_centered * surprisal_centered + length_centered + (1 | participant_id) + (1 | paragraph_id), data = ia_analysis)</code></pre>
+<pre><code>## Warning in glmer(reread ~ freq_centered * surprisal_centered + length_centered
+## + : calling glmer() with family=gaussian (identity link) as a shortcut to
+## lmer() is deprecated; please call lmer() directly</code></pre>
+<pre class="r"><code>summary(model_reread)</code></pre>
+<pre><code>## Linear mixed model fit by REML [&#39;lmerMod&#39;]
+## Formula: reread ~ freq_centered * surprisal_centered + length_centered +  
+##     (1 | participant_id) + (1 | paragraph_id)
+##    Data: ia_analysis
+## 
+## REML criterion at convergence: 780501.8
+## 
+## Scaled residuals: 
+##     Min      1Q  Median      3Q     Max 
+## -2.1418 -0.7283 -0.4584  1.1663  2.4234 
+## 
+## Random effects:
+##  Groups         Name        Variance  Std.Dev.
+##  participant_id (Intercept) 0.0123693 0.11122 
+##  paragraph_id   (Intercept) 0.0001582 0.01258 
+##  Residual                   0.1941162 0.44059 
+## Number of obs: 650295, groups:  participant_id, 180; paragraph_id, 7
+## 
+## Fixed effects:
+##                                    Estimate Std. Error t value
+## (Intercept)                       2.980e-01  9.582e-03   31.10
+## freq_centered                     4.432e-03  1.572e-04   28.20
+## surprisal_centered                9.548e-03  2.028e-04   47.08
+## length_centered                   1.697e-02  2.759e-04   61.51
+## freq_centered:surprisal_centered -2.750e-04  1.566e-05  -17.57
+## 
+## Correlation of Fixed Effects:
+##             (Intr) frq_cn srprs_ lngth_
+## freq_centrd  0.005                     
+## srprsl_cntr  0.008 -0.340              
+## lngth_cntrd -0.005 -0.526 -0.148       
+## frq_cntrd:_ -0.020 -0.238 -0.442  0.267</code></pre>
+<p>The main effect of word frequency was significant, b = 0.004, t =
+28.20, p &lt; .001, indicating that higher word frequency values were
+associated with a higher probability of re-reading. The main effect of
+GPT-2 surprisal was also significant, b = 0.010, t = 47.08, p &lt; .001,
+confirming that less predictable words were more likely to be re-read.
+Word length was a significant predictor, b = 0.017, t = 61.51, p &lt;
+.001, with longer words more likely to receive regressions. The
+frequency x surprisal interaction was significant, b = -.0003, t =
+-17.57, p &lt; .001. As with FFD, the negative coefficient indicates
+that the surprisal cost on re-reading probability is attenuated at
+higher frequency levels.</p>
+<pre class="r"><code>tab_model(model_ffd, model_gaze, model_reread,
+          title = &quot;Comparison of Frequency × Surprisal Interaction Across Measures&quot;,
+          dv.labels = c(&quot;Log FFD&quot;, &quot;Log Gaze Duration&quot;, &quot;Re-reading (logistic)&quot;),
+          show.stat = TRUE)</code></pre>
+<table style="border-collapse:collapse; border:none;">
+<caption style="font-weight: bold; text-align:left;">
+Comparison of Frequency × Surprisal Interaction Across Measures
+</caption>
+<tr>
+<th style="border-top: double; text-align:center; font-style:normal; font-weight:bold; padding:0.2cm;  text-align:left; ">
+ 
+</th>
+<th colspan="4" style="border-top: double; text-align:center; font-style:normal; font-weight:bold; padding:0.2cm; ">
+Log FFD
+</th>
+<th colspan="4" style="border-top: double; text-align:center; font-style:normal; font-weight:bold; padding:0.2cm; ">
+Log Gaze Duration
+</th>
+<th colspan="4" style="border-top: double; text-align:center; font-style:normal; font-weight:bold; padding:0.2cm; ">
+Re-reading (logistic)
+</th>
+</tr>
+<tr>
+<td style=" text-align:center; border-bottom:1px solid; font-style:italic; font-weight:normal;  text-align:left; ">
+Predictors
+</td>
+<td style=" text-align:center; border-bottom:1px solid; font-style:italic; font-weight:normal;  ">
+Estimates
+</td>
+<td style=" text-align:center; border-bottom:1px solid; font-style:italic; font-weight:normal;  ">
+CI
+</td>
+<td style=" text-align:center; border-bottom:1px solid; font-style:italic; font-weight:normal;  ">
+Statistic
+</td>
+<td style=" text-align:center; border-bottom:1px solid; font-style:italic; font-weight:normal;  ">
+p
+</td>
+<td style=" text-align:center; border-bottom:1px solid; font-style:italic; font-weight:normal;  ">
+Estimates
+</td>
+<td style=" text-align:center; border-bottom:1px solid; font-style:italic; font-weight:normal;  col7">
+CI
+</td>
+<td style=" text-align:center; border-bottom:1px solid; font-style:italic; font-weight:normal;  col8">
+Statistic
+</td>
+<td style=" text-align:center; border-bottom:1px solid; font-style:italic; font-weight:normal;  col9">
+p
+</td>
+<td style=" text-align:center; border-bottom:1px solid; font-style:italic; font-weight:normal;  0">
+Estimates
+</td>
+<td style=" text-align:center; border-bottom:1px solid; font-style:italic; font-weight:normal;  1">
+CI
+</td>
+<td style=" text-align:center; border-bottom:1px solid; font-style:italic; font-weight:normal;  2">
+Statistic
+</td>
+<td style=" text-align:center; border-bottom:1px solid; font-style:italic; font-weight:normal;  3">
+p
+</td>
+</tr>
+<tr>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; ">
+(Intercept)
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+5.23
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+5.21 – 5.24
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+602.89
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+<strong>&lt;0.001</strong>
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+5.29
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  col7">
+5.27 – 5.31
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  col8">
+520.50
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  col9">
+<strong>&lt;0.001</strong>
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  0">
+0.30
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  1">
+0.28 – 0.32
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  2">
+31.10
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  3">
+<strong>&lt;0.001</strong>
+</td>
+</tr>
+<tr>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; ">
+freq centered
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+0.00
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+0.00 – 0.00
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+23.43
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+<strong>&lt;0.001</strong>
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+0.00
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  col7">
+0.00 – 0.00
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  col8">
+27.73
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  col9">
+<strong>&lt;0.001</strong>
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  0">
+0.00
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  1">
+0.00 – 0.00
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  2">
+28.20
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  3">
+<strong>&lt;0.001</strong>
+</td>
+</tr>
+<tr>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; ">
+surprisal centered
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+0.01
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+0.01 – 0.01
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+34.96
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+<strong>&lt;0.001</strong>
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+0.01
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  col7">
+0.01 – 0.01
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  col8">
+51.43
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  col9">
+<strong>&lt;0.001</strong>
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  0">
+0.01
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  1">
+0.01 – 0.01
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  2">
+47.08
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  3">
+<strong>&lt;0.001</strong>
+</td>
+</tr>
+<tr>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; ">
+length centered
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+0.00
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+0.00 – 0.00
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+2.99
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+<strong>0.003</strong>
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+0.02
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  col7">
+0.02 – 0.02
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  col8">
+74.71
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  col9">
+<strong>&lt;0.001</strong>
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  0">
+0.02
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  1">
+0.02 – 0.02
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  2">
+61.51
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  3">
+<strong>&lt;0.001</strong>
+</td>
+</tr>
+<tr>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; ">
+freq centered × surprisal<br>centered
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+-0.00
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+-0.00 – -0.00
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+-18.68
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+<strong>&lt;0.001</strong>
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+-0.00
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  col7">
+-0.00 – 0.00
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  col8">
+-0.72
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  col9">
+0.470
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  0">
+-0.00
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  1">
+-0.00 – -0.00
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  2">
+-17.57
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  3">
+<strong>&lt;0.001</strong>
+</td>
+</tr>
+<tr>
+<td colspan="13" style="font-weight:bold; text-align:left; padding-top:.8em;">
+Random Effects
+</td>
+</tr>
+<tr>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; padding-top:0.1cm; padding-bottom:0.1cm;">
+σ<sup>2</sup>
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
+0.11
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
+0.15
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
+0.19
+</td>
+</tr>
+<tr>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; padding-top:0.1cm; padding-bottom:0.1cm;">
+τ<sub>00</sub>
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
+0.01 <sub>participant_id</sub>
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
+0.02 <sub>participant_id</sub>
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
+0.01 <sub>participant_id</sub>
+</td>
+<tr>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; padding-top:0.1cm; padding-bottom:0.1cm;">
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
+0.00 <sub>paragraph_id</sub>
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
+0.00 <sub>paragraph_id</sub>
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
+0.00 <sub>paragraph_id</sub>
+</td>
+<tr>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; padding-top:0.1cm; padding-bottom:0.1cm;">
+ICC
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
+0.11
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
+0.10
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
+0.06
+</td>
+<tr>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; padding-top:0.1cm; padding-bottom:0.1cm;">
+N
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
+180 <sub>participant_id</sub>
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
+180 <sub>participant_id</sub>
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
+180 <sub>participant_id</sub>
+</td>
+<tr>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; padding-top:0.1cm; padding-bottom:0.1cm;">
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
+7 <sub>paragraph_id</sub>
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
+7 <sub>paragraph_id</sub>
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
+7 <sub>paragraph_id</sub>
+</td>
+<tr>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; padding-top:0.1cm; padding-bottom:0.1cm; border-top:1px solid;">
+Observations
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left; border-top:1px solid;" colspan="4">
+650295
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left; border-top:1px solid;" colspan="4">
+650295
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left; border-top:1px solid;" colspan="4">
+650295
+</td>
+</tr>
+<tr>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; padding-top:0.1cm; padding-bottom:0.1cm;">
+Marginal R<sup>2</sup> / Conditional R<sup>2</sup>
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
+0.006 / 0.112
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
+0.040 / 0.140
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
+0.030 / 0.089
+</td>
+</tr>
+</table>
+</div>
+<div id="compare-the-interaction-across-measures"
+class="section level1">
+<h1>Compare the Interaction Across Measures</h1>
+<pre class="r"><code>interaction_comp &lt;- bind_rows(
+  tidy(model_ffd, effects = &quot;fixed&quot;, conf.int = TRUE) %&gt;%
+    filter(term == &quot;freq_centered:surprisal_centered&quot;) %&gt;%
+    mutate(measure = &quot;First Fixation\nDuration&quot;),
+  tidy(model_gaze, effects = &quot;fixed&quot;, conf.int = TRUE) %&gt;%
+    filter(term == &quot;freq_centered:surprisal_centered&quot;) %&gt;%
+    mutate(measure = &quot;Gaze\nDuration&quot;),
+  tidy(model_reread, effects = &quot;fixed&quot;, conf.int = TRUE) %&gt;%
+    filter(term == &quot;freq_centered:surprisal_centered&quot;) %&gt;%
+    mutate(measure = &quot;Re-reading\nProbability&quot;)
+)
+
+# Coefficient comparison plot
+ggplot(interaction_comp, aes(x = measure, y = estimate)) +
+  geom_point(size = 4, color = &quot;steelblue&quot;) +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high),
+                width = 0.2, linewidth = 1, color = &quot;steelblue&quot;) +
+  geom_hline(yintercept = 0, linetype = &quot;dashed&quot;, color = &quot;red&quot;) +
+  labs(
+    title = &quot;Surprisal × Frequency Interaction Across Measures&quot;,
+    subtitle = &quot;dashed line = zero (no interaction)&quot;,
+    x = &quot;Reading Measure&quot;,
+    y = &quot;Interaction Coefficient&quot;
+  ) +
+  theme_minimal(base_size = 13)</code></pre>
+<p><img src="p04_files/figure-html/unnamed-chunk-12-1.png" width="768" /></p>
+</div>
+<div id="discussion" class="section level1">
+<h1>Discussion</h1>
+<p>This portfolio decomposed the surprisal × frequency interaction from
+Portfolio 3 across three reading measures: first fixation duration, gaze
+duration, and re-reading probability. The interaction was significant
+for FFD and re-reading, but not for gaze duration. Both significant
+coefficients were negative, consistent with portfolio 3’s direction.</p>
+<p>This dissociation suggests that frequency buffers against surprisal
+at two distinct stages but not during extended first-pass processing.
+During initial lexical contact (FFD), frequent words may have stronger
+representations that are less disrupted by unexpected contexts. This
+advantages is then absorbed during fuller first-pass processing (gaze
+duration), where the surprisal cost becomes similar regardless of
+frequency. The interaction re-emerges in re-reading, suggesting
+frequency again plays a role when readers decide whether to return to a
+difficult word, which is important for later comprehension monitoring.
+In this way, the interaction is not a single, uniform effect that scales
+with processing depth; instead, it appears to be stage-specific. This
+stage-specific pattern would have been invisible without decomposing the
+dependent variable, highlighting the value of examining multiple reading
+measures.</p>
+</div>
 
 
 

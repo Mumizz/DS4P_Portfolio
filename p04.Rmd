@@ -3,3 +3,197 @@ title: "Portfolio 4"
 ---
 
 > The projects should be numbered consecutively (i.e., in the order in which you began them), and should include for each project a description of the goal, the product (computer program, hand graph, computer graph, etc.), the data, and some interpretation. Reports must be reproducible and of high quality in terms of writing, grammar, presentation, etc.
+
+
+# Background 
+
+In portfolio 3, I found a significant interaction between word frequency and GPT-2 suprisal on total dwell time - the processing cost of contextually unexpected words was attenuated at higher frequency levels. However, total dwell time combines both first-pass and re-reading fixations, which are thought to reflect distinct cognitive processes. First-pass measures capture initial word recognition and early lexical access, while re-reading reflects later comprehension difficulty or integration failure. By combining these together, portfolio 3 could not determine *when* the interaction exerts its influence. 
+
+This portfolio address the limitation by decomposing the analysis across three reading measures that tap into different stages of processing. 
+
+# Data 
+
+This portfolio uses the same Onestop dataset as portfolio 2 and 3. 
+
+# Goal 
+
+The goal of portfolio 4 is to address the limitation mentioned in portfolio 3 by testing whether the surprisal x frequency interaction observed in portfolio 3 operates at the level of initial word recognition, i.e., first-pass measures, later comprehension processes (re-reading), or both. If the interaction appears only in first-pass measures, it would suggest that frequency buffers against surprisal during early lexical access. If it appears only in re-reading, the buffering effect operates during later integration. If it appears in both, frequency modulates the processing cost of unpredictable words across multiple stages of reading 
+
+# Setup
+
+```{r}
+# Load packages
+library(tidyverse)
+library(scales)
+library(patchwork)
+library(knitr)
+library(psych)
+library(sjPlot)
+library(lme4)
+library(lmerTest)
+library(broom.mixed)
+```
+
+```{r}
+# Load data
+ia <- read_csv("~/Desktop/2025-2026/Courses/Data science for psych/Portfolio 1/ia_Paragraph_ordinary.csv")
+```
+
+# Data Cleaning and Transformation 
+
+We apply the same cleaning steps as portfolio 3 - filtering out practice trials and repeated readings, converting variables to numeric, and removing extreme values. For this portfolio, we prepare three dependent variables: first fixation duration (FFD), gaze duration (first-run dwell time), and a binary re-reading indicator. 
+
+## Filter and Transform
+```{r}
+# Convert character columns to numeric
+ia_clean <- ia %>%
+  mutate(
+    IA_DWELL_TIME = as.numeric(IA_DWELL_TIME),
+    IA_FIRST_RUN_DWELL_TIME = as.numeric(IA_FIRST_RUN_DWELL_TIME),
+    IA_FIRST_FIXATION_DURATION = as.numeric(IA_FIRST_FIXATION_DURATION),
+    IA_FIXATION_COUNT = as.numeric(IA_FIXATION_COUNT)
+  )
+
+# Filter out practice trials, repeated readings, and missing/extreme values
+ia_clean <- ia_clean %>%
+  filter(
+    practice_trial == FALSE,
+    repeated_reading_trial == FALSE,
+    !is.na(IA_DWELL_TIME),
+    !is.na(wordfreq_frequency),
+    !is.na(gpt2_surprisal),
+    !is.na(word_length_no_punctuation),
+    IA_FIRST_FIXATION_DURATION >=80 & IA_FIRST_FIXATION_DURATION <= 800,
+    IA_DWELL_TIME >= 50 & IA_DWELL_TIME <= 3000 
+  )
+```
+
+```{r}
+# Create re-reading indicator
+ia_clean <- ia_clean %>%  
+  mutate(
+    reread = ifelse(!is.na(IA_DWELL_TIME) & !is.na(IA_FIRST_RUN_DWELL_TIME) & IA_DWELL_TIME > IA_FIRST_RUN_DWELL_TIME, 1, 0)
+  )
+```
+
+```{r}
+# Log-transform dwell time and center predictors
+ia_clean <- ia_clean %>%
+  mutate(
+    log_ffd = log(IA_FIRST_FIXATION_DURATION),
+    log_gaze = log(IA_FIRST_RUN_DWELL_TIME), 
+    freq_centered = wordfreq_frequency - mean(wordfreq_frequency, na.rm = TRUE),
+    surprisal_centered = gpt2_surprisal - mean(gpt2_surprisal, na.rm = TRUE),
+    length_centered = word_length_no_punctuation - mean(word_length_no_punctuation, na.rm = TRUE)
+  )
+```
+
+```{r}
+ia_analysis <- ia_clean %>%
+  select(participant_id, paragraph_id,
+         IA_FIRST_FIXATION_DURATION, IA_FIRST_RUN_DWELL_TIME, IA_DWELL_TIME,
+         log_ffd, log_gaze, reread,
+         freq_centered, surprisal_centered, length_centered,
+         wordfreq_frequency, gpt2_surprisal, word_length_no_punctuation)
+```
+
+## Check Distribution 
+```{r fig.height=8}
+p1 <- ggplot(ia_analysis, aes(x = log_ffd)) +
+  geom_histogram(bins = 50, fill = "steelblue", alpha = 0.7) +
+  labs(title = "First Fixation Duration", x = "Log FFD", y = "Count") +
+  theme_minimal()
+
+p2 <- ggplot(ia_analysis, aes(x = log_gaze)) +
+  geom_histogram(bins = 50, fill = "darkgreen", alpha = 0.7) +
+  labs(title = "Gaze Duration (Log)", x = "Log Gaze Duration", y = "Count") +
+  theme_minimal()
+
+p3 <- ggplot(ia_analysis, aes(x = factor(reread))) +
+  geom_bar(fill = "coral", alpha = 0.7) +
+  labs(title = "Re-reading Distribution", x = "Re-read (0 = No, 1 = Yes)", y = "Count") +
+  theme_minimal()
+
+(p1 + p2) / (p3 + plot_spacer())
+```
+Both log-transformed first-pass measures show approximately normal distributions, sutable for linear mixed-effect modeling. The re-reading distribution shows that the majority of words are not re-read, which is consistent with my expectation as readers generally move forward through text and only return to words that caused difficulty. The binary re-reading variable will be analyzed with logistic mixed-effects models.
+
+
+# Analysis 1: First Fixation Duration 
+First fixation duration is the earliest measure of word processing. If the surprisal × frequency interaction appears here, it would suggest that frequency modulates the predictability effect during the very first moment of encountering the word.
+```{r}
+model_ffd <- lmer(log_ffd ~ freq_centered * surprisal_centered + length_centered + (1 | participant_id) + (1 | paragraph_id), data = ia_analysis)
+summary(model_ffd)
+```
+
+The main effect of word frequency was significant, b = .0003, t = 23.43, p < .001, indicating that higher word frequency values were associated with longer first fixation durations. The main effect of GPT-2 surprisal was also significant, b = .005, t = 34.96, p < .001, confirming that less predictable words received longer initial fixations. Word length was a significant but smaller predictor, b = .001, t = 2.99, p = .003. Critically, the frequency x surprisal interaction was significant, b = -.0002, t = -18.68, p < .001. The negative coefficient matches the direction found in portfolio 3's dwell time model, indicating that the frequency buffering effect is already present at the eariest stage of word processing - the very first fixation on the word. 
+
+# Analysis 2: Gaze Duration (first-run dwell time)
+Gaze duration captures the full first-pass processing of a word, including any within-word re-fixations before the eyes move on. It reflects a slightly later and more complete stage of first-pass processing than FFD. 
+
+```{r}
+model_gaze <- lmer(log_gaze ~ freq_centered * surprisal_centered + length_centered + (1 | participant_id) + (1 | paragraph_id), data = ia_analysis)
+summary(model_gaze)
+```
+
+The main effect of word frequency was significant, b = 0.004, t = 27.73, p < .001, with higher frequency values associated with longer gaze durations. The main effect of GPT-2 surprisal was also significant, b = 0.009, t = 51.43, p < .001, indicating that less predictable words received longer first-pass processing time. Word length was a strong predictor, b = 0.018, t = 74.71, p < .001, with a notably larger effect than in the FFD model, reflecting that longer words require more within-word refixations during first-pass reading. However, the frequency × surprisal interaction was not significant, b < -0.001, t = -0.72, p = .47. This is a striking contrast with the FFD results. The frequency buffering effect was highly significant in first fixation duration but absent in gaze duration. This dissociation suggests that the interaction operates at the very earliest moment of word contact — the initial fixation — but does not persist through the full first-pass processing of the word. One possible interpretation is that frequency provides a brief initial advantage in processing unexpected words, but once the reader engages in fuller first-pass processing (including within-word refixations), the surprisal cost is similar regardless of frequency.
+
+# Analysis 3: Re-reading Probability 
+Re-reading captures late processing, i.e., whether the reader returns to a word after initially moving past it. Since this is a binary outcome (0 = no re-reading, 1 = re-reading), we use a logistic mixed-effects model. 
+
+```{r}
+model_reread <- glmer(reread ~ freq_centered * surprisal_centered + length_centered + (1 | participant_id) + (1 | paragraph_id), data = ia_analysis)
+summary(model_reread)
+```
+
+The main effect of word frequency was significant, b = 0.004, t = 28.20, p < .001, indicating that higher word frequency values were associated with a higher probability of re-reading. The main effect of GPT-2 surprisal was also significant, b = 0.010, t = 47.08, p < .001, confirming that less predictable words were more likely to be re-read. Word length was a significant predictor, b = 0.017, t = 61.51, p < .001, with longer words more likely to receive regressions. The frequency x surprisal interaction was significant, b = -.0003, t = -17.57, p < .001. As with FFD, the negative coefficient indicates that the surprisal cost on re-reading probability is attenuated at higher frequency levels.
+
+```{r}
+tab_model(model_ffd, model_gaze, model_reread,
+          title = "Comparison of Frequency × Surprisal Interaction Across Measures",
+          dv.labels = c("Log FFD", "Log Gaze Duration", "Re-reading (logistic)"),
+          show.stat = TRUE)
+```
+
+# Compare the Interaction Across Measures
+
+```{r fig.width=8, fig.height=5}
+interaction_comp <- bind_rows(
+  tidy(model_ffd, effects = "fixed", conf.int = TRUE) %>%
+    filter(term == "freq_centered:surprisal_centered") %>%
+    mutate(measure = "First Fixation\nDuration"),
+  tidy(model_gaze, effects = "fixed", conf.int = TRUE) %>%
+    filter(term == "freq_centered:surprisal_centered") %>%
+    mutate(measure = "Gaze\nDuration"),
+  tidy(model_reread, effects = "fixed", conf.int = TRUE) %>%
+    filter(term == "freq_centered:surprisal_centered") %>%
+    mutate(measure = "Re-reading\nProbability")
+)
+
+# Coefficient comparison plot
+ggplot(interaction_comp, aes(x = measure, y = estimate)) +
+  geom_point(size = 4, color = "steelblue") +
+  geom_errorbar(aes(ymin = conf.low, ymax = conf.high),
+                width = 0.2, linewidth = 1, color = "steelblue") +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+  labs(
+    title = "Surprisal × Frequency Interaction Across Measures",
+    subtitle = "dashed line = zero (no interaction)",
+    x = "Reading Measure",
+    y = "Interaction Coefficient"
+  ) +
+  theme_minimal(base_size = 13)
+```
+
+
+# Discussion 
+This portfolio decomposed the surprisal × frequency interaction from Portfolio 3 across three reading measures: first fixation duration, gaze duration, and re-reading probability. The interaction was significant for FFD and re-reading, but not for gaze duration. Both significant coefficients were negative, consistent with portfolio 3's direction. 
+
+This dissociation suggests that frequency buffers against surprisal at two distinct stages but not during extended first-pass processing. During initial lexical contact (FFD), frequent words may have stronger representations that are less disrupted by unexpected contexts. This advantages is then absorbed during fuller first-pass processing (gaze duration), where the surprisal cost becomes similar regardless of frequency. The interaction re-emerges in re-reading, suggesting frequency again plays a role when readers decide whether to return to a difficult word, which is important for later comprehension monitoring. In this way, the interaction is not a single, uniform effect that scales with processing depth; instead, it appears to be stage-specific. This stage-specific pattern would have been invisible without decomposing the dependent variable, highlighting the value of examining multiple reading measures. 
+
+
+
+
+
+
+
