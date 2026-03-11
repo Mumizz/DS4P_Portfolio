@@ -155,7 +155,7 @@ Despite showing no change across trials, target fixation was strongly and consis
 
 Trial 3 is the only trial position where both tasks yield valid free-viewing first fixation data. This makes it the direct target-fixation analogue of the Figure 6C in the manuscript, a within-subjects test asking whether prior suppression learning in the search task (trials 1-2) produced a measurably higher target fixation rate on trial 3, relative to the trial 3 of central task where is the first time participants experienced the free-viewing display. 
 
-In this way, if suppression of the singleton actively redirects attention toward the target, search-task trial 3 should show higher target fixation rate than central-task trial 3. If suppression is purely inhibitory (freeing prohibition to nonsingletons rather than the target), the two conditions should be statistically indistinguishable on trial 3. 
+In this way, if suppression of the singleton actively redirects attention toward the target, search-task trial 3 should show higher target fixation rate than central-task trial 3. If suppression is purely inhibitory, the two conditions should be statistically indistinguishable on trial 3. 
 
 ```{r}
 # Extract trial 3 from both task types 
