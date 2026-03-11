@@ -477,8 +477,7 @@ library(&#39;xtable&#39;)</code></pre>
 <h1>Preprocessing</h1>
 <p>All preprocessing is identical to
 <code>InitCap_Exp3_analysis.Rmd</code>.</p>
-<pre class="r"><code>########################PREPROCESSING########################
-## VARIABLES
+<pre class="r"><code>## VARIABLES
 #Thresholds (RT, SRT, SD cut)
 hiRT =  2000 # default = 2000
 loRT =  200 # default = 200
@@ -500,6 +499,7 @@ eccent = 270    # 4.5 degrees
 fixZone = 90    # 1.5 degrees
 outZone = 450   # 7.5 degress
 angle = 360 / setsize
+
 loc = data.frame(x = numeric(setsize),
                  y = numeric(setsize))
 loc$x[1] = ctrX
@@ -732,7 +732,7 @@ print(people)</code></pre>
 ## 1 3.949685</code></pre>
 <pre class="r"><code># -------------------------------------------------------------------------
 # Data Exclusion
-# An exclusion criterion was established a priori. 
+# An exclusion criterion was established a prior. 
 # For details, please see the manuscript: Experiment 3, Data Analysis section.
 # -------------------------------------------------------------------------
 # Compute the total number of valid trials (excluding practice trials)
@@ -767,6 +767,12 @@ print(exclusion_report)</code></pre>
 ## 1  RT &lt; 200 ms or RT &gt; 2000 ms            1828       2.89
 ## 2 Incorrect Response (ACC = 0)            1542       2.44
 ## 3        Total Excluded Trials            3203       5.07</code></pre>
+<pre class="r"><code>#Extract accdata as preprocessed data to a csv file 
+library(writexl)
+write.csv(accdata, &quot;/Users/mumizz./Desktop/2025-2026/Courses/Data science for psych/Experiment3/Analysis Script/accdata.csv&quot;, row.names = FALSE)</code></pre>
+<pre class="r"><code>#Extract Trim data to a csv file for later usage
+library(writexl)
+write.csv(trimdata, &quot;/Users/mumizz./Desktop/2025-2026/Courses/Data science for psych/Experiment3/Analysis Script/trimdata.csv&quot;, row.names = FALSE)</code></pre>
 <hr />
 </div>
 <div id="shared-plot-theme" class="section level1">
