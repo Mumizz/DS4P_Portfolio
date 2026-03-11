@@ -33,6 +33,44 @@ However, on trial 3 of the central task, eye movements are released for the firs
 
 Two separate datasets are constructed here. The first capture the 3-trial SRT trajectory in the search task. The second extracts trial 3 SRT from both tasks for the cross-task comparison. 
 
+```{r setup, message=FALSE, warning=FALSE}
+rm(list = ls())
+setwd("~/Documents/GitHub/DS4P_Portfolio")
+library('NickPsych')
+library('tidyverse')
+library('reshape2')
+library('writexl')
+library('dplyr')
+library('bruceR')
+library('openxlsx')
+library('knitr')
+library('xtable')
+library('patchwork')
+
+# Load preprocessed data
+accdata <- read.csv("/Users/mumizz./Desktop/2025-2026/Courses/Data science for psych/Experiment3/Data and Analysis Script/accdata.csv")
+
+# Plot theme (matching manuscript style)
+axis_text_size      <- 20
+axis_tick_text_size <- 18
+graph_color         <- "black"
+axis_tick_length    <- 0.25
+axis_tick_units     <- "cm"
+axis_thickness      <- 1
+
+manuscript_theme <- theme_classic() +
+  theme(
+    axis.line           = element_line(linewidth = axis_thickness, colour = graph_color),
+    axis.title          = element_text(size = axis_text_size),
+    axis.text           = element_text(colour = graph_color, size = axis_tick_text_size),
+    axis.ticks          = element_line(linewidth = axis_thickness, colour = graph_color),
+    axis.ticks.length.y = unit(axis_tick_length, axis_tick_units),
+    axis.ticks.length.x = unit(axis_tick_length, axis_tick_units),
+    legend.position     = "top",
+    text                = element_text(size = axis_tick_text_size)
+  )
+```
+
 ```{r}
 # Search task, all three trials (within-task analysis)
 srt_data <- accdata %>%
@@ -131,8 +169,6 @@ This comparison was not significant, t(39) = .23, p > .05, and the means were ve
 ## Plot
 
 ```{r srt-plot, fig.width=10, fig.height=5, fig.cap="Figure S2. Left: Mean SRT (ms) across trial positions in the search task. Right: Mean SRT (ms) on Trial 3 by task type. Error bars = 95% CI (Cousineau-Morey corrected)."}
-library(patchwork)
-
 # Panel A: within-sequence SRT in search task
 srt_plot <- with(srt_data,
                  cmErrBar(SRT, subjnum, as.character(newtrial), "ci"))

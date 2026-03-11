@@ -302,6 +302,459 @@ of the goal, the product (computer program, hand graph, computer graph,
 etc.), the data, and some interpretation. Reports must be reproducible
 and of high quality in terms of writing, grammar, presentation, etc.</p>
 </blockquote>
+<div id="backgrounds" class="section level1">
+<h1>Backgrounds</h1>
+<p>This portfolio. will follow the plan we proposed in the last
+portfolio.</p>
+</div>
+<div id="goals" class="section level1">
+<h1>Goals</h1>
+<p>This portfolio will conduct secondary analyses on Saccade Reaction
+Time (SRT).</p>
+</div>
+<div id="secondary-analysis-2-saccade-reaction-time-srt"
+class="section level1">
+<h1>Secondary Analysis 2 – Saccade Reaction Time (SRT)</h1>
+<p>Saccade Reaction Time (SRT) is the latency from display onset to the
+start of the participant’s first saccade away from the central fixation
+point. Whereas RT reflects the end of the trial (button response), SRT
+reflects the beginning of the oculomotor response, i.e., how quickly the
+eys begin to mvoe once the search display appears.</p>
+<p>In the search display, a salient singleton creates competition at the
+oculomotor level - even before the eye physically moves, the singleton
+activates its location in the oculomotor system, slowing the initiation
+of goal-directed saccades. If participants learn to proactively suppress
+the singleton across three trials, this oculomotor competition should be
+diminished, and the SRT should decrease, which means that the eyes
+should start moving more decisively and faster.</p>
+<p>For the within-task analsysis, SRT is only available for the search
+task because central task participants were prohibited from making their
+eye movements on trials 1 and 2. We therefore analyze the trial-by-trial
+trajectory in the search task only.</p>
+<p>However, on trial 3 of the central task, eye movements are released
+for the first time. This creates a direct structural parallel to the key
+comparison already reproted in their manuscript (Figrue 6C), which
+compared the oculomotor capture effect on trial 3 between search and
+central tasks. An analogous cross-task SRT comparison will be conducted
+on that trial to test the temporal equivalent of that spatial
+comparison: does prior suppression learning in the search task produce
+faster saccade initiation on the critical trial, relative to
+participants in the central task who search the display for the first
+time without any prior suppression experience.</p>
+<p><strong>Predicted Patterns</strong></p>
+<ul>
+<li><em>Within-search task</em>: SRT decreases from trial 1 to trial 3,
+reflecting progressively less oculomotor competition as the singleton
+suppression has learned.</li>
+<li><em>Cross-task on trial 3</em>: Search-task SRT on trial 3 is
+shorter than central-task SRT on trial 3. Participants encounter the
+singleton as a full distractor for the first time in central task and
+more hesitant saccade initiation relative to the search task, in which
+learned suppression have built up in the piror two trials.</li>
+</ul>
+<div id="data-preparation" class="section level2">
+<h2>Data preparation</h2>
+<p>Two separate datasets are constructed here. The first capture the
+3-trial SRT trajectory in the search task. The second extracts trial 3
+SRT from both tasks for the cross-task comparison.</p>
+<pre class="r"><code>rm(list = ls())
+setwd(&quot;~/Documents/GitHub/DS4P_Portfolio&quot;)
+library(&#39;NickPsych&#39;)
+library(&#39;tidyverse&#39;)
+library(&#39;reshape2&#39;)
+library(&#39;writexl&#39;)
+library(&#39;dplyr&#39;)
+library(&#39;bruceR&#39;)
+library(&#39;openxlsx&#39;)
+library(&#39;knitr&#39;)
+library(&#39;xtable&#39;)
+library(&#39;patchwork&#39;)
+
+# Load preprocessed data
+accdata &lt;- read.csv(&quot;/Users/mumizz./Desktop/2025-2026/Courses/Data science for psych/Experiment3/Data and Analysis Script/accdata.csv&quot;)
+
+# Plot theme (matching manuscript style)
+axis_text_size      &lt;- 20
+axis_tick_text_size &lt;- 18
+graph_color         &lt;- &quot;black&quot;
+axis_tick_length    &lt;- 0.25
+axis_tick_units     &lt;- &quot;cm&quot;
+axis_thickness      &lt;- 1
+
+manuscript_theme &lt;- theme_classic() +
+  theme(
+    axis.line           = element_line(linewidth = axis_thickness, colour = graph_color),
+    axis.title          = element_text(size = axis_text_size),
+    axis.text           = element_text(colour = graph_color, size = axis_tick_text_size),
+    axis.ticks          = element_line(linewidth = axis_thickness, colour = graph_color),
+    axis.ticks.length.y = unit(axis_tick_length, axis_tick_units),
+    axis.ticks.length.x = unit(axis_tick_length, axis_tick_units),
+    legend.position     = &quot;top&quot;,
+    text                = element_text(size = axis_tick_text_size)
+  )</code></pre>
+<pre class="r"><code># Search task, all three trials (within-task analysis)
+srt_data &lt;- accdata %&gt;%
+  filter(taskType == &quot;search&quot;, !is.na(SRT)) %&gt;%
+  distinct(subjnum, trial, newtrial, SRT) %&gt;%
+  group_by(subjnum, newtrial) %&gt;%
+  summarise(SRT = mean(SRT, na.rm = TRUE), .groups = &quot;drop&quot;)
+
+srt_data %&gt;%
+  group_by(newtrial) %&gt;%
+  summarise(M  = round(mean(SRT), 2),
+            SD = round(sd(SRT),   2),
+            n  = n(), .groups = &quot;drop&quot;) %&gt;%
+  kable(caption = &quot;Table 2a. Mean SRT (ms) by trial position (search task only).&quot;) </code></pre>
+<table>
+<caption>Table 2a. Mean SRT (ms) by trial position (search task
+only).</caption>
+<thead>
+<tr class="header">
+<th align="right">newtrial</th>
+<th align="right">M</th>
+<th align="right">SD</th>
+<th align="right">n</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="right">1</td>
+<td align="right">214.70</td>
+<td align="right">53.34</td>
+<td align="right">40</td>
+</tr>
+<tr class="even">
+<td align="right">2</td>
+<td align="right">208.99</td>
+<td align="right">51.09</td>
+<td align="right">40</td>
+</tr>
+<tr class="odd">
+<td align="right">3</td>
+<td align="right">204.41</td>
+<td align="right">49.66</td>
+<td align="right">40</td>
+</tr>
+</tbody>
+</table>
+<p>In the search task, mean SRT showed a decreasing trend, with 214.70ms
+(SD = 53.34) on trial 1, 208.99ms (SD = 51.09) on trial 2, and 204.41ms
+(SD = 49.66) on trial 3, showing a progressive decrease across the
+3-trial same-color sequence.</p>
+<pre class="r"><code># Trial 3 for both tasks (cross-task analysis)
+srt_trial3 &lt;- accdata %&gt;%
+  filter(newtrial == 3, !is.na(SRT)) %&gt;%
+  distinct(subjnum, taskType, trial, SRT) %&gt;%
+  group_by(subjnum, taskType) %&gt;%
+  summarise(SRT = mean(SRT, na.rm = TRUE), .groups = &quot;drop&quot;)
+
+srt_trial3 %&gt;% 
+  group_by(taskType) %&gt;% 
+  summarise(M = round(mean(SRT), 2), 
+            SD = round(sd(SRT),   2),
+            n  = n(), .groups = &quot;drop&quot;) %&gt;%
+  kable(caption = &quot;Table 2b. Mean SRT (ms) on Trial 3 by task type — cross-task comparison.&quot;)</code></pre>
+<table>
+<caption>Table 2b. Mean SRT (ms) on Trial 3 by task type — cross-task
+comparison.</caption>
+<thead>
+<tr class="header">
+<th align="left">taskType</th>
+<th align="right">M</th>
+<th align="right">SD</th>
+<th align="right">n</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">central</td>
+<td align="right">215.70</td>
+<td align="right">57.48</td>
+<td align="right">40</td>
+</tr>
+<tr class="even">
+<td align="left">search</td>
+<td align="right">204.41</td>
+<td align="right">49.66</td>
+<td align="right">40</td>
+</tr>
+</tbody>
+</table>
+<p>On trial 3 of the central task, mean SRT was 215.70ms (SD = 57.48),
+matching search-task trial 1 latencies, consistent with no suppression
+benefit.</p>
+</div>
+<div id="one-way-within-subjects-anova" class="section level2">
+<h2>One-way within-subjects ANOVA</h2>
+<pre class="r"><code>MANOVA(data = srt_data,
+  subID  = &quot;subjnum&quot;,
+  dv     = &quot;SRT&quot;,
+  within = &#39;newtrial&#39;,
+  digits = 2) %&gt;%
+  EMMEANS(&#39;newtrial&#39;)</code></pre>
+<pre><code>## 
+##     * Data are aggregated to mean (across items/trials)
+##     if there are &gt;=2 observations per subject and cell.
+##     You may use Linear Mixed Model to analyze the data,
+##     e.g., with subjects and items as level-2 clusters.</code></pre>
+<pre><code>## 
+## ====== ANOVA (Within-Subjects Design) ======
+## 
+## Descriptives:
+## ─────────────────────────────
+##  &quot;newtrial&quot;   Mean    S.D.  n
+## ─────────────────────────────
+##   newtrial1 214.70 (53.34) 40
+##   newtrial2 208.99 (51.09) 40
+##   newtrial3 204.41 (49.66) 40
+## ─────────────────────────────
+## Total sample size: N = 40
+## 
+## ANOVA Table:
+## Dependent variable(s):      SRT
+## Between-subjects factor(s): –
+## Within-subjects factor(s):  newtrial
+## Covariate(s):               –
+## ───────────────────────────────────────────────────────────────────────
+##                MS   MSE df1 df2     F     p     η²p [90% CI of η²p] η²G
+## ───────────────────────────────────────────────────────────────────────
+## newtrial  1064.54 84.57   2  78 12.59 &lt;.001 ***      .24 [.11, .36] .01
+## ───────────────────────────────────────────────────────────────────────
+## MSE = mean square error (the residual variance of the linear model)
+## η²p = partial eta-squared = SS / (SS + SSE) = F * df1 / (F * df1 + df2)
+## ω²p = partial omega-squared = (F - 1) * df1 / (F * df1 + df2 + 1)
+## η²G = generalized eta-squared (see Olejnik &amp; Algina, 2003)
+## Cohen’s f² = η²p / (1 - η²p)
+## 
+## Levene’s Test for Homogeneity of Variance:
+## No between-subjects factors. No need to do the Levene’s test.
+## 
+## Mauchly’s Test of Sphericity:
+## ───────────────────────────────
+##           Mauchly&#39;s W     p    
+## ───────────────────────────────
+## newtrial       0.9733  .598    
+## ───────────────────────────────
+## 
+## ------ EMMEANS (effect = &quot;newtrial&quot;) ------
+## 
+## Joint Tests of &quot;newtrial&quot;:
+## ──────────────────────────────────────────────────────
+##    Effect df1 df2      F     p     η²p [90% CI of η²p]
+## ──────────────────────────────────────────────────────
+##  newtrial   2  39 11.845 &lt;.001 ***   .378 [.169, .530]
+## ──────────────────────────────────────────────────────
+## Note. Simple effects of repeated measures with 3 or more levels
+## are different from the results obtained with SPSS MANOVA syntax.
+## 
+## Estimated Marginal Means of &quot;newtrial&quot;:
+## ──────────────────────────────────────────────
+##  &quot;newtrial&quot;      Mean [95% CI of Mean]    S.E.
+## ──────────────────────────────────────────────
+##   newtrial1 214.702 [197.643, 231.762] (8.434)
+##   newtrial2 208.986 [192.646, 225.326] (8.078)
+##   newtrial3 204.406 [188.524, 220.287] (7.852)
+## ──────────────────────────────────────────────
+## 
+## Pairwise Comparisons of &quot;newtrial&quot;:
+## ───────────────────────────────────────────────────────────────────────────────────
+##               Contrast Estimate    S.E. df      t     p     Cohen’s d [95% CI of d]
+## ───────────────────────────────────────────────────────────────────────────────────
+##  newtrial2 - newtrial1   -5.716 (1.883) 39 -3.036  .013 *   -0.440 [-0.802, -0.077]
+##  newtrial3 - newtrial1  -10.297 (2.158) 39 -4.772 &lt;.001 *** -0.792 [-1.207, -0.377]
+##  newtrial3 - newtrial2   -4.580 (2.118) 39 -2.163  .110     -0.352 [-0.760,  0.055]
+## ───────────────────────────────────────────────────────────────────────────────────
+## Pooled SD for computing Cohen’s d: 13.006
+## P-value adjustment: Bonferroni method for 3 tests.
+## 
+## Disclaimer:
+## By default, pooled SD is Root Mean Square Error (RMSE).
+## There is much disagreement on how to compute Cohen’s d.
+## You are completely responsible for setting `sd.pooled`.
+## You might also use `effectsize::t_to_d()` to compute d.</code></pre>
+<p>From the within-task ANOVA on search task, trial position had a
+significant effect of SRT in the search task, F(2, 78) = 12.59, p &lt;
+.001, η²p = .244. The large effect size indicates trial position
+accounts for ~25% of reliable SRT variance.</p>
+</div>
+<div id="paired-t-tests-vs.-trial-1" class="section level2">
+<h2>Paired t-tests vs. Trial 1</h2>
+<p>These follow-up tests directly ask: is SRT on trial 2 reliably faster
+than trial 1, and is trial 3 reliably faster than trial 1? They provide
+a fine-grained picture of <em>when</em> in the 3-trial sequence the
+speedup occurs — immediately (trial 2) or only after full suppression
+has developed (trial 3).</p>
+<pre class="r"><code>srt_wide &lt;- srt_data %&gt;%
+  pivot_wider(names_from = newtrial, values_from = SRT) %&gt;%
+  rename(t1 = `1`, t2 = `2`, t3 = `3`)
+
+t.test(srt_wide$t2, srt_wide$t1, paired = TRUE, digits = 2)</code></pre>
+<pre><code>## 
+##  Paired t-test
+## 
+## data:  srt_wide$t2 and srt_wide$t1
+## t = -3.036, df = 39, p-value = 0.004258
+## alternative hypothesis: true mean difference is not equal to 0
+## 95 percent confidence interval:
+##  -9.524745 -1.907857
+## sample estimates:
+## mean difference 
+##       -5.716301</code></pre>
+<pre class="r"><code>t.test(srt_wide$t3, srt_wide$t1, paired = TRUE, digits = 2)</code></pre>
+<pre><code>## 
+##  Paired t-test
+## 
+## data:  srt_wide$t3 and srt_wide$t1
+## t = -4.7718, df = 39, p-value = 2.567e-05
+## alternative hypothesis: true mean difference is not equal to 0
+## 95 percent confidence interval:
+##  -14.66146  -5.93210
+## sample estimates:
+## mean difference 
+##       -10.29678</code></pre>
+<p>Follow-up tests showed that SRT was reliably faster than trial 1 at
+both subsequent positions. Trial 2 was significantly faster than trial
+1, Mean diff = −5.72 ms, t(39) = −3.04, p = .004, 95% CI [−9.52, −1.91].
+Trial 3 was still faster, with Mean diff = −10.30 ms, t(39) = −4.78, p
+&lt; .001, 95% CI [−14.66, −5.93]. The trial 3 vs. trial 2 contrast did
+not reach significance after Bonferroni correction, indicating that the
+bulk of the SRT reduction occurs on the first same-color repetition,
+with more modest and less reliable additional gains on the second. This
+early-onset pattern aligns with the oculomotor capture data, in which
+suppression is already significant by trial 2 in the search task.</p>
+</div>
+<div id="cross-task-comparison-on-trial-3-search-vs.-central"
+class="section level2">
+<h2>Cross-task comparison on Trial 3 (search vs. central)</h2>
+<p>This analysis mirrors the paper’s key Panel C comparison but for SRT.
+On Trial 3, both tasks involve a free saccade into the search display;
+the only difference is whether the participant had prior suppression
+experience (search: yes, central: no). A paired-samples t-test tests
+whether that experience difference translates into a difference in
+saccade initiation speed.</p>
+<pre class="r"><code>srt_trial3_wide &lt;- srt_trial3 %&gt;%
+  pivot_wider(names_from = taskType, values_from = SRT)
+
+t.test(srt_trial3_wide$central, srt_trial3_wide$search, paired = TRUE, digits = 2)</code></pre>
+<pre><code>## 
+##  Paired t-test
+## 
+## data:  srt_trial3_wide$central and srt_trial3_wide$search
+## t = 2.2333, df = 39, p-value = 0.03134
+## alternative hypothesis: true mean difference is not equal to 0
+## 95 percent confidence interval:
+##   1.065048 21.527227
+## sample estimates:
+## mean difference 
+##        11.29614</code></pre>
+<p>On the critical Trial 3, participants in search task initiated their
+first saccade significantly faster than participants in central task,
+with Mean diff = 11.30ms, t(39) = 2.23, p = .03, 95% CI [1.07,
+21.53].</p>
+<p>(<em>This is an add-on step</em>) If the trial 3 of the central task
+is a truly “cold” start, i.e., a first free eye movements with the
+search display, equivalent to having no piror suppression experience,
+then its SRT should be statistically indistinguishable from the trial 1
+of the search task (the trial before any learning has occurred). This
+comparison is the logical complement, as it can rule out the possibility
+that the central task RST is elevated by some inherent property of the
+central task itself (i.e., participants actually use their covert
+attention system to process the singleton and distractor in the first
+two trials), rather than by the absence of suppression learning. Finding
+central task trial 3 ≈ search task trial 1 would show - the two tasks
+share the same starting point, and trial 3 of the search task advantage
+reflects specifically what two trials of suppression learning add.</p>
+<pre class="r"><code># Extract central T3 and search T1 SRT, joined by participant
+central_t3 &lt;- srt_trial3 %&gt;%
+  filter(taskType == &quot;central&quot;) %&gt;%
+  select(subjnum, SRT) %&gt;%
+  rename(central_t3 = SRT)
+
+search_t1 &lt;- srt_data %&gt;%
+  filter(newtrial == 1) %&gt;%
+  select(subjnum, SRT) %&gt;%
+  rename(search_t1 = SRT)
+
+equiv_wide &lt;- inner_join(central_t3, search_t1, by = &quot;subjnum&quot;)
+
+t.test(equiv_wide$central_t3, equiv_wide$search_t1, paired = TRUE)</code></pre>
+<pre><code>## 
+##  Paired t-test
+## 
+## data:  equiv_wide$central_t3 and equiv_wide$search_t1
+## t = 0.23173, df = 39, p-value = 0.818
+## alternative hypothesis: true mean difference is not equal to 0
+## 95 percent confidence interval:
+##  -7.723620  9.722334
+## sample estimates:
+## mean difference 
+##       0.9993567</code></pre>
+<p>This comparison was not significant, t(39) = .23, p &gt; .05, and the
+means were very close, central T3: M = 215.70ms; search T1: M =
+214.70ms; Mdiff = 1ms). This results confirms that the trial 3 in the
+central task were operating from the same baseline as the trial 1 in the
+search task, as if searching the display for the very first time.</p>
+</div>
+<div id="plot" class="section level2">
+<h2>Plot</h2>
+<pre class="r"><code># Panel A: within-sequence SRT in search task
+srt_plot &lt;- with(srt_data,
+                 cmErrBar(SRT, subjnum, as.character(newtrial), &quot;ci&quot;))
+srt_plot$group &lt;- factor(srt_plot$group, levels = c(&quot;1&quot;, &quot;2&quot;, &quot;3&quot;))
+
+p_srt_within &lt;- ggplot(srt_plot, aes(x = group, y = mean)) +
+  geom_errorbar(aes(ymin = minus, ymax = plus), width = 0.15, linewidth = 1.1,
+                color = graph_color) +
+  geom_line(aes(group = 1), linewidth = 1.1, color = graph_color) +
+  geom_point(size = 4, color = graph_color) +
+  labs(x     = &quot;Trials with Same Color&quot;,
+       y     = &quot;Saccade Reaction Time (ms)&quot;,
+       title = &quot;A  Search Task: Trial 1–3&quot;) +
+  manuscript_theme +
+  theme(plot.title = element_text(hjust = 0, size = axis_tick_text_size, face = &quot;bold&quot;))
+
+# Panel B: Trial 3 SRT by task type
+srt_t3_plot &lt;- with(srt_trial3,
+                    cmErrBar(SRT, subjnum, taskType, &quot;ci&quot;))
+
+p_srt_trial3 &lt;- ggplot(srt_t3_plot, aes(x = group, y = mean)) +
+  geom_bar(fill = c(&quot;gray75&quot;, &quot;gray30&quot;), colour = &quot;black&quot;,
+           stat = &quot;identity&quot;, width = 0.6) +
+  geom_errorbar(aes(ymin = minus, ymax = plus), width = 0.15, linewidth = 1.1) +
+  scale_x_discrete(labels = c(&quot;central&quot; = &quot;Central Task&quot;, &quot;search&quot; = &quot;Search Task&quot;)) +
+  scale_y_continuous(expand = expansion(mult = c(0, 0.05))) +
+  labs(x     = &quot;Prior Task Type&quot;,
+       y     = &quot;Saccade Reaction Time (ms)&quot;,
+       title = &quot;B  Critical Trial (Trial 3)&quot;) +
+  manuscript_theme +
+  theme(plot.title = element_text(hjust = 0, size = axis_tick_text_size, face = &quot;bold&quot;))
+
+p_srt_within + p_srt_trial3</code></pre>
+<div class="figure">
+<img src="p06_files/figure-html/srt-plot-1.png" alt="Figure S2. Left: Mean SRT (ms) across trial positions in the search task. Right: Mean SRT (ms) on Trial 3 by task type. Error bars = 95% CI (Cousineau-Morey corrected)." width="960" />
+<p class="caption">
+Figure S2. Left: Mean SRT (ms) across trial positions in the search
+task. Right: Mean SRT (ms) on Trial 3 by task type. Error bars = 95% CI
+(Cousineau-Morey corrected).
+</p>
+</div>
+<p>Together, the three SRT comparisons showed that the only way we can
+learn distractor suppression is to be overtly captured by it first, that
+is, the eyes must actually move onto the distractor before suppression
+can develop. Our results indicated that central task trial 3 was
+statistically indistinguishable from search task trial 1, both represent
+a naive first encounter with the search display. Yet search task trial 3
+was significantly faster than both, and significantly faster than
+central task trial 3. The entire SRT advantage of the search task on the
+critical trial is therefore attributable to the two prior trials of
+suppression learning: without that experience (central task), SRT on
+trial 3 looks exactly like the very start of learning (search T1). These
+findings complement the paper’s Figure 6C — suppression learning not
+only reshapes where the first saccade goes but also when it departs,
+consistent with a broad reduction in oculomotor competition as the
+singleton is progressively deprioritized.</p>
+</div>
+</div>
 
 
 

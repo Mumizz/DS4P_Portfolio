@@ -62,7 +62,6 @@ library('xtable')
 All preprocessing is identical to `InitCap_Exp3_analysis.Rmd`.
 
 ```{r}
-########################PREPROCESSING########################
 ## VARIABLES
 #Thresholds (RT, SRT, SD cut)
 hiRT =  2000 # default = 2000
@@ -85,6 +84,7 @@ eccent = 270    # 4.5 degrees
 fixZone = 90    # 1.5 degrees
 outZone = 450   # 7.5 degress
 angle = 360 / setsize
+
 loc = data.frame(x = numeric(setsize),
                  y = numeric(setsize))
 loc$x[1] = ctrX
@@ -318,7 +318,7 @@ print(people)
 ```{r}
 # -------------------------------------------------------------------------
 # Data Exclusion
-# An exclusion criterion was established a priori. 
+# An exclusion criterion was established a prior. 
 # For details, please see the manuscript: Experiment 3, Data Analysis section.
 # -------------------------------------------------------------------------
 # Compute the total number of valid trials (excluding practice trials)
@@ -349,6 +349,12 @@ exclusion_report <- data.frame(
 )
 # Print output
 print(exclusion_report)
+```
+
+```{r}
+#Extract accdata as preprocessed data to a csv file 
+library(writexl)
+write.csv(accdata, "/Users/mumizz./Desktop/2025-2026/Courses/Data science for psych/Experiment3/Data and Analysis Script/accdata.csv", row.names = FALSE)
 ```
 
 ---
