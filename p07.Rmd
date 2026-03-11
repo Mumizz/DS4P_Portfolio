@@ -69,10 +69,6 @@ manuscript_theme <- theme_classic() +
 ```
 
 ```{r}
-accdata <- read.csv("/Users/mumizz./Desktop/2025-2026/Courses/Data science for psych/Experiment3/Data and Analysis Script/accdata.csv")
-```
-
-```{r}
 # firstfix2 (identical to the original script)
 accdata2 <- subset(accdata, !is.na(SRT))
 
@@ -101,7 +97,7 @@ targfix %>%
   kable(caption = "Table 3. Target first-fixation rate (%) by condition and trial position. Chance = 0.167 (1/6).")
 ```
 
-In the search task, mean target fixation rate was 38.97% (SD = 14.79%) on trial 1, 39.72% (SD = 16.42) on trial 2, and 38.97% (SD = 16.72%) on trial 3, flat across the sequence and consistently above the 1/6 chance baseline. In the central task, only trial 3 yielded valid fixation data (eye movements were restricted on trials 1 and 2). Mean target fixation rate on central trial 3 was 37.76% (SD = 14.62%), close to the rates in search task at all trial positions. 
+In the search task, mean target fixation rate was 38.72% (SD = 14.79%) on trial 1, 39.72% (SD = 16.42%) on trial 2, and 38.97% (SD = 16.72%) on trial 3, flat across the sequence and consistently above the 1/6 chance baseline. In the central task, only trial 3 yielded valid fixation data (eye movements were restricted on trials 1 and 2). Mean target fixation rate on central trial 3 was 37.76% (SD = 14.62%), close to the rates in search task at all trial positions. 
 
 # 2(taskType) × 3(newtrial) within-subjects ANOVA
 
@@ -153,7 +149,7 @@ for (i in 1:3) {
 }
 ```
 
-Despite showing no change across trials, target fixation was strongly and consistently above the chance baseline (1/6) at every trial position. All three effect sizes are large, indicating that participants' first saccades were directed toward the target at more than twice the chance rate throughout the sequence.  
+Despite showing no change across trials, target fixation was strongly and consistently above the chance baseline (1/6) at every trial position. Trial 1: t(39) = 9.43, p < .001, Cohen's d = 1.491; Trial 2: t(39) = 8.88, p < .001, Cohen's d = 1.404; Trial 3: t(39) = 8.43, p < .001, Cohen's d = 1.33. All three effect sizes are large, indicating that participants' first saccades were directed toward the target at more than twice the chance rate throughout the sequence.
 
 # Cross-task comparison on trial 3 (search vs central)
 
@@ -202,3 +198,10 @@ ggplot(targ_plot, aes(x = trial, y = mean, group = condition, color = condition)
        color = "Task Type", shape = "Task Type", linetype = "Task Type") +
   manuscript_theme
 ```
+
+# Summary
+
+Across all five steps, target first-fixation rates showed a consistent pattern: robustly above chance throughout, but completely unmodulated by the three-trial suppression learning cycle. The one-way ANOVA within the search task was non-significant, and the cross-task trial 3 comparison was likewise non-significant. As visualised in the figure above, the two task-type lines run essentially flat and parallel across trial positions, both sitting well above the chance baseline.
+
+This null result is theoretically meaningful. Taken together with the original finding that singleton fixation drops sharply from trial 1 to trial 3, the flat target fixation curve reveals a clear dissociation: suppression learning selectively reduces the singleton's oculomotor priority without boosting the target's. This findings may indicate that the freed attentional resources do not automatically flow toward the goal — they disperse to other (nonsingleton) locations instead. This pattern supports a purely inhibitory account of learned oculomotor suppression: the mechanism acts by tagging and deprioritising the distractor, not by actively enhancing target guidance. Target prioritization and singleton suppression appear to operate through partially independent mechanisms within the attentional priority map.
+
