@@ -48,7 +48,7 @@ library('xtable')
 library('patchwork')
 
 # Load preprocessed data
-accdata <- read.csv("/Users/mumizz./Desktop/2025-2026/Courses/Data science for psych/Experiment3/Data and Analysis Script/accdata.csv")
+accdata <- read.csv("/Users/mumizz./Desktop/2025-2026/Courses/Data science for psych/Experiment3/Analysis Script/accdata.csv")
 
 # Plot theme (matching manuscript style)
 axis_text_size      <- 20
