@@ -363,28 +363,27 @@ library(&#39;xtable&#39;)
 library(&#39;patchwork&#39;)
 
 # Load preprocessed data
-accdata &lt;- read.csv(&quot;/Users/mumizz./Desktop/2025-2026/Courses/Data science for psych/Experiment3/Data and Analysis Script/accdata.csv&quot;)
+accdata &lt;- read.csv(&quot;/Users/mumizz./Desktop/2025-2026/Courses/Data science for psych/Experiment3/Analysis Script/accdata.csv&quot;)
 
 # Plot theme (matching manuscript style)
-axis_text_size      &lt;- 20
+axis_text_size &lt;- 20
 axis_tick_text_size &lt;- 18
-graph_color         &lt;- &quot;black&quot;
-axis_tick_length    &lt;- 0.25
-axis_tick_units     &lt;- &quot;cm&quot;
-axis_thickness      &lt;- 1
+graph_color &lt;- &quot;black&quot;
+axis_tick_length &lt;- 0.25
+axis_tick_units &lt;- &quot;cm&quot;
+axis_thickness &lt;- 1
 
 manuscript_theme &lt;- theme_classic() +
   theme(
-    axis.line           = element_line(linewidth = axis_thickness, colour = graph_color),
-    axis.title          = element_text(size = axis_text_size),
-    axis.text           = element_text(colour = graph_color, size = axis_tick_text_size),
-    axis.ticks          = element_line(linewidth = axis_thickness, colour = graph_color),
+    axis.line = element_line(linewidth = axis_thickness, colour = graph_color),
+    axis.title = element_text(size = axis_text_size),
+    axis.text = element_text(colour = graph_color, size = axis_tick_text_size),
+    axis.ticks = element_line(linewidth = axis_thickness, colour = graph_color),
     axis.ticks.length.y = unit(axis_tick_length, axis_tick_units),
     axis.ticks.length.x = unit(axis_tick_length, axis_tick_units),
-    legend.position     = &quot;top&quot;,
-    text                = element_text(size = axis_tick_text_size)
+    legend.position = &quot;top&quot;,
+    text = element_text(size = axis_tick_text_size)
   )</code></pre>
-<pre class="r"><code>accdata &lt;- read.csv(&quot;/Users/mumizz./Desktop/2025-2026/Courses/Data science for psych/Experiment3/Data and Analysis Script/accdata.csv&quot;)</code></pre>
 <pre class="r"><code># firstfix2 (identical to the original script)
 accdata2 &lt;- subset(accdata, !is.na(SRT))
 
@@ -468,8 +467,8 @@ position. Chance = 0.167 (1/6).</caption>
 </tr>
 </tbody>
 </table>
-<p>In the search task, mean target fixation rate was 38.97% (SD =
-14.79%) on trial 1, 39.72% (SD = 16.42) on trial 2, and 38.97% (SD =
+<p>In the search task, mean target fixation rate was 38.72% (SD =
+14.79%) on trial 1, 39.72% (SD = 16.42%) on trial 2, and 38.97% (SD =
 16.72%) on trial 3, flat across the sequence and consistently above the
 1/6 chance baseline. In the central task, only trial 3 yielded valid
 fixation data (eye movements were restricted on trials 1 and 2). Mean
@@ -481,9 +480,9 @@ to the rates in search task at all trial positions.</p>
 class="section level1">
 <h1>2(taskType) × 3(newtrial) within-subjects ANOVA</h1>
 <pre class="r"><code>MANOVA(
-  data   = targfix,
-  subID  = &quot;subjnum&quot;,
-  dv     = &quot;perc&quot;,
+  data = targfix,
+  subID = &quot;subjnum&quot;,
+  dv = &quot;perc&quot;,
   within = c(&#39;newtrial&#39;, &#39;taskType&#39;),
   digits = 2
 ) %&gt;%
@@ -679,9 +678,9 @@ change across the 3-trial sequence.</p>
 <h2>One-way ANOVA within the search task</h2>
 <pre class="r"><code>targfix_search &lt;- targfix %&gt;% filter(taskType == &quot;search&quot;)
 MANOVA(
-  data   = targfix_search,
-  subID  = &quot;subjnum&quot;,
-  dv     = &quot;perc&quot;,
+  data = targfix_search,
+  subID = &quot;subjnum&quot;,
+  dv = &quot;perc&quot;,
   within = &#39;newtrial&#39;,
   digits = 2
 ) %&gt;%
@@ -847,9 +846,11 @@ for (i in 1:3) {
 ## ──────────────────────────────────────────────────────────────────────────────────────────────</code></pre>
 <p>Despite showing no change across trials, target fixation was strongly
 and consistently above the chance baseline (1/6) at every trial
-position. All three effect sizes are large, indicating that
-participants’ first saccades were directed toward the target at more
-than twice the chance rate throughout the sequence.</p>
+position. Trial 1: t(39) = 9.43, p &lt; .001, Cohen’s d = 1.491; Trial
+2: t(39) = 8.88, p &lt; .001, Cohen’s d = 1.404; Trial 3: t(39) = 8.43,
+p &lt; .001, Cohen’s d = 1.33. All three effect sizes are large,
+indicating that participants’ first saccades were directed toward the
+target at more than twice the chance rate throughout the sequence.</p>
 </div>
 </div>
 <div id="cross-task-comparison-on-trial-3-search-vs-central"
@@ -865,9 +866,8 @@ first time participants experienced the free-viewing display.</p>
 <p>In this way, if suppression of the singleton actively redirects
 attention toward the target, search-task trial 3 should show higher
 target fixation rate than central-task trial 3. If suppression is purely
-inhibitory (freeing prohibition to nonsingletons rather than the
-target), the two conditions should be statistically indistinguishable on
-trial 3.</p>
+inhibitory, the two conditions should be statistically indistinguishable
+on trial 3.</p>
 <pre class="r"><code># Extract trial 3 from both task types 
 t3_both &lt;- targfix %&gt;% 
   filter(newtrial == &quot;3&quot;) %&gt;% 
@@ -915,8 +915,8 @@ ggplot(targ_plot, aes(x = trial, y = mean, group = condition, color = condition)
                         labels = c(&quot;Central Task&quot;, &quot;Search Task&quot;)) +
   scale_y_continuous(limits = c(0.1, 0.6), breaks = seq(0.1, 0.6, 0.1),
                      labels = scales::percent_format(accuracy = 1)) +
-  labs(x     = &quot;Trials with Same Color&quot;,
-       y     = &quot;Target First-Fixation Rate&quot;,
+  labs(x = &quot;Trials with Same Color&quot;,
+       y = &quot;Target First-Fixation Rate&quot;,
        color = &quot;Task Type&quot;, shape = &quot;Task Type&quot;, linetype = &quot;Task Type&quot;) +
   manuscript_theme</code></pre>
 <pre><code>## Warning: Removed 2 rows containing missing values or values outside the scale range
@@ -931,6 +931,29 @@ type. Dashed gray line = chance (1/6 ≈ 16.7%). Error bars = 95% CI
 (Cousineau-Morey corrected).
 </p>
 </div>
+</div>
+<div id="summary" class="section level1">
+<h1>Summary</h1>
+<p>Across all five steps, target first-fixation rates showed a
+consistent pattern: robustly above chance throughout, but completely
+unmodulated by the three-trial suppression learning cycle. The one-way
+ANOVA within the search task was non-significant, and the cross-task
+trial 3 comparison was likewise non-significant. As visualised in the
+figure above, the two task-type lines run essentially flat and parallel
+across trial positions, both sitting well above the chance baseline.</p>
+<p>This null result is theoretically meaningful. Taken together with the
+original finding that singleton fixation drops sharply from trial 1 to
+trial 3, the flat target fixation curve reveals a clear dissociation:
+suppression learning selectively reduces the singleton’s oculomotor
+priority without boosting the target’s. This findings may indicate that
+the freed attentional resources do not automatically flow toward the
+goal — they disperse to other (nonsingleton) locations instead. This
+pattern supports a purely inhibitory account of learned oculomotor
+suppression: the mechanism acts by tagging and deprioritising the
+distractor, not by actively enhancing target guidance. Target
+prioritization and singleton suppression appear to operate through
+partially independent mechanisms within the attentional priority
+map.</p>
 </div>
 
 

@@ -371,26 +371,26 @@ library(&#39;xtable&#39;)
 library(&#39;patchwork&#39;)
 
 # Load preprocessed data
-accdata &lt;- read.csv(&quot;/Users/mumizz./Desktop/2025-2026/Courses/Data science for psych/Experiment3/Data and Analysis Script/accdata.csv&quot;)
+accdata &lt;- read.csv(&quot;/Users/mumizz./Desktop/2025-2026/Courses/Data science for psych/Experiment3/Analysis Script/accdata.csv&quot;)
 
 # Plot theme (matching manuscript style)
-axis_text_size      &lt;- 20
+axis_text_size &lt;- 20
 axis_tick_text_size &lt;- 18
-graph_color         &lt;- &quot;black&quot;
-axis_tick_length    &lt;- 0.25
-axis_tick_units     &lt;- &quot;cm&quot;
-axis_thickness      &lt;- 1
+graph_color &lt;- &quot;black&quot;
+axis_tick_length &lt;- 0.25
+axis_tick_units &lt;- &quot;cm&quot;
+axis_thickness &lt;- 1
 
 manuscript_theme &lt;- theme_classic() +
   theme(
-    axis.line           = element_line(linewidth = axis_thickness, colour = graph_color),
-    axis.title          = element_text(size = axis_text_size),
-    axis.text           = element_text(colour = graph_color, size = axis_tick_text_size),
-    axis.ticks          = element_line(linewidth = axis_thickness, colour = graph_color),
+    axis.line = element_line(linewidth = axis_thickness, colour = graph_color),
+    axis.title = element_text(size = axis_text_size),
+    axis.text = element_text(colour = graph_color, size = axis_tick_text_size),
+    axis.ticks = element_line(linewidth = axis_thickness, colour = graph_color),
     axis.ticks.length.y = unit(axis_tick_length, axis_tick_units),
     axis.ticks.length.x = unit(axis_tick_length, axis_tick_units),
-    legend.position     = &quot;top&quot;,
-    text                = element_text(size = axis_tick_text_size)
+    legend.position = &quot;top&quot;,
+    text = element_text(size = axis_tick_text_size)
   )</code></pre>
 <pre class="r"><code># Search task, all three trials (within-task analysis)
 srt_data &lt;- accdata %&gt;%
@@ -487,8 +487,8 @@ benefit.</p>
 <div id="one-way-within-subjects-anova" class="section level2">
 <h2>One-way within-subjects ANOVA</h2>
 <pre class="r"><code>MANOVA(data = srt_data,
-  subID  = &quot;subjnum&quot;,
-  dv     = &quot;SRT&quot;,
+  subID = &quot;subjnum&quot;,
+  dv= &quot;SRT&quot;,
   within = &#39;newtrial&#39;,
   digits = 2) %&gt;%
   EMMEANS(&#39;newtrial&#39;)</code></pre>
