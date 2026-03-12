@@ -302,6 +302,70 @@ of the goal, the product (computer program, hand graph, computer graph,
 etc.), the data, and some interpretation. Reports must be reproducible
 and of high quality in terms of writing, grammar, presentation, etc.</p>
 </blockquote>
+<div id="background" class="section level1">
+<h1>Background</h1>
+<p>The previous portfolio established that target first-fixation rate is
+robustly above chance throughout the three-trial suppression learning
+sequence but completely unmodulated by it. Singleton capture falls
+sharply from trials 1 to 3; target fixation rate does not rise. This may
+suggest that suppression is purely inhibitory - it removes the
+singleton’s oculomotor priority without redistributing attention toward
+the goal.</p>
+<p>But the analyses so far have looked only one moment in each trial -
+the very first peripheral fixation. A full trial contains an entire
+sequence of eye movements as the participant scans the display, gets
+captured, recovers, and eventually finds the target. Two questions that
+no prior analysis can answer:</p>
+<ul>
+<li>First, when the eye is captured by the singleton distractor, does
+suppression learning help participants escape more efficiently? If
+participants on trial 3 are better at immediately redirecting to the
+target after being trapped (compared to trial 1), that would suggest
+suppression reshapes not just whether capture happens, but the recovery
+dynamics that follow. Conversely, if post-capture recovery is constant
+across trial positions, it means suppression acts only at the initial
+decision stage, with no downstream influence once the eye has already
+landed on the wrong item.</li>
+</ul>
+</div>
+<div id="goals" class="section level1">
+<h1>Goals</h1>
+<pre class="r"><code>rm(list = ls())
+setwd(&quot;~/Documents/GitHub/DS4P_Portfolio&quot;)
+library(&#39;NickPsych&#39;)
+library(&#39;tidyverse&#39;)
+library(&#39;reshape2&#39;)
+library(&#39;writexl&#39;)
+library(&#39;dplyr&#39;)
+library(&#39;bruceR&#39;)
+library(&#39;openxlsx&#39;)
+library(&#39;knitr&#39;)
+library(&#39;xtable&#39;)
+library(&#39;patchwork&#39;)
+
+# Load preprocessed data
+accdata &lt;- read.csv(&quot;/Users/mumizz./Desktop/2025-2026/Courses/Data science for psych/Experiment3/Data and Analysis Script/accdata.csv&quot;)
+
+# Plot theme (matching manuscript style)
+axis_text_size      &lt;- 20
+axis_tick_text_size &lt;- 18
+graph_color         &lt;- &quot;black&quot;
+axis_tick_length    &lt;- 0.25
+axis_tick_units     &lt;- &quot;cm&quot;
+axis_thickness      &lt;- 1
+
+manuscript_theme &lt;- theme_classic() +
+  theme(
+    axis.line           = element_line(linewidth = axis_thickness, colour = graph_color),
+    axis.title          = element_text(size = axis_text_size),
+    axis.text           = element_text(colour = graph_color, size = axis_tick_text_size),
+    axis.ticks          = element_line(linewidth = axis_thickness, colour = graph_color),
+    axis.ticks.length.y = unit(axis_tick_length, axis_tick_units),
+    axis.ticks.length.x = unit(axis_tick_length, axis_tick_units),
+    legend.position     = &quot;top&quot;,
+    text                = element_text(size = axis_tick_text_size)
+  )</code></pre>
+</div>
 
 
 
