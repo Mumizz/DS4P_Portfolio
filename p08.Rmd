@@ -30,23 +30,23 @@ library('patchwork')
 accdata <- read.csv("/Users/mumizz./Desktop/2025-2026/Courses/Data science for psych/Experiment3/Analysis Script/accdata.csv")
 
 # Plot theme (matching manuscript style)
-axis_text_size      <- 20
+axis_text_size <- 20
 axis_tick_text_size <- 18
-graph_color         <- "black"
-axis_tick_length    <- 0.25
-axis_tick_units     <- "cm"
-axis_thickness      <- 1
+graph_color <- "black"
+axis_tick_length <- 0.25
+axis_tick_units <- "cm"
+axis_thickness <- 1
 
 manuscript_theme <- theme_classic() +
   theme(
-    axis.line           = element_line(linewidth = axis_thickness, colour = graph_color),
-    axis.title          = element_text(size = axis_text_size),
-    axis.text           = element_text(colour = graph_color, size = axis_tick_text_size),
-    axis.ticks          = element_line(linewidth = axis_thickness, colour = graph_color),
+    axis.line = element_line(linewidth = axis_thickness, colour = graph_color),
+    axis.title = element_text(size = axis_text_size),
+    axis.text = element_text(colour = graph_color, size = axis_tick_text_size),
+    axis.ticks = element_line(linewidth = axis_thickness, colour = graph_color),
     axis.ticks.length.y = unit(axis_tick_length, axis_tick_units),
     axis.ticks.length.x = unit(axis_tick_length, axis_tick_units),
-    legend.position     = "top",
-    text                = element_text(size = axis_tick_text_size)
+    legend.position = "top",
+    text = element_text(size = axis_tick_text_size)
   )
 ```
 
@@ -61,9 +61,9 @@ firstfix2 <- as.data.frame(
 # Total number of fixations on items in the display 
 firstfix2$total <- with(firstfix2, ave(Freq, interaction(subjnum, taskType, newtrial), FUN = sum))
 # % of the toal each item was fixated 
-firstfix2$perc  <- firstfix2$Freq / firstfix2$total
+firstfix2$perc <- firstfix2$Freq / firstfix2$total
 
-firstfix2$perc  <- with(firstfix2,
+firstfix2$perc <- with(firstfix2,
   ifelse(curritem == 'Nonsingleton', perc / 4, perc))
 firstfix2$perc[is.nan(firstfix2$perc)] <- 0
 firstfix2 <- firstfix2[, -c(5, 6)]
@@ -85,7 +85,7 @@ To determine where the freed probability mass flows as singleton capture decreas
 ```{r}
 sing_fix <- firstfix2 %>% filter(taskType == "search", curritem == "Singleton")
 MANOVA(data = sing_fix,
-       subID  = "subjnum",
+       subID = "subjnum",
        dv = "perc",
        within = 'newtrial',
        sph.correction = "GG",
@@ -104,7 +104,7 @@ decomp_summary <- with(
 ) %>%
   separate(group, into = c("item", "trial"), sep = " ") %>%
   mutate(trial = factor(trial, levels = c("1", "2", "3")),
-         item  = factor(item, levels = c("Singleton", "Target", "Nonsingleton")))
+         item = factor(item, levels = c("Singleton", "Target", "Nonsingleton")))
 
 ggplot(decomp_summary,
        aes(x = trial, y = mean * 100, group = item,
@@ -118,18 +118,18 @@ ggplot(decomp_summary,
   annotate("text", x = 0.6, y = 100 / 6 + 1.5,
            label = "chance (1/6)", color = "gray50", size = 4.5, hjust = 0) +
   scale_color_manual(
-    values   = c("Singleton" = "#E74C3C", "Target" = "#333333", "Nonsingleton" = "#95A5A6"),
-    labels   = c("Singleton", "Target", "Nonsingleton (per item)")) +
+    values = c("Singleton" = "#E74C3C", "Target" = "#333333", "Nonsingleton" = "#95A5A6"),
+    labels = c("Singleton", "Target", "Nonsingleton (per item)")) +
   scale_shape_manual(
-    values   = c("Singleton" = 15, "Target" = 16, "Nonsingleton" = 17),
-    labels   = c("Singleton", "Target", "Nonsingleton (per item)")) +
+    values = c("Singleton" = 15, "Target" = 16, "Nonsingleton" = 17),
+    labels = c("Singleton", "Target", "Nonsingleton (per item)")) +
   scale_linetype_manual(
-    values   = c("Singleton" = "dashed", "Target" = "solid", "Nonsingleton" = "dotted"),
-    labels   = c("Singleton", "Target", "Nonsingleton (per item)")) +
-  labs(x        = "Trials with Same Color",
-       y        = "First-Fixation Rate (%)",
-       color    = "Item Type",
-       shape    = "Item Type",
+    values = c("Singleton" = "dashed", "Target" = "solid", "Nonsingleton" = "dotted"),
+    labels = c("Singleton", "Target", "Nonsingleton (per item)")) +
+  labs(x = "Trials with Same Color",
+       y = "First-Fixation Rate (%)",
+       color = "Item Type",
+       shape = "Item Type",
        linetype = "Item Type") +
   manuscript_theme
 ```
@@ -174,8 +174,8 @@ ggplot(sing_wide, aes(x = t1 * 100, y = learning_t1_t3 * 100)) +
   geom_smooth(method = "lm", se = TRUE,
               color = "black", fill = "gray80", linewidth = 1.1) +
   annotate("text",
-           x     = max(sing_wide$t1 * 100) - 1,
-           y     = max(sing_wide$learning_t1_t3 * 100) - 1,
+           x = max(sing_wide$t1 * 100) - 1,
+           y = max(sing_wide$learning_t1_t3 * 100) - 1,
            label = "r = .59, p < .001",
            hjust = 1, size = 5.5) +
   labs(x = "Trial 1 Singleton Fixation Rate",

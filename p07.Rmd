@@ -48,23 +48,23 @@ library('patchwork')
 accdata <- read.csv("/Users/mumizz./Desktop/2025-2026/Courses/Data science for psych/Experiment3/Analysis Script/accdata.csv")
 
 # Plot theme (matching manuscript style)
-axis_text_size      <- 20
+axis_text_size <- 20
 axis_tick_text_size <- 18
-graph_color         <- "black"
-axis_tick_length    <- 0.25
-axis_tick_units     <- "cm"
-axis_thickness      <- 1
+graph_color <- "black"
+axis_tick_length <- 0.25
+axis_tick_units <- "cm"
+axis_thickness <- 1
 
 manuscript_theme <- theme_classic() +
   theme(
-    axis.line           = element_line(linewidth = axis_thickness, colour = graph_color),
-    axis.title          = element_text(size = axis_text_size),
-    axis.text           = element_text(colour = graph_color, size = axis_tick_text_size),
-    axis.ticks          = element_line(linewidth = axis_thickness, colour = graph_color),
+    axis.line = element_line(linewidth = axis_thickness, colour = graph_color),
+    axis.title = element_text(size = axis_text_size),
+    axis.text = element_text(colour = graph_color, size = axis_tick_text_size),
+    axis.ticks = element_line(linewidth = axis_thickness, colour = graph_color),
     axis.ticks.length.y = unit(axis_tick_length, axis_tick_units),
     axis.ticks.length.x = unit(axis_tick_length, axis_tick_units),
-    legend.position     = "top",
-    text                = element_text(size = axis_tick_text_size)
+    legend.position = "top",
+    text = element_text(size = axis_tick_text_size)
   )
 ```
 
@@ -193,8 +193,8 @@ ggplot(targ_plot, aes(x = trial, y = mean, group = condition, color = condition)
                         labels = c("Central Task", "Search Task")) +
   scale_y_continuous(limits = c(0.1, 0.6), breaks = seq(0.1, 0.6, 0.1),
                      labels = scales::percent_format(accuracy = 1)) +
-  labs(x     = "Trials with Same Color",
-       y     = "Target First-Fixation Rate",
+  labs(x = "Trials with Same Color",
+       y = "Target First-Fixation Rate",
        color = "Task Type", shape = "Task Type", linetype = "Task Type") +
   manuscript_theme
 ```
