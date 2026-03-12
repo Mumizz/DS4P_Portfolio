@@ -11,7 +11,7 @@
 
 
 
-<title>Portfolio 8</title>
+<title>Portfolio 8: Extension of Portfolio 7</title>
 
 <script src="site_libs/header-attrs-2.30/header-attrs.js"></script>
 <script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
@@ -290,7 +290,7 @@ $(document).ready(function () {
 
 
 
-<h1 class="title toc-ignore">Portfolio 8</h1>
+<h1 class="title toc-ignore">Portfolio 8: Extension of Portfolio 7</h1>
 
 </div>
 
@@ -302,34 +302,20 @@ of the goal, the product (computer program, hand graph, computer graph,
 etc.), the data, and some interpretation. Reports must be reproducible
 and of high quality in terms of writing, grammar, presentation, etc.</p>
 </blockquote>
-<div id="background" class="section level1">
-<h1>Background</h1>
-<p>The previous portfolio established that target first-fixation rate is
-robustly above chance throughout the three-trial suppression learning
-sequence but completely unmodulated by it. Singleton capture falls
-sharply from trials 1 to 3; target fixation rate does not rise. This may
-suggest that suppression is purely inhibitory - it removes the
-singleton’s oculomotor priority without redistributing attention toward
-the goal.</p>
-<p>But the analyses so far have looked only one moment in each trial -
-the very first peripheral fixation. A full trial contains an entire
-sequence of eye movements as the participant scans the display, gets
-captured, recovers, and eventually finds the target. Two questions that
-no prior analysis can answer:</p>
-<ul>
-<li>First, when the eye is captured by the singleton distractor, does
-suppression learning help participants escape more efficiently? If
-participants on trial 3 are better at immediately redirecting to the
-target after being trapped (compared to trial 1), that would suggest
-suppression reshapes not just whether capture happens, but the recovery
-dynamics that follow. Conversely, if post-capture recovery is constant
-across trial positions, it means suppression acts only at the initial
-decision stage, with no downstream influence once the eye has already
-landed on the wrong item.</li>
-</ul>
-</div>
-<div id="goals" class="section level1">
-<h1>Goals</h1>
+<div id="extension-1-full-first-fixation-probability-decomposition"
+class="section level2">
+<h2>Extension 1: Full First-Fixation Probability Decomposition</h2>
+<p>The main analysis of target fixation rate only examined the target
+row of <code>firstfix2</code>. But understanding where the freed
+probability mass goes as singleton fixation drops is theoretically
+important. If suppression actively redirects attention toward the goal,
+target fixation should rise as singleton fixation falls. If suppression
+is purely inhibitory, i.e., reducing the singleton’s pull without
+boosting target priority, target fixation should stay flat and the freed
+probability should flow instead to nonsingleton items.</p>
+<p>This extension plots and tests all three item types (Singleton,
+Target, Nonsingleton per item) simultaneously across trials 1–3 in the
+search task.</p>
 <pre class="r"><code>rm(list = ls())
 setwd(&quot;~/Documents/GitHub/DS4P_Portfolio&quot;)
 library(&#39;NickPsych&#39;)
@@ -344,7 +330,7 @@ library(&#39;xtable&#39;)
 library(&#39;patchwork&#39;)
 
 # Load preprocessed data
-accdata &lt;- read.csv(&quot;/Users/mumizz./Desktop/2025-2026/Courses/Data science for psych/Experiment3/Data and Analysis Script/accdata.csv&quot;)
+accdata &lt;- read.csv(&quot;/Users/mumizz./Desktop/2025-2026/Courses/Data science for psych/Experiment3/Analysis Script/accdata.csv&quot;)
 
 # Plot theme (matching manuscript style)
 axis_text_size      &lt;- 20
@@ -365,6 +351,375 @@ manuscript_theme &lt;- theme_classic() +
     legend.position     = &quot;top&quot;,
     text                = element_text(size = axis_tick_text_size)
   )</code></pre>
+<pre class="r"><code># firstfix2 (identical to the original script)
+accdata2 &lt;- subset(accdata, !is.na(SRT))
+
+firstfix2 &lt;- as.data.frame(
+  xtabs(~ curritem + subjnum + taskType + newtrial, data = accdata2)
+)
+
+# Total number of fixations on items in the display 
+firstfix2$total &lt;- with(firstfix2, ave(Freq, interaction(subjnum, taskType, newtrial), FUN = sum))
+# % of the toal each item was fixated 
+firstfix2$perc  &lt;- firstfix2$Freq / firstfix2$total
+
+firstfix2$perc  &lt;- with(firstfix2,
+  ifelse(curritem == &#39;Nonsingleton&#39;, perc / 4, perc))
+firstfix2$perc[is.nan(firstfix2$perc)] &lt;- 0
+firstfix2 &lt;- firstfix2[, -c(5, 6)]</code></pre>
+<pre class="r"><code># Descriptive table: all three item types 
+decomp_desc &lt;- firstfix2 %&gt;%
+  filter(taskType == &quot;search&quot;) %&gt;%
+  group_by(curritem, newtrial) %&gt;%
+  summarise(M  = round(mean(perc) * 100, 2),
+            SD = round(sd(perc)  * 100, 2), .groups = &quot;drop&quot;)
+kable(decomp_desc,
+      caption = &quot;Table 4. First-fixation rate (%) by item type and trial position — search task only. Nonsingleton is a per-item rate (divided by 4). Chance = 16.67% for all three categories.&quot;)</code></pre>
+<table>
+<caption>Table 4. First-fixation rate (%) by item type and trial
+position — search task only. Nonsingleton is a per-item rate (divided by
+4). Chance = 16.67% for all three categories.</caption>
+<thead>
+<tr class="header">
+<th align="left">curritem</th>
+<th align="left">newtrial</th>
+<th align="right">M</th>
+<th align="right">SD</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">Nonsingleton</td>
+<td align="left">1</td>
+<td align="right">11.39</td>
+<td align="right">2.99</td>
+</tr>
+<tr class="even">
+<td align="left">Nonsingleton</td>
+<td align="left">2</td>
+<td align="right">12.60</td>
+<td align="right">3.20</td>
+</tr>
+<tr class="odd">
+<td align="left">Nonsingleton</td>
+<td align="left">3</td>
+<td align="right">13.19</td>
+<td align="right">3.44</td>
+</tr>
+<tr class="even">
+<td align="left">Singleton</td>
+<td align="left">1</td>
+<td align="right">15.73</td>
+<td align="right">5.06</td>
+</tr>
+<tr class="odd">
+<td align="left">Singleton</td>
+<td align="left">2</td>
+<td align="right">9.90</td>
+<td align="right">5.41</td>
+</tr>
+<tr class="even">
+<td align="left">Singleton</td>
+<td align="left">3</td>
+<td align="right">8.29</td>
+<td align="right">4.35</td>
+</tr>
+<tr class="odd">
+<td align="left">Target</td>
+<td align="left">1</td>
+<td align="right">38.72</td>
+<td align="right">14.79</td>
+</tr>
+<tr class="even">
+<td align="left">Target</td>
+<td align="left">2</td>
+<td align="right">39.72</td>
+<td align="right">16.42</td>
+</tr>
+<tr class="odd">
+<td align="left">Target</td>
+<td align="left">3</td>
+<td align="right">38.97</td>
+<td align="right">16.72</td>
+</tr>
+</tbody>
+</table>
+<p>To determine where the freed probability mass flows as singleton
+capture decreases, we examined all three item types simultaneously
+across trials 1–3 in the search task. Singleton fixation dropped
+gradually from 15.73% (SD = 5.06%) on Trial 1, to 9.88% (SD = 5.41%) on
+trial 2, then to 8.29% (SD = 4.35%) on trial 3.</p>
+<pre class="r"><code>sing_fix &lt;- firstfix2 %&gt;% filter(taskType == &quot;search&quot;, curritem == &quot;Singleton&quot;)
+MANOVA(data   = sing_fix,
+       subID  = &quot;subjnum&quot;,
+       dv     = &quot;perc&quot;,
+       within = &#39;newtrial&#39;,
+       sph.correction = &quot;GG&quot;,
+       digits = 3) %&gt;%
+  EMMEANS(&#39;newtrial&#39;)</code></pre>
+<pre><code>## 
+##     * Data are aggregated to mean (across items/trials)
+##     if there are &gt;=2 observations per subject and cell.
+##     You may use Linear Mixed Model to analyze the data,
+##     e.g., with subjects and items as level-2 clusters.</code></pre>
+<pre><code>## 
+## ====== ANOVA (Within-Subjects Design) ======
+## 
+## Descriptives:
+## ────────────────────────────
+##  &quot;newtrial&quot;  Mean    S.D.  n
+## ────────────────────────────
+##   newtrial1 0.157 (0.051) 40
+##   newtrial2 0.099 (0.054) 40
+##   newtrial3 0.083 (0.043) 40
+## ────────────────────────────
+## Total sample size: N = 40
+## 
+## ANOVA Table:
+## Dependent variable(s):      perc
+## Between-subjects factor(s): –
+## Within-subjects factor(s):  newtrial
+## Covariate(s):               –
+## ────────────────────────────────────────────────────────────────────────────
+##              MS   MSE   df1    df2      F     p     η²p [90% CI of η²p]  η²G
+## ────────────────────────────────────────────────────────────────────────────
+## newtrial  0.072 0.001 1.694 66.049 50.382 &lt;.001 ***   .564 [.430, .659] .299
+## ────────────────────────────────────────────────────────────────────────────
+## Sphericity correction method: GG (Greenhouse-Geisser)
+## MSE = mean square error (the residual variance of the linear model)
+## η²p = partial eta-squared = SS / (SS + SSE) = F * df1 / (F * df1 + df2)
+## ω²p = partial omega-squared = (F - 1) * df1 / (F * df1 + df2 + 1)
+## η²G = generalized eta-squared (see Olejnik &amp; Algina, 2003)
+## Cohen’s f² = η²p / (1 - η²p)
+## 
+## Levene’s Test for Homogeneity of Variance:
+## No between-subjects factors. No need to do the Levene’s test.
+## 
+## Mauchly’s Test of Sphericity:
+## ───────────────────────────────
+##           Mauchly&#39;s W     p    
+## ───────────────────────────────
+## newtrial       0.8191  .023 *  
+## ───────────────────────────────
+## 
+## ------ EMMEANS (effect = &quot;newtrial&quot;) ------
+## 
+## Joint Tests of &quot;newtrial&quot;:
+## ──────────────────────────────────────────────────────
+##    Effect df1 df2      F     p     η²p [90% CI of η²p]
+## ──────────────────────────────────────────────────────
+##  newtrial   2  39 57.665 &lt;.001 ***   .747 [.624, .818]
+## ──────────────────────────────────────────────────────
+## Note. Simple effects of repeated measures with 3 or more levels
+## are different from the results obtained with SPSS MANOVA syntax.
+## 
+## Estimated Marginal Means of &quot;newtrial&quot;:
+## ─────────────────────────────────────────
+##  &quot;newtrial&quot; Mean [95% CI of Mean]    S.E.
+## ─────────────────────────────────────────
+##   newtrial1  0.157 [0.141, 0.174] (0.008)
+##   newtrial2  0.099 [0.082, 0.116] (0.009)
+##   newtrial3  0.083 [0.069, 0.097] (0.007)
+## ─────────────────────────────────────────
+## 
+## Pairwise Comparisons of &quot;newtrial&quot;:
+## ────────────────────────────────────────────────────────────────────────────────────
+##               Contrast Estimate    S.E. df       t     p     Cohen’s d [95% CI of d]
+## ────────────────────────────────────────────────────────────────────────────────────
+##  newtrial2 - newtrial1   -0.058 (0.009) 39  -6.264 &lt;.001 *** -1.182 [-1.655, -0.710]
+##  newtrial3 - newtrial1   -0.074 (0.007) 39 -10.656 &lt;.001 *** -1.508 [-1.862, -1.154]
+##  newtrial3 - newtrial2   -0.016 (0.007) 39  -2.342  .073 .   -0.326 [-0.674,  0.022]
+## ────────────────────────────────────────────────────────────────────────────────────
+## Pooled SD for computing Cohen’s d: 0.049
+## P-value adjustment: Bonferroni method for 3 tests.
+## 
+## Disclaimer:
+## By default, pooled SD is Root Mean Square Error (RMSE).
+## There is much disagreement on how to compute Cohen’s d.
+## You are completely responsible for setting `sd.pooled`.
+## You might also use `effectsize::t_to_d()` to compute d.</code></pre>
+<p>A one-way within-subjects ANOVA confirmed a significant effect of
+trial position on singleton fixation rate, F(1.69, 66.05) = 50.38, p
+&lt; .001, η²p = .56 (Greenhouse-Geisser corrected; Mauchly’s W = 0.819,
+p = .023). Both contrasts against trial 1 were highly significant after
+Bonferroni correction, (1) trial 2 vs. trial 1, Mdiff = -5.85%, t(39) =
+-6.26, p &lt; .001, Cohen’s d = -1.18, (2) trial 3 vs. trial 1, Mdiff =
+-7.44%, t(39) = -10.66, p &lt; .001, Cohen’s d = -1.51. The trial 3
+vs. trial 2 contrast was marginal after Bonferroni correction (t(39) =
+-2.34, p = .073, Cohen’s d = -.33), suggesting that the bulk of
+suppression development occurs on the first same-color repetition.</p>
+<pre class="r"><code>decomp_summary &lt;- with(
+  firstfix2 %&gt;%
+    filter(taskType == &quot;search&quot;) %&gt;%
+    mutate(group_label = paste(curritem, newtrial)),
+  cmErrBar(perc, subjnum, group_label, &quot;ci&quot;)
+) %&gt;%
+  separate(group, into = c(&quot;item&quot;, &quot;trial&quot;), sep = &quot; &quot;) %&gt;%
+  mutate(trial = factor(trial, levels = c(&quot;1&quot;, &quot;2&quot;, &quot;3&quot;)),
+         item  = factor(item, levels = c(&quot;Singleton&quot;, &quot;Target&quot;, &quot;Nonsingleton&quot;)))
+
+ggplot(decomp_summary,
+       aes(x = trial, y = mean * 100, group = item,
+           color = item, linetype = item, shape = item)) +
+  geom_errorbar(aes(ymin = minus * 100, ymax = plus * 100),
+                width = 0.15, linewidth = 1.1) +
+  geom_line(linewidth = 1.1) +
+  geom_point(size = 4) +
+  geom_hline(yintercept = 100 / 6, linetype = &quot;dashed&quot;,
+             color = &quot;gray50&quot;, linewidth = 0.8) +
+  annotate(&quot;text&quot;, x = 0.6, y = 100 / 6 + 1.5,
+           label = &quot;chance (1/6)&quot;, color = &quot;gray50&quot;, size = 4.5, hjust = 0) +
+  scale_color_manual(
+    values   = c(&quot;Singleton&quot; = &quot;#E74C3C&quot;, &quot;Target&quot; = &quot;#333333&quot;, &quot;Nonsingleton&quot; = &quot;#95A5A6&quot;),
+    labels   = c(&quot;Singleton&quot;, &quot;Target&quot;, &quot;Nonsingleton (per item)&quot;)) +
+  scale_shape_manual(
+    values   = c(&quot;Singleton&quot; = 15, &quot;Target&quot; = 16, &quot;Nonsingleton&quot; = 17),
+    labels   = c(&quot;Singleton&quot;, &quot;Target&quot;, &quot;Nonsingleton (per item)&quot;)) +
+  scale_linetype_manual(
+    values   = c(&quot;Singleton&quot; = &quot;dashed&quot;, &quot;Target&quot; = &quot;solid&quot;, &quot;Nonsingleton&quot; = &quot;dotted&quot;),
+    labels   = c(&quot;Singleton&quot;, &quot;Target&quot;, &quot;Nonsingleton (per item)&quot;)) +
+  labs(x        = &quot;Trials with Same Color&quot;,
+       y        = &quot;First-Fixation Rate (%)&quot;,
+       color    = &quot;Item Type&quot;,
+       shape    = &quot;Item Type&quot;,
+       linetype = &quot;Item Type&quot;) +
+  manuscript_theme</code></pre>
+<div class="figure">
+<img src="p08_files/figure-html/decomp-plot-1.png" alt="Figure S4. First-fixation rate (%) for each item type across trial positions in the search task. Chance baseline = 16.67% (dashed line). Error bars = 95% CI (Cousineau-Morey corrected)." width="768" />
+<p class="caption">
+Figure S4. First-fixation rate (%) for each item type across trial
+positions in the search task. Chance baseline = 16.67% (dashed line).
+Error bars = 95% CI (Cousineau-Morey corrected).
+</p>
+</div>
+<p>The figure showed the first fixation rate for all three item types
+across the 3-trial same-color sequence in the search task. The target
+line sit flat approximately 39 throughout, well above the 16.67% chance
+baseline, indicating that target guidance is strong and entirely
+unaffected by the learning cycle. The singleton line told the opposite
+trend: it started near the chance at 15% on trial 1, then drops sharply
+to about 10% on trial 2 and falls further down to about 8% on trial 3,
+largely below chance by the end of the sequence. The nonsingleton line
+lay in at about 12% at trial 1 and drifts upward toward the chance line
+by trial 3.</p>
+<p>Critically, the relationship between all three lines together might
+suggest: as the singleton line falls by approximately 8 percentage
+points across trials, the freed probability mass does not flow toward
+the target, i.e., remaining flat, but instead disperses to the
+nonsingleton items. This pattern is the hallmark of a purely inhibitory
+suppression process: the oculomotor system learns to remove the
+singleton’s attentional priority without actively redirecting attention
+toward the goal, such that the beneficiaries of suppression are random
+non-target locations rather than the item participants are actually
+searching for.</p>
+</div>
+<div
+id="extension-2-individual-differences-does-t1-capture-predict-learning"
+class="section level2">
+<h2>Extension 2: Individual Differences — Does T1 Capture Predict
+Learning?</h2>
+<p>If being overtly captured by the singleton on trial 1 is what drives
+suppression learning, then participants who showed stronger T1 capture
+should show stronger T2/T3 suppression. This extension tests that
+prediction directly at the individual level using Pearson correlations
+between each participant’s T1 singleton fixation rate and their
+subsequent learning magnitude (T1−T3 reduction in singleton
+fixation).</p>
+<pre class="r"><code># Per-participant singleton fixation rate in search task, wide format
+sing_wide &lt;- firstfix2 %&gt;%
+  filter(taskType == &quot;search&quot;, curritem == &quot;Singleton&quot;) %&gt;%
+  pivot_wider(names_from = newtrial, values_from = perc) %&gt;%
+  rename(t1 = `1`, t2 = `2`, t3 = `3`)
+
+# Learning magnitude = reduction in singleton fixation from T1 to T3
+sing_wide$learning_t1_t3 &lt;- sing_wide$t1 - sing_wide$t3
+
+# Individual Differences: T1 Capture and Learning
+# Correlation: T1 singleton rate vs. T3 singleton rate
+cor1 &lt;- cor.test(sing_wide$t1, sing_wide$t3, method = &quot;pearson&quot;)
+print(cor1)</code></pre>
+<pre><code>## 
+##  Pearson&#39;s product-moment correlation
+## 
+## data:  sing_wide$t1 and sing_wide$t3
+## t = 4.2548, df = 38, p-value = 0.0001317
+## alternative hypothesis: true correlation is not equal to 0
+## 95 percent confidence interval:
+##  0.3116886 0.7473154
+## sample estimates:
+##       cor 
+## 0.5680443</code></pre>
+<pre class="r"><code># Correlation: T1 singleton rate vs. learning magnitude (T1 − T3) 
+cor2 &lt;- cor.test(sing_wide$t1, sing_wide$learning_t1_t3, method = &quot;pearson&quot;)
+print(cor2)</code></pre>
+<pre><code>## 
+##  Pearson&#39;s product-moment correlation
+## 
+## data:  sing_wide$t1 and sing_wide$learning_t1_t3
+## t = 4.4635, df = 38, p-value = 6.98e-05
+## alternative hypothesis: true correlation is not equal to 0
+## 95 percent confidence interval:
+##  0.3364364 0.7592749
+## sample estimates:
+##       cor 
+## 0.5864808</code></pre>
+<pre class="r"><code># T1 singleton rate vs. T2 singleton rate
+cor3 &lt;- cor.test(sing_wide$t1, sing_wide$t2, method = &quot;pearson&quot;)
+print(cor3)</code></pre>
+<pre><code>## 
+##  Pearson&#39;s product-moment correlation
+## 
+## data:  sing_wide$t1 and sing_wide$t2
+## t = 2.4365, df = 38, p-value = 0.01963
+## alternative hypothesis: true correlation is not equal to 0
+## 95 percent confidence interval:
+##  0.06332575 0.60932232
+## sample estimates:
+##       cor 
+## 0.3675839</code></pre>
+<p>Three Pearson’s correlation analyses were conducted to examine
+whether individual difference in initial capture predicted subsequent
+learning. First, trial 1 singleton fixation rate was positively
+correlated with trial 3 singleton fixation rate, r = .57, t(38) = 4.25,
+p &lt; .001, 95% CI[.31, .75], indicating that participants who were
+more strongly captured on Trial 1 still showed higher singleton fixation
+on trial 3 than others. Second, and more directly, trial 1 capture rate
+was positively correlated with learning magnitude (T1−T3 reduction), r =
+.59, t(38) = 4.46, p &lt; .001, 95% CI[.34, .76], confirming that
+participants who experienced stronger initial capture showed greater
+suppression by Trial 3. This correlation allowed us to infer that high
+initial capture rate is associated with a larger learning rate within
+subjects. Furthermore, this relationship was detected by the 3rd
+correlation analysis: Trial 1 capture rate predicted Trial 2 singleton
+fixation rate, r = .37, t(38) = 2.44, p = .020, 95% CI[.06, .61],
+indicating that the learning advantage of high-capture individuals
+emerges as early as the first same-color repetition. Together, these
+correlations provide individual-level evidence for the capture-learning
+mechanism: the more strongly the oculomotor system was initially drawn
+to the singleton, the more forcefully it learned to suppress it,
+consistent with the interpretation that overt capture is not merely a
+correlate of the learning process but its primary driver.</p>
+<pre class="r"><code>ggplot(sing_wide, aes(x = t1 * 100, y = learning_t1_t3 * 100)) +
+  geom_point(size = 3, color = &quot;gray35&quot;, alpha = 0.8) +
+  geom_smooth(method = &quot;lm&quot;, se = TRUE,
+              color = &quot;black&quot;, fill = &quot;gray80&quot;, linewidth = 1.1) +
+  annotate(&quot;text&quot;,
+           x     = max(sing_wide$t1 * 100) - 1,
+           y     = max(sing_wide$learning_t1_t3 * 100) - 1,
+           label = &quot;r = .59, p &lt; .001&quot;,
+           hjust = 1, size = 5.5) +
+  labs(x = &quot;Trial 1 Singleton Fixation Rate&quot;,
+       y = &quot;Learning Magnitude\n(T1-T3 Singleton Fixation Rate&quot;) +
+  manuscript_theme</code></pre>
+<pre><code>## `geom_smooth()` using formula = &#39;y ~ x&#39;</code></pre>
+<div class="figure">
+<img src="p08_files/figure-html/ind-diff-plot-1.png" alt="Figure S5. Scatter plot of Trial 1 singleton fixation rate vs. learning magnitude (Trial 1 − Trial 3 reduction). Each point = one participant. Line = OLS regression with 95% CI shading." width="672" />
+<p class="caption">
+Figure S5. Scatter plot of Trial 1 singleton fixation rate vs. learning
+magnitude (Trial 1 − Trial 3 reduction). Each point = one participant.
+Line = OLS regression with 95% CI shading.
+</p>
+</div>
 </div>
 
 

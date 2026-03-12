@@ -4,11 +4,70 @@ title: "Portfolio 8: Extension of Portfolio 7"
 
 > The projects should be numbered consecutively (i.e., in the order in which you began them), and should include for each project a description of the goal, the product (computer program, hand graph, computer graph, etc.), the data, and some interpretation. Reports must be reproducible and of high quality in terms of writing, grammar, presentation, etc.
 
+
+
 ## Extension 1: Full First-Fixation Probability Decomposition
 
 The main analysis of target fixation rate only examined the target row of `firstfix2`. But understanding where the freed probability mass goes as singleton fixation drops is theoretically important. If suppression actively redirects attention toward the goal, target fixation should rise as singleton fixation falls. If suppression is purely inhibitory, i.e., reducing the singleton's pull without boosting target priority, target fixation should stay flat and the freed probability should flow instead to nonsingleton items.
 
 This extension plots and tests all three item types (Singleton, Target, Nonsingleton per item) simultaneously across trials 1–3 in the search task.
+
+```{r setup, message=FALSE, warning=FALSE}
+rm(list = ls())
+setwd("~/Documents/GitHub/DS4P_Portfolio")
+library('NickPsych')
+library('tidyverse')
+library('reshape2')
+library('writexl')
+library('dplyr')
+library('bruceR')
+library('openxlsx')
+library('knitr')
+library('xtable')
+library('patchwork')
+
+# Load preprocessed data
+accdata <- read.csv("/Users/mumizz./Desktop/2025-2026/Courses/Data science for psych/Experiment3/Analysis Script/accdata.csv")
+
+# Plot theme (matching manuscript style)
+axis_text_size      <- 20
+axis_tick_text_size <- 18
+graph_color         <- "black"
+axis_tick_length    <- 0.25
+axis_tick_units     <- "cm"
+axis_thickness      <- 1
+
+manuscript_theme <- theme_classic() +
+  theme(
+    axis.line           = element_line(linewidth = axis_thickness, colour = graph_color),
+    axis.title          = element_text(size = axis_text_size),
+    axis.text           = element_text(colour = graph_color, size = axis_tick_text_size),
+    axis.ticks          = element_line(linewidth = axis_thickness, colour = graph_color),
+    axis.ticks.length.y = unit(axis_tick_length, axis_tick_units),
+    axis.ticks.length.x = unit(axis_tick_length, axis_tick_units),
+    legend.position     = "top",
+    text                = element_text(size = axis_tick_text_size)
+  )
+```
+
+```{r}
+# firstfix2 (identical to the original script)
+accdata2 <- subset(accdata, !is.na(SRT))
+
+firstfix2 <- as.data.frame(
+  xtabs(~ curritem + subjnum + taskType + newtrial, data = accdata2)
+)
+
+# Total number of fixations on items in the display 
+firstfix2$total <- with(firstfix2, ave(Freq, interaction(subjnum, taskType, newtrial), FUN = sum))
+# % of the toal each item was fixated 
+firstfix2$perc  <- firstfix2$Freq / firstfix2$total
+
+firstfix2$perc  <- with(firstfix2,
+  ifelse(curritem == 'Nonsingleton', perc / 4, perc))
+firstfix2$perc[is.nan(firstfix2$perc)] <- 0
+firstfix2 <- firstfix2[, -c(5, 6)]
+```
 
 ```{r}
 # Descriptive table: all three item types 
