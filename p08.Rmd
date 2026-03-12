@@ -84,9 +84,9 @@ To determine where the freed probability mass flows as singleton capture decreas
 
 ```{r}
 sing_fix <- firstfix2 %>% filter(taskType == "search", curritem == "Singleton")
-MANOVA(data   = sing_fix,
+MANOVA(data = sing_fix,
        subID  = "subjnum",
-       dv     = "perc",
+       dv = "perc",
        within = 'newtrial',
        sph.correction = "GG",
        digits = 3) %>%

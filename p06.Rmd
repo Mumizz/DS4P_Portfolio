@@ -109,8 +109,8 @@ On trial 3 of the central task, mean SRT was 215.70ms (SD = 57.48), matching sea
 
 ```{r}
 MANOVA(data = srt_data,
-  subID  = "subjnum",
-  dv     = "SRT",
+  subID = "subjnum",
+  dv = "SRT",
   within = 'newtrial',
   digits = 2) %>%
   EMMEANS('newtrial')

@@ -430,8 +430,8 @@ We first conducted a 2(taskType) × 3(newtrial) within-subjects ANOVA. Specifica
 
 ```{r}
 MANOVA(data = rt_data,
-  subID  = "subjnum",
-  dv     = "RT",
+  subID = "subjnum",
+  dv = "RT",
   within = c('newtrial', 'taskType'),
   digits = 2) %>%
   EMMEANS('newtrial') %>%
@@ -451,9 +451,9 @@ Building upon the significant interaction above, this follow-up isolates the RT 
 ```{r}
 rt_search <- rt_data %>% filter(taskType == "search")
 MANOVA(
-  data   = rt_search,
-  subID  = "subjnum",
-  dv     = "RT",
+  data = rt_search,
+  subID = "subjnum",
+  dv = "RT",
   within = 'newtrial',
   digits = 2
 ) %>%

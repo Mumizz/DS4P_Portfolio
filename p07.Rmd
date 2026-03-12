@@ -103,9 +103,9 @@ In the search task, mean target fixation rate was 38.72% (SD = 14.79%) on trial 
 
 ```{r}
 MANOVA(
-  data   = targfix,
-  subID  = "subjnum",
-  dv     = "perc",
+  data = targfix,
+  subID = "subjnum",
+  dv = "perc",
   within = c('newtrial', 'taskType'),
   digits = 2
 ) %>%
@@ -121,9 +121,9 @@ Because central-task Trials 1 and 2 contain structural zeros (no eye movements w
 ```{r}
 targfix_search <- targfix %>% filter(taskType == "search")
 MANOVA(
-  data   = targfix_search,
-  subID  = "subjnum",
-  dv     = "perc",
+  data = targfix_search,
+  subID = "subjnum",
+  dv = "perc",
   within = 'newtrial',
   digits = 2
 ) %>%
