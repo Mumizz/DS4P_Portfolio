@@ -278,6 +278,9 @@ $(document).ready(function () {
 <li>
   <a href="p10.html">Portfolio 10</a>
 </li>
+<li>
+  <a href="p11.html">Portfolio 11</a>
+</li>
       </ul>
       <ul class="nav navbar-nav navbar-right">
         
@@ -304,59 +307,51 @@ and of high quality in terms of writing, grammar, presentation, etc.</p>
 </blockquote>
 <div id="backgrounds" class="section level1">
 <h1>Backgrounds</h1>
-<p>This portfolio. will follow the plan we proposed in the last
+<p>This portfolio will follow the third goal we proposed in the prior
 portfolio.</p>
 </div>
 <div id="goals" class="section level1">
 <h1>Goals</h1>
-<p>This portfolio will conduct secondary analyses on Saccade Reaction
-Time (SRT).</p>
+<p>This portfolio will conduct secondary analyses on Target Fixation
+Rate</p>
 </div>
-<div id="secondary-analysis-2-saccade-reaction-time-srt"
+<div id="secondary-analysis-3-target-fixation-rate"
 class="section level1">
-<h1>Secondary Analysis 2 – Saccade Reaction Time (SRT)</h1>
-<p>Saccade Reaction Time (SRT) is the latency from display onset to the
-start of the participant’s first saccade away from the central fixation
-point. Whereas RT reflects the end of the trial (button response), SRT
-reflects the beginning of the oculomotor response, i.e., how quickly the
-eys begin to mvoe once the search display appears.</p>
-<p>In the search display, a salient singleton creates competition at the
-oculomotor level - even before the eye physically moves, the singleton
-activates its location in the oculomotor system, slowing the initiation
-of goal-directed saccades. If participants learn to proactively suppress
-the singleton across three trials, this oculomotor competition should be
-diminished, and the SRT should decrease, which means that the eyes
-should start moving more decisively and faster.</p>
-<p>For the within-task analsysis, SRT is only available for the search
-task because central task participants were prohibited from making their
-eye movements on trials 1 and 2. We therefore analyze the trial-by-trial
-trajectory in the search task only.</p>
-<p>However, on trial 3 of the central task, eye movements are released
-for the first time. This creates a direct structural parallel to the key
-comparison already reproted in their manuscript (Figrue 6C), which
-compared the oculomotor capture effect on trial 3 between search and
-central tasks. An analogous cross-task SRT comparison will be conducted
-on that trial to test the temporal equivalent of that spatial
-comparison: does prior suppression learning in the search task produce
-faster saccade initiation on the critical trial, relative to
-participants in the central task who search the display for the first
-time without any prior suppression experience.</p>
-<p><strong>Predicted Patterns</strong></p>
-<ul>
-<li><em>Within-search task</em>: SRT decreases from trial 1 to trial 3,
-reflecting progressively less oculomotor competition as the singleton
-suppression has learned.</li>
-<li><em>Cross-task on trial 3</em>: Search-task SRT on trial 3 is
-shorter than central-task SRT on trial 3. Participants encounter the
-singleton as a full distractor for the first time in central task and
-more hesitant saccade initiation relative to the search task, in which
-learned suppression have built up in the piror two trials.</li>
-</ul>
+<h1>Secondary Analysis 3: Target Fixation Rate</h1>
+<p>The original analysis measured the inhibition side of attentional
+learning - how much the eye is suppressed from the singleton distractor.
+But attentional control involves two side - inhibiting the distractor
+and facilitating selection of the target. If oculomotor suppression of
+the singleton frees attention to be reallocated toward the target, then
+the rate at which first eye movements land on the target should increase
+across trials 1 to 3.</p>
+<p>In this way, this analysis asks: does suppression of the singleton
+distractor come with a corresponding enhancement of target selection?
+Finding both effects - singleton suppression and target enhancement
+would provide converging evidence that the 3-trial sequence produces a
+general retuning of the attentional priority map.</p>
+<p>One-sample t-tests against chance (1/6, given 6 equally-spaced items)
+test whether participants are above chance at fixating the target at
+each trial position. If target fixation is already above chance from
+trial 1, that suggests participants always have some target guidance; if
+it increases across trials, that suggests suppression actively redirects
+attention towards the target.</p>
+<p><strong>Predicted Patterns</strong> - <em>Search task</em>: Target
+fixation rate increases from Trial 1 to Trial 3, as oculomotor resources
+freed from the singleton are redirected toward the target. - <em>Central
+task</em>: Because only Trial 3 involves free eye movements, target
+fixation rate cannot change across trials in the same way; any apparent
+change should be treated cautiously. - <em>Interaction</em>: A
+<code>newtrial × taskType</code> interaction would confirm that the
+increase in target selection is specific to the search task and driven
+by suppression learning.</p>
 <div id="data-preparation" class="section level2">
 <h2>Data preparation</h2>
-<p>Two separate datasets are constructed here. The first capture the
-3-trial SRT trajectory in the search task. The second extracts trial 3
-SRT from both tasks for the cross-task comparison.</p>
+<p>We reuse the <code>firstfix2</code> structure from the original
+analysis pipeline, which already computes the percentage of first
+fixations to each item (Target, Singleton, Nonsingleton) by subject ×
+task × trial. We simply extract the Target rows, which the original
+analysis never statistically tested.</p>
 <pre class="r"><code>rm(list = ls())
 setwd(&quot;~/Documents/GitHub/DS4P_Portfolio&quot;)
 library(&#39;NickPsych&#39;)
@@ -392,74 +387,39 @@ manuscript_theme &lt;- theme_classic() +
     legend.position = &quot;top&quot;,
     text = element_text(size = axis_tick_text_size)
   )</code></pre>
-<pre class="r"><code># Search task, all three trials (within-task analysis)
-srt_data &lt;- accdata %&gt;%
-  filter(taskType == &quot;search&quot;, !is.na(SRT)) %&gt;%
-  distinct(subjnum, trial, newtrial, SRT) %&gt;%
-  group_by(subjnum, newtrial) %&gt;%
-  summarise(SRT = mean(SRT, na.rm = TRUE), .groups = &quot;drop&quot;)
+<pre class="r"><code># firstfix2 (identical to the original script)
+accdata2 &lt;- subset(accdata, !is.na(SRT))
 
-srt_data %&gt;%
-  group_by(newtrial) %&gt;%
-  summarise(M  = round(mean(SRT), 2),
-            SD = round(sd(SRT),   2),
-            n  = n(), .groups = &quot;drop&quot;) %&gt;%
-  kable(caption = &quot;Table 2a. Mean SRT (ms) by trial position (search task only).&quot;) </code></pre>
-<table>
-<caption>Table 2a. Mean SRT (ms) by trial position (search task
-only).</caption>
-<thead>
-<tr class="header">
-<th align="right">newtrial</th>
-<th align="right">M</th>
-<th align="right">SD</th>
-<th align="right">n</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td align="right">1</td>
-<td align="right">214.70</td>
-<td align="right">53.34</td>
-<td align="right">40</td>
-</tr>
-<tr class="even">
-<td align="right">2</td>
-<td align="right">208.99</td>
-<td align="right">51.09</td>
-<td align="right">40</td>
-</tr>
-<tr class="odd">
-<td align="right">3</td>
-<td align="right">204.41</td>
-<td align="right">49.66</td>
-<td align="right">40</td>
-</tr>
-</tbody>
-</table>
-<p>In the search task, mean SRT showed a decreasing trend, with 214.70ms
-(SD = 53.34) on trial 1, 208.99ms (SD = 51.09) on trial 2, and 204.41ms
-(SD = 49.66) on trial 3, showing a progressive decrease across the
-3-trial same-color sequence.</p>
-<pre class="r"><code># Trial 3 for both tasks (cross-task analysis)
-srt_trial3 &lt;- accdata %&gt;%
-  filter(newtrial == 3, !is.na(SRT)) %&gt;%
-  distinct(subjnum, taskType, trial, SRT) %&gt;%
-  group_by(subjnum, taskType) %&gt;%
-  summarise(SRT = mean(SRT, na.rm = TRUE), .groups = &quot;drop&quot;)
+firstfix2 &lt;- as.data.frame(
+  xtabs(~ curritem + subjnum + taskType + newtrial, data = accdata2)
+)
 
-srt_trial3 %&gt;% 
-  group_by(taskType) %&gt;% 
-  summarise(M = round(mean(SRT), 2), 
-            SD = round(sd(SRT),   2),
+# Total number of fixations on items in the display 
+firstfix2$total &lt;- with(firstfix2, ave(Freq, interaction(subjnum, taskType, newtrial), FUN = sum))
+# % of the toal each item was fixated 
+firstfix2$perc  &lt;- firstfix2$Freq / firstfix2$total
+
+firstfix2$perc  &lt;- with(firstfix2,
+  ifelse(curritem == &#39;Nonsingleton&#39;, perc / 4, perc))
+firstfix2$perc[is.nan(firstfix2$perc)] &lt;- 0
+firstfix2 &lt;- firstfix2[, -c(5, 6)]
+
+# Extract Target rows only — this is what the original script never tested
+targfix &lt;- firstfix2 %&gt;% filter(curritem == &quot;Target&quot;)
+
+targfix %&gt;%
+  group_by(taskType, newtrial) %&gt;%
+  summarise(M  = round(mean(perc), 4),
+            SD = round(sd(perc),   4),
             n  = n(), .groups = &quot;drop&quot;) %&gt;%
-  kable(caption = &quot;Table 2b. Mean SRT (ms) on Trial 3 by task type — cross-task comparison.&quot;)</code></pre>
+  kable(caption = &quot;Table 3. Target first-fixation rate (%) by condition and trial position. Chance = 0.167 (1/6).&quot;)</code></pre>
 <table>
-<caption>Table 2b. Mean SRT (ms) on Trial 3 by task type — cross-task
-comparison.</caption>
+<caption>Table 3. Target first-fixation rate (%) by condition and trial
+position. Chance = 0.167 (1/6).</caption>
 <thead>
 <tr class="header">
 <th align="left">taskType</th>
+<th align="left">newtrial</th>
 <th align="right">M</th>
 <th align="right">SD</th>
 <th align="right">n</th>
@@ -468,29 +428,265 @@ comparison.</caption>
 <tbody>
 <tr class="odd">
 <td align="left">central</td>
-<td align="right">215.70</td>
-<td align="right">57.48</td>
+<td align="left">1</td>
+<td align="right">0.0000</td>
+<td align="right">0.0000</td>
+<td align="right">40</td>
+</tr>
+<tr class="even">
+<td align="left">central</td>
+<td align="left">2</td>
+<td align="right">0.0000</td>
+<td align="right">0.0000</td>
+<td align="right">40</td>
+</tr>
+<tr class="odd">
+<td align="left">central</td>
+<td align="left">3</td>
+<td align="right">0.3776</td>
+<td align="right">0.1462</td>
 <td align="right">40</td>
 </tr>
 <tr class="even">
 <td align="left">search</td>
-<td align="right">204.41</td>
-<td align="right">49.66</td>
+<td align="left">1</td>
+<td align="right">0.3872</td>
+<td align="right">0.1479</td>
+<td align="right">40</td>
+</tr>
+<tr class="odd">
+<td align="left">search</td>
+<td align="left">2</td>
+<td align="right">0.3972</td>
+<td align="right">0.1642</td>
+<td align="right">40</td>
+</tr>
+<tr class="even">
+<td align="left">search</td>
+<td align="left">3</td>
+<td align="right">0.3897</td>
+<td align="right">0.1672</td>
 <td align="right">40</td>
 </tr>
 </tbody>
 </table>
-<p>On trial 3 of the central task, mean SRT was 215.70ms (SD = 57.48),
-matching search-task trial 1 latencies, consistent with no suppression
-benefit.</p>
+<p>In the search task, mean target fixation rate was 38.72% (SD =
+14.79%) on trial 1, 39.72% (SD = 16.42%) on trial 2, and 38.97% (SD =
+16.72%) on trial 3, flat across the sequence and consistently above the
+1/6 chance baseline. In the central task, only trial 3 yielded valid
+fixation data (eye movements were restricted on trials 1 and 2). Mean
+target fixation rate on central trial 3 was 37.76% (SD = 14.62%), close
+to the rates in search task at all trial positions.</p>
 </div>
-<div id="one-way-within-subjects-anova" class="section level2">
-<h2>One-way within-subjects ANOVA</h2>
-<pre class="r"><code>MANOVA(data = srt_data,
+</div>
+<div id="tasktype-3newtrial-within-subjects-anova"
+class="section level1">
+<h1>2(taskType) × 3(newtrial) within-subjects ANOVA</h1>
+<pre class="r"><code>MANOVA(
+  data = targfix,
   subID = &quot;subjnum&quot;,
-  dv= &quot;SRT&quot;,
+  dv = &quot;perc&quot;,
+  within = c(&#39;newtrial&#39;, &#39;taskType&#39;),
+  digits = 2
+) %&gt;%
+  EMMEANS(&#39;newtrial&#39;) %&gt;%
+  EMMEANS(&#39;taskType&#39;) %&gt;%
+  EMMEANS(&#39;taskType&#39;, by = &#39;newtrial&#39;)</code></pre>
+<pre><code>## 
+##     * Data are aggregated to mean (across items/trials)
+##     if there are &gt;=2 observations per subject and cell.
+##     You may use Linear Mixed Model to analyze the data,
+##     e.g., with subjects and items as level-2 clusters.</code></pre>
+<pre><code>## 
+## ====== ANOVA (Within-Subjects Design) ======
+## 
+## Descriptives:
+## ─────────────────────────────────────
+##  &quot;newtrial&quot; &quot;taskType&quot; Mean   S.D.  n
+## ─────────────────────────────────────
+##   newtrial1    central 0.00 (0.00) 40
+##   newtrial1    search  0.39 (0.15) 40
+##   newtrial2    central 0.00 (0.00) 40
+##   newtrial2    search  0.40 (0.16) 40
+##   newtrial3    central 0.38 (0.15) 40
+##   newtrial3    search  0.39 (0.17) 40
+## ─────────────────────────────────────
+## Total sample size: N = 40
+## 
+## ANOVA Table:
+## Dependent variable(s):      perc
+## Between-subjects factor(s): –
+## Within-subjects factor(s):  newtrial, taskType
+## Covariate(s):               –
+## ───────────────────────────────────────────────────────────────────────────────
+##                        MS  MSE df1 df2      F     p     η²p [90% CI of η²p] η²G
+## ───────────────────────────────────────────────────────────────────────────────
+## newtrial             0.94 0.01   2  78 169.13 &lt;.001 ***      .81 [.75, .85] .33
+## taskType             4.23 0.02   1  39 212.08 &lt;.001 ***      .84 [.77, .89] .52
+## newtrial * taskType  0.96 0.00   2  78 194.46 &lt;.001 ***      .83 [.78, .87] .33
+## ───────────────────────────────────────────────────────────────────────────────
+## MSE = mean square error (the residual variance of the linear model)
+## η²p = partial eta-squared = SS / (SS + SSE) = F * df1 / (F * df1 + df2)
+## ω²p = partial omega-squared = (F - 1) * df1 / (F * df1 + df2 + 1)
+## η²G = generalized eta-squared (see Olejnik &amp; Algina, 2003)
+## Cohen’s f² = η²p / (1 - η²p)
+## 
+## Levene’s Test for Homogeneity of Variance:
+## No between-subjects factors. No need to do the Levene’s test.
+## 
+## Mauchly’s Test of Sphericity:
+## ──────────────────────────────────────────
+##                      Mauchly&#39;s W     p    
+## ──────────────────────────────────────────
+## newtrial                  0.5850 &lt;.001 ***
+## newtrial * taskType       0.6358 &lt;.001 ***
+## ──────────────────────────────────────────
+## The sphericity assumption is violated.
+## You may specify: sph.correction=&quot;GG&quot; (or =&quot;HF&quot;)
+## 
+## ------ EMMEANS (effect = &quot;newtrial&quot;) ------
+## 
+## Error in solve.default(zcov, z) : 
+##   system is computationally singular: reciprocal condition number = 1.46499e-35
+## Error in solve.default(zcov, z) : 
+##   system is computationally singular: reciprocal condition number = 1.34076e-35
+## Joint Tests of &quot;newtrial&quot;:
+## ──────────────────────────────────────────────────────────────────
+##               Effect df1 df2       F     p     η²p [90% CI of η²p]
+## ──────────────────────────────────────────────────────────────────
+##  taskType              1  39 212.076 &lt;.001 ***   .845 [.767, .889]
+##  newtrial              2  39 105.410 &lt;.001 ***   .844 [.765, .888]
+##  taskType * newtrial   2  39 124.914 &lt;.001 ***   .865 [.796, .903]
+## ──────────────────────────────────────────────────────────────────
+## Note. Simple effects of repeated measures with 3 or more levels
+## are different from the results obtained with SPSS MANOVA syntax.
+## 
+## Estimated Marginal Means of &quot;newtrial&quot;:
+## ─────────────────────────────────────────
+##  &quot;newtrial&quot; Mean [95% CI of Mean]    S.E.
+## ─────────────────────────────────────────
+##   newtrial1  0.194 [0.170, 0.217] (0.012)
+##   newtrial2  0.199 [0.172, 0.225] (0.013)
+##   newtrial3  0.384 [0.336, 0.431] (0.023)
+## ─────────────────────────────────────────
+## 
+## Pairwise Comparisons of &quot;newtrial&quot;:
+## ───────────────────────────────────────────────────────────────────────────────────
+##               Contrast Estimate    S.E. df      t     p     Cohen’s d [95% CI of d]
+## ───────────────────────────────────────────────────────────────────────────────────
+##  newtrial2 - newtrial1    0.005 (0.007) 39  0.697 1.000       0.039 [-0.101, 0.179]
+##  newtrial3 - newtrial1    0.190 (0.014) 39 13.483 &lt;.001 ***   1.485 [ 1.209, 1.760]
+##  newtrial3 - newtrial2    0.185 (0.013) 39 14.356 &lt;.001 ***   1.446 [ 1.194, 1.698]
+## ───────────────────────────────────────────────────────────────────────────────────
+## Pooled SD for computing Cohen’s d: 0.128
+## Results are averaged over the levels of: taskType
+## P-value adjustment: Bonferroni method for 3 tests.
+## 
+## Disclaimer:
+## By default, pooled SD is Root Mean Square Error (RMSE).
+## There is much disagreement on how to compute Cohen’s d.
+## You are completely responsible for setting `sd.pooled`.
+## You might also use `effectsize::t_to_d()` to compute d.
+## 
+## ------ EMMEANS (effect = &quot;taskType&quot;) ------
+## 
+## Error in solve.default(zcov, z) : 
+##   system is computationally singular: reciprocal condition number = 1.46499e-35
+## Error in solve.default(zcov, z) : 
+##   system is computationally singular: reciprocal condition number = 1.34076e-35
+## Joint Tests of &quot;taskType&quot;:
+## ──────────────────────────────────────────────────────────────────
+##               Effect df1 df2       F     p     η²p [90% CI of η²p]
+## ──────────────────────────────────────────────────────────────────
+##  taskType              1  39 212.076 &lt;.001 ***   .845 [.767, .889]
+##  newtrial              2  39 105.410 &lt;.001 ***   .844 [.765, .888]
+##  taskType * newtrial   2  39 124.914 &lt;.001 ***   .865 [.796, .903]
+## ──────────────────────────────────────────────────────────────────
+## Note. Simple effects of repeated measures with 3 or more levels
+## are different from the results obtained with SPSS MANOVA syntax.
+## 
+## Estimated Marginal Means of &quot;taskType&quot;:
+## ─────────────────────────────────────────
+##  &quot;taskType&quot; Mean [95% CI of Mean]    S.E.
+## ─────────────────────────────────────────
+##     central  0.126 [0.110, 0.141] (0.008)
+##     search   0.391 [0.342, 0.440] (0.024)
+## ─────────────────────────────────────────
+## 
+## Pairwise Comparisons of &quot;taskType&quot;:
+## ──────────────────────────────────────────────────────────────────────────────
+##          Contrast Estimate    S.E. df      t     p     Cohen’s d [95% CI of d]
+## ──────────────────────────────────────────────────────────────────────────────
+##  search - central    0.265 (0.018) 39 14.563 &lt;.001 ***    2.074 [1.786, 2.363]
+## ──────────────────────────────────────────────────────────────────────────────
+## Pooled SD for computing Cohen’s d: 0.128
+## Results are averaged over the levels of: newtrial
+## No need to adjust p values.
+## 
+## Disclaimer:
+## By default, pooled SD is Root Mean Square Error (RMSE).
+## There is much disagreement on how to compute Cohen’s d.
+## You are completely responsible for setting `sd.pooled`.
+## You might also use `effectsize::t_to_d()` to compute d.
+## 
+## ------ EMMEANS (effect = &quot;taskType&quot;) ------
+## 
+## Joint Tests of &quot;taskType&quot;:
+## ──────────────────────────────────────────────────────────────────
+##    Effect &quot;newtrial&quot; df1 df2       F     p     η²p [90% CI of η²p]
+## ──────────────────────────────────────────────────────────────────
+##  taskType  newtrial1   1  39 274.121 &lt;.001 ***   .875 [.813, .911]
+##  taskType  newtrial2   1  39 234.047 &lt;.001 ***   .857 [.786, .898]
+##  taskType  newtrial3   1  39   0.539  .467       .014 [.000, .126]
+## ──────────────────────────────────────────────────────────────────
+## Note. Simple effects of repeated measures with 3 or more levels
+## are different from the results obtained with SPSS MANOVA syntax.
+## 
+## Estimated Marginal Means of &quot;taskType&quot;:
+## ────────────────────────────────────────────────────
+##  &quot;taskType&quot; &quot;newtrial&quot; Mean [95% CI of Mean]    S.E.
+## ────────────────────────────────────────────────────
+##     central  newtrial1  0.000 [0.000, 0.000] (0.000)
+##     search   newtrial1  0.387 [0.340, 0.434] (0.023)
+##     central  newtrial2  0.000 [0.000, 0.000] (0.000)
+##     search   newtrial2  0.397 [0.345, 0.450] (0.026)
+##     central  newtrial3  0.378 [0.331, 0.424] (0.023)
+##     search   newtrial3  0.390 [0.336, 0.443] (0.026)
+## ────────────────────────────────────────────────────
+## 
+## Pairwise Comparisons of &quot;taskType&quot;:
+## ─────────────────────────────────────────────────────────────────────────────────────────
+##          Contrast &quot;newtrial&quot; Estimate    S.E. df      t     p     Cohen’s d [95% CI of d]
+## ─────────────────────────────────────────────────────────────────────────────────────────
+##  search - central  newtrial1    0.387 (0.023) 39 16.557 &lt;.001 ***   3.025 [ 2.656, 3.395]
+##  search - central  newtrial2    0.397 (0.026) 39 15.299 &lt;.001 ***   3.103 [ 2.693, 3.514]
+##  search - central  newtrial3    0.012 (0.016) 39  0.734  .467       0.095 [-0.166, 0.355]
+## ─────────────────────────────────────────────────────────────────────────────────────────
+## Pooled SD for computing Cohen’s d: 0.128
+## No need to adjust p values.
+## 
+## Disclaimer:
+## By default, pooled SD is Root Mean Square Error (RMSE).
+## There is much disagreement on how to compute Cohen’s d.
+## You are completely responsible for setting `sd.pooled`.
+## You might also use `effectsize::t_to_d()` to compute d.</code></pre>
+<p>Because central-task Trials 1 and 2 contain structural zeros (no eye
+movements were made), a 2 (taskType) x 3 (newtrial) ANOVA produces
+severely inflated effects driven entirely by the zero cells rather than
+by any meaningful difference in target guidance. The 2×3 ANOVA is
+therefore not interpretable and is excluded from the primary analysis.
+The search-only one-way ANOVA is the appropriate test of learning-driven
+change across the 3-trial sequence.</p>
+<div id="one-way-anova-within-the-search-task" class="section level2">
+<h2>One-way ANOVA within the search task</h2>
+<pre class="r"><code>targfix_search &lt;- targfix %&gt;% filter(taskType == &quot;search&quot;)
+MANOVA(
+  data = targfix_search,
+  subID = &quot;subjnum&quot;,
+  dv = &quot;perc&quot;,
   within = &#39;newtrial&#39;,
-  digits = 2) %&gt;%
+  digits = 2
+) %&gt;%
   EMMEANS(&#39;newtrial&#39;)</code></pre>
 <pre><code>## 
 ##     * Data are aggregated to mean (across items/trials)
@@ -501,25 +697,25 @@ benefit.</p>
 ## ====== ANOVA (Within-Subjects Design) ======
 ## 
 ## Descriptives:
-## ─────────────────────────────
-##  &quot;newtrial&quot;   Mean    S.D.  n
-## ─────────────────────────────
-##   newtrial1 214.70 (53.34) 40
-##   newtrial2 208.99 (51.09) 40
-##   newtrial3 204.41 (49.66) 40
-## ─────────────────────────────
+## ──────────────────────────
+##  &quot;newtrial&quot; Mean   S.D.  n
+## ──────────────────────────
+##   newtrial1 0.39 (0.15) 40
+##   newtrial2 0.40 (0.16) 40
+##   newtrial3 0.39 (0.17) 40
+## ──────────────────────────
 ## Total sample size: N = 40
 ## 
 ## ANOVA Table:
-## Dependent variable(s):      SRT
+## Dependent variable(s):      perc
 ## Between-subjects factor(s): –
 ## Within-subjects factor(s):  newtrial
 ## Covariate(s):               –
-## ───────────────────────────────────────────────────────────────────────
-##                MS   MSE df1 df2     F     p     η²p [90% CI of η²p] η²G
-## ───────────────────────────────────────────────────────────────────────
-## newtrial  1064.54 84.57   2  78 12.59 &lt;.001 ***      .24 [.11, .36] .01
-## ───────────────────────────────────────────────────────────────────────
+## ──────────────────────────────────────────────────────────────────
+##             MS  MSE df1 df2    F     p     η²p [90% CI of η²p] η²G
+## ──────────────────────────────────────────────────────────────────
+## newtrial  0.00 0.00   2  78 0.32  .727          .01 [.00, .05] .00
+## ──────────────────────────────────────────────────────────────────
 ## MSE = mean square error (the residual variance of the linear model)
 ## η²p = partial eta-squared = SS / (SS + SSE) = F * df1 / (F * df1 + df2)
 ## ω²p = partial omega-squared = (F - 1) * df1 / (F * df1 + df2 + 1)
@@ -533,38 +729,38 @@ benefit.</p>
 ## ───────────────────────────────
 ##           Mauchly&#39;s W     p    
 ## ───────────────────────────────
-## newtrial       0.9733  .598    
+## newtrial       0.9533  .403    
 ## ───────────────────────────────
 ## 
 ## ------ EMMEANS (effect = &quot;newtrial&quot;) ------
 ## 
 ## Joint Tests of &quot;newtrial&quot;:
-## ──────────────────────────────────────────────────────
-##    Effect df1 df2      F     p     η²p [90% CI of η²p]
-## ──────────────────────────────────────────────────────
-##  newtrial   2  39 11.845 &lt;.001 ***   .378 [.169, .530]
-## ──────────────────────────────────────────────────────
+## ─────────────────────────────────────────────────────
+##    Effect df1 df2     F     p     η²p [90% CI of η²p]
+## ─────────────────────────────────────────────────────
+##  newtrial   2  39 0.276  .760       .014 [.000, .085]
+## ─────────────────────────────────────────────────────
 ## Note. Simple effects of repeated measures with 3 or more levels
 ## are different from the results obtained with SPSS MANOVA syntax.
 ## 
 ## Estimated Marginal Means of &quot;newtrial&quot;:
-## ──────────────────────────────────────────────
-##  &quot;newtrial&quot;      Mean [95% CI of Mean]    S.E.
-## ──────────────────────────────────────────────
-##   newtrial1 214.702 [197.643, 231.762] (8.434)
-##   newtrial2 208.986 [192.646, 225.326] (8.078)
-##   newtrial3 204.406 [188.524, 220.287] (7.852)
-## ──────────────────────────────────────────────
+## ─────────────────────────────────────────
+##  &quot;newtrial&quot; Mean [95% CI of Mean]    S.E.
+## ─────────────────────────────────────────
+##   newtrial1  0.387 [0.340, 0.434] (0.023)
+##   newtrial2  0.397 [0.345, 0.450] (0.026)
+##   newtrial3  0.390 [0.336, 0.443] (0.026)
+## ─────────────────────────────────────────
 ## 
 ## Pairwise Comparisons of &quot;newtrial&quot;:
 ## ───────────────────────────────────────────────────────────────────────────────────
 ##               Contrast Estimate    S.E. df      t     p     Cohen’s d [95% CI of d]
 ## ───────────────────────────────────────────────────────────────────────────────────
-##  newtrial2 - newtrial1   -5.716 (1.883) 39 -3.036  .013 *   -0.440 [-0.802, -0.077]
-##  newtrial3 - newtrial1  -10.297 (2.158) 39 -4.772 &lt;.001 *** -0.792 [-1.207, -0.377]
-##  newtrial3 - newtrial2   -4.580 (2.118) 39 -2.163  .110     -0.352 [-0.760,  0.055]
+##  newtrial2 - newtrial1    0.010 (0.014) 39  0.697 1.000       0.122 [-0.315, 0.558]
+##  newtrial3 - newtrial1    0.002 (0.012) 39  0.201 1.000       0.030 [-0.345, 0.405]
+##  newtrial3 - newtrial2   -0.008 (0.012) 39 -0.614 1.000      -0.091 [-0.463, 0.281]
 ## ───────────────────────────────────────────────────────────────────────────────────
-## Pooled SD for computing Cohen’s d: 13.006
+## Pooled SD for computing Cohen’s d: 0.082
 ## P-value adjustment: Bonferroni method for 3 tests.
 ## 
 ## Disclaimer:
@@ -572,188 +768,195 @@ benefit.</p>
 ## There is much disagreement on how to compute Cohen’s d.
 ## You are completely responsible for setting `sd.pooled`.
 ## You might also use `effectsize::t_to_d()` to compute d.</code></pre>
-<p>From the within-task ANOVA on search task, trial position had a
-significant effect of SRT in the search task, F(2, 78) = 12.59, p &lt;
-.001, η²p = .244. The large effect size indicates trial position
-accounts for ~25% of reliable SRT variance.</p>
+<p>The one-way ANOVA on search-task target fixation rate found no
+significant effect of trial position, F(2, 78) = 0.32, p = .727, η²p =
+.008. All pairwise contrasts were non-significant after Bonferroni
+correction. Target fixation rate was therefore stable across the entire
+3-trial sequence.</p>
 </div>
-<div id="paired-t-tests-vs.-trial-1" class="section level2">
-<h2>Paired t-tests vs. Trial 1</h2>
-<p>These follow-up tests directly ask: is SRT on trial 2 reliably faster
-than trial 1, and is trial 3 reliably faster than trial 1? They provide
-a fine-grained picture of <em>when</em> in the 3-trial sequence the
-speedup occurs — immediately (trial 2) or only after full suppression
-has developed (trial 3).</p>
-<pre class="r"><code>srt_wide &lt;- srt_data %&gt;%
-  pivot_wider(names_from = newtrial, values_from = SRT) %&gt;%
-  rename(t1 = `1`, t2 = `2`, t3 = `3`)
+<div id="one-sample-t-tests-vs.-chance" class="section level2">
+<h2>One-sample t-tests vs. chance</h2>
+<p>These tests ask, at each trial position, whether participants’ target
+fixation rate is reliably above the 1/6 chance baseline. This helps
+distinguish between two interpretations: (a) target guidance is always
+strong and does not meaningfully change, or (b) guidance is weak early
+(when the singleton competes) and strengthens across trials.</p>
+<pre class="r"><code>chance &lt;- 1 / 6
+options(scipen = 999)
 
-t.test(srt_wide$t2, srt_wide$t1, paired = TRUE, digits = 2)</code></pre>
+targfix_wide &lt;- targfix_search %&gt;%
+  pivot_wider(names_from = newtrial, values_from = perc)
+
+for (i in 1:3) {
+  t_frame &lt;- data.frame(perc = targfix_wide[[as.character(i)]])
+  TTEST(t_frame, &quot;perc&quot;, test.value = chance, paired = FALSE, digits = 3)
+}</code></pre>
 <pre><code>## 
-##  Paired t-test
+## One-Sample t-test
 ## 
-## data:  srt_wide$t2 and srt_wide$t1
-## t = -3.036, df = 39, p-value = 0.004258
-## alternative hypothesis: true mean difference is not equal to 0
-## 95 percent confidence interval:
-##  -9.524745 -1.907857
-## sample estimates:
-## mean difference 
-##       -5.716301</code></pre>
-<pre class="r"><code>t.test(srt_wide$t3, srt_wide$t1, paired = TRUE, digits = 2)</code></pre>
-<pre><code>## 
-##  Paired t-test
+## Hypothesis: two-sided (μ ≠ 0.166666666666667)</code></pre>
+<pre><code>## `BayesFactor` package needs to be installed.</code></pre>
+<pre><code>## Descriptives:
+## ──────────────────────────
+##  Variable  N   Mean (S.D.)
+## ──────────────────────────
+##      perc 40 0.387 (0.148)
+## ──────────────────────────
 ## 
-## data:  srt_wide$t3 and srt_wide$t1
-## t = -4.7718, df = 39, p-value = 2.567e-05
-## alternative hypothesis: true mean difference is not equal to 0
-## 95 percent confidence interval:
-##  -14.66146  -5.93210
-## sample estimates:
-## mean difference 
-##       -10.29678</code></pre>
-<p>Follow-up tests showed that SRT was reliably faster than trial 1 at
-both subsequent positions. Trial 2 was significantly faster than trial
-1, Mean diff = −5.72 ms, t(39) = −3.04, p = .004, 95% CI [−9.52, −1.91].
-Trial 3 was still faster, with Mean diff = −10.30 ms, t(39) = −4.78, p
-&lt; .001, 95% CI [−14.66, −5.93]. The trial 3 vs. trial 2 contrast did
-not reach significance after Bonferroni correction, indicating that the
-bulk of the SRT reduction occurs on the first same-color repetition,
-with more modest and less reliable additional gains on the second. This
-early-onset pattern aligns with the oculomotor capture data, in which
-suppression is already significant by trial 2 in the search task.</p>
+## Results of t-test:
+## ──────────────────────────────────────────────────────────────────────────────────────────────
+##                                       t df     p      Difference [95% CI]   Cohen’s d [95% CI]
+## ──────────────────────────────────────────────────────────────────────────────────────────────
+## perc: (perc - 0.166666666666667)  9.430 39 &lt;.001 *** 0.221 [0.173, 0.268] 1.491 [1.171, 1.811]
+## ──────────────────────────────────────────────────────────────────────────────────────────────
+## 
+## 
+## One-Sample t-test
+## 
+## Hypothesis: two-sided (μ ≠ 0.166666666666667)</code></pre>
+<pre><code>## `BayesFactor` package needs to be installed.</code></pre>
+<pre><code>## Descriptives:
+## ──────────────────────────
+##  Variable  N   Mean (S.D.)
+## ──────────────────────────
+##      perc 40 0.397 (0.164)
+## ──────────────────────────
+## 
+## Results of t-test:
+## ──────────────────────────────────────────────────────────────────────────────────────────────
+##                                       t df     p      Difference [95% CI]   Cohen’s d [95% CI]
+## ──────────────────────────────────────────────────────────────────────────────────────────────
+## perc: (perc - 0.166666666666667)  8.879 39 &lt;.001 *** 0.231 [0.178, 0.283] 1.404 [1.084, 1.724]
+## ──────────────────────────────────────────────────────────────────────────────────────────────
+## 
+## 
+## One-Sample t-test
+## 
+## Hypothesis: two-sided (μ ≠ 0.166666666666667)</code></pre>
+<pre><code>## `BayesFactor` package needs to be installed.</code></pre>
+<pre><code>## Descriptives:
+## ──────────────────────────
+##  Variable  N   Mean (S.D.)
+## ──────────────────────────
+##      perc 40 0.390 (0.167)
+## ──────────────────────────
+## 
+## Results of t-test:
+## ──────────────────────────────────────────────────────────────────────────────────────────────
+##                                       t df     p      Difference [95% CI]   Cohen’s d [95% CI]
+## ──────────────────────────────────────────────────────────────────────────────────────────────
+## perc: (perc - 0.166666666666667)  8.434 39 &lt;.001 *** 0.223 [0.170, 0.276] 1.334 [1.014, 1.653]
+## ──────────────────────────────────────────────────────────────────────────────────────────────</code></pre>
+<p>Despite showing no change across trials, target fixation was strongly
+and consistently above the chance baseline (1/6) at every trial
+position. Trial 1: t(39) = 9.43, p &lt; .001, Cohen’s d = 1.491; Trial
+2: t(39) = 8.88, p &lt; .001, Cohen’s d = 1.404; Trial 3: t(39) = 8.43,
+p &lt; .001, Cohen’s d = 1.33. All three effect sizes are large,
+indicating that participants’ first saccades were directed toward the
+target at more than twice the chance rate throughout the sequence.</p>
 </div>
-<div id="cross-task-comparison-on-trial-3-search-vs.-central"
-class="section level2">
-<h2>Cross-task comparison on Trial 3 (search vs. central)</h2>
-<p>This analysis mirrors the paper’s key Panel C comparison but for SRT.
-On Trial 3, both tasks involve a free saccade into the search display;
-the only difference is whether the participant had prior suppression
-experience (search: yes, central: no). A paired-samples t-test tests
-whether that experience difference translates into a difference in
-saccade initiation speed.</p>
-<pre class="r"><code>srt_trial3_wide &lt;- srt_trial3 %&gt;%
-  pivot_wider(names_from = taskType, values_from = SRT)
-
-t.test(srt_trial3_wide$central, srt_trial3_wide$search, paired = TRUE, digits = 2)</code></pre>
-<pre><code>## 
-##  Paired t-test
-## 
-## data:  srt_trial3_wide$central and srt_trial3_wide$search
-## t = 2.2333, df = 39, p-value = 0.03134
-## alternative hypothesis: true mean difference is not equal to 0
-## 95 percent confidence interval:
-##   1.065048 21.527227
-## sample estimates:
-## mean difference 
-##        11.29614</code></pre>
-<p>On the critical Trial 3, participants in search task initiated their
-first saccade significantly faster than participants in central task,
-with Mean diff = 11.30ms, t(39) = 2.23, p = .03, 95% CI [1.07,
-21.53].</p>
-<p>(<em>This is an add-on step</em>) If the trial 3 of the central task
-is a truly “cold” start, i.e., a first free eye movements with the
-search display, equivalent to having no piror suppression experience,
-then its SRT should be statistically indistinguishable from the trial 1
-of the search task (the trial before any learning has occurred). This
-comparison is the logical complement, as it can rule out the possibility
-that the central task RST is elevated by some inherent property of the
-central task itself (i.e., participants actually use their covert
-attention system to process the singleton and distractor in the first
-two trials), rather than by the absence of suppression learning. Finding
-central task trial 3 ≈ search task trial 1 would show - the two tasks
-share the same starting point, and trial 3 of the search task advantage
-reflects specifically what two trials of suppression learning add.</p>
-<pre class="r"><code># Extract central T3 and search T1 SRT, joined by participant
-central_t3 &lt;- srt_trial3 %&gt;%
-  filter(taskType == &quot;central&quot;) %&gt;%
-  select(subjnum, SRT) %&gt;%
-  rename(central_t3 = SRT)
-
-search_t1 &lt;- srt_data %&gt;%
-  filter(newtrial == 1) %&gt;%
-  select(subjnum, SRT) %&gt;%
-  rename(search_t1 = SRT)
-
-equiv_wide &lt;- inner_join(central_t3, search_t1, by = &quot;subjnum&quot;)
-
-t.test(equiv_wide$central_t3, equiv_wide$search_t1, paired = TRUE)</code></pre>
-<pre><code>## 
-##  Paired t-test
-## 
-## data:  equiv_wide$central_t3 and equiv_wide$search_t1
-## t = 0.23173, df = 39, p-value = 0.818
-## alternative hypothesis: true mean difference is not equal to 0
-## 95 percent confidence interval:
-##  -7.723620  9.722334
-## sample estimates:
-## mean difference 
-##       0.9993567</code></pre>
-<p>This comparison was not significant, t(39) = .23, p &gt; .05, and the
-means were very close, central T3: M = 215.70ms; search T1: M =
-214.70ms; Mdiff = 1ms). This results confirms that the trial 3 in the
-central task were operating from the same baseline as the trial 1 in the
-search task, as if searching the display for the very first time.</p>
 </div>
-<div id="plot" class="section level2">
-<h2>Plot</h2>
-<pre class="r"><code># Panel A: within-sequence SRT in search task
-srt_plot &lt;- with(srt_data,
-                 cmErrBar(SRT, subjnum, as.character(newtrial), &quot;ci&quot;))
-srt_plot$group &lt;- factor(srt_plot$group, levels = c(&quot;1&quot;, &quot;2&quot;, &quot;3&quot;))
+<div id="cross-task-comparison-on-trial-3-search-vs-central"
+class="section level1">
+<h1>Cross-task comparison on trial 3 (search vs central)</h1>
+<p>Trial 3 is the only trial position where both tasks yield valid
+free-viewing first fixation data. This makes it the direct
+target-fixation analogue of the Figure 6C in the manuscript, a
+within-subjects test asking whether prior suppression learning in the
+search task (trials 1-2) produced a measurably higher target fixation
+rate on trial 3, relative to the trial 3 of central task where is the
+first time participants experienced the free-viewing display.</p>
+<p>In this way, if suppression of the singleton actively redirects
+attention toward the target, search-task trial 3 should show higher
+target fixation rate than central-task trial 3. If suppression is purely
+inhibitory, the two conditions should be statistically indistinguishable
+on trial 3.</p>
+<pre class="r"><code># Extract trial 3 from both task types 
+t3_both &lt;- targfix %&gt;% 
+  filter(newtrial == &quot;3&quot;) %&gt;% 
+  select(subjnum, taskType, perc) %&gt;% 
+  pivot_wider(names_from = taskType, values_from = perc)
 
-p_srt_within &lt;- ggplot(srt_plot, aes(x = group, y = mean)) +
-  geom_errorbar(aes(ymin = minus, ymax = plus), width = 0.15, linewidth = 1.1,
-                color = graph_color) +
-  geom_line(aes(group = 1), linewidth = 1.1, color = graph_color) +
-  geom_point(size = 4, color = graph_color) +
-  labs(x     = &quot;Trials with Same Color&quot;,
-       y     = &quot;Saccade Reaction Time (ms)&quot;,
-       title = &quot;A  Search Task: Trial 1–3&quot;) +
-  manuscript_theme +
-  theme(plot.title = element_text(hjust = 0, size = axis_tick_text_size, face = &quot;bold&quot;))
+t.test(t3_both$central, t3_both$search, paired = TRUE)</code></pre>
+<pre><code>## 
+##  Paired t-test
+## 
+## data:  t3_both$central and t3_both$search
+## t = -0.734, df = 39, p-value = 0.4673
+## alternative hypothesis: true mean difference is not equal to 0
+## 95 percent confidence interval:
+##  -0.04543753  0.02124094
+## sample estimates:
+## mean difference 
+##      -0.0120983</code></pre>
+<p>A pair-sample t-test revealed no significant difference in target
+first-fixation rate between the search task and the central task, t(39)
+= -.73, p = .47, 95% CI[-.05, .02]. This null result indicates that the
+two task contexts coverage on an equivalent baseline level of target
+fixation during unconstrained viewing, ruling out any task-specific
+strategic or contextual advantage in target searching.</p>
+</div>
+<div id="plot" class="section level1">
+<h1>Plot</h1>
+<pre class="r"><code>targ_plot &lt;- with(targfix,
+                  cmErrBar(perc, subjnum, paste(taskType, newtrial, curritem), &quot;ci&quot;)) %&gt;%
+  separate(group, into = c(&quot;condition&quot;, &quot;trial&quot;, &quot;item&quot;), sep = &quot; &quot;)
+targ_plot$trial &lt;- factor(targ_plot$trial, levels = c(&quot;1&quot;, &quot;2&quot;, &quot;3&quot;))
 
-# Panel B: Trial 3 SRT by task type
-srt_t3_plot &lt;- with(srt_trial3,
-                    cmErrBar(SRT, subjnum, taskType, &quot;ci&quot;))
-
-p_srt_trial3 &lt;- ggplot(srt_t3_plot, aes(x = group, y = mean)) +
-  geom_bar(fill = c(&quot;gray75&quot;, &quot;gray30&quot;), colour = &quot;black&quot;,
-           stat = &quot;identity&quot;, width = 0.6) +
+ggplot(targ_plot, aes(x = trial, y = mean, group = condition, color = condition)) +
   geom_errorbar(aes(ymin = minus, ymax = plus), width = 0.15, linewidth = 1.1) +
-  scale_x_discrete(labels = c(&quot;central&quot; = &quot;Central Task&quot;, &quot;search&quot; = &quot;Search Task&quot;)) +
-  scale_y_continuous(expand = expansion(mult = c(0, 0.05))) +
-  labs(x     = &quot;Prior Task Type&quot;,
-       y     = &quot;Saccade Reaction Time (ms)&quot;,
-       title = &quot;B  Critical Trial (Trial 3)&quot;) +
-  manuscript_theme +
-  theme(plot.title = element_text(hjust = 0, size = axis_tick_text_size, face = &quot;bold&quot;))
-
-p_srt_within + p_srt_trial3</code></pre>
+  geom_line(linewidth = 1.1, aes(linetype = condition)) +
+  geom_point(size = 4, aes(shape = condition)) +
+  geom_hline(yintercept = 1 / 6, linetype = &quot;dashed&quot;, color = &quot;gray50&quot;, linewidth = 0.8) +
+  annotate(&quot;text&quot;, x = 0.6, y = 1 / 6 + 0.012, label = &quot;chance (1/6)&quot;,
+           color = &quot;gray50&quot;, size = 4.5, hjust = 0) +
+  scale_color_manual(values = c(&quot;central&quot; = &quot;#4A90E2&quot;, &quot;search&quot; = &quot;#333333&quot;),
+                     labels = c(&quot;Central Task&quot;, &quot;Search Task&quot;)) +
+  scale_shape_manual(values = c(&quot;central&quot; = 17, &quot;search&quot; = 15),
+                     labels = c(&quot;Central Task&quot;, &quot;Search Task&quot;)) +
+  scale_linetype_manual(values = c(&quot;central&quot; = &quot;dashed&quot;, &quot;search&quot; = &quot;solid&quot;),
+                        labels = c(&quot;Central Task&quot;, &quot;Search Task&quot;)) +
+  scale_y_continuous(limits = c(0.1, 0.6), breaks = seq(0.1, 0.6, 0.1),
+                     labels = scales::percent_format(accuracy = 1)) +
+  labs(x = &quot;Trials with Same Color&quot;,
+       y = &quot;Target First-Fixation Rate&quot;,
+       color = &quot;Task Type&quot;, shape = &quot;Task Type&quot;, linetype = &quot;Task Type&quot;) +
+  manuscript_theme</code></pre>
+<pre><code>## Warning: Removed 2 rows containing missing values or values outside the scale range
+## (`geom_line()`).</code></pre>
+<pre><code>## Warning: Removed 2 rows containing missing values or values outside the scale range
+## (`geom_point()`).</code></pre>
 <div class="figure">
-<img src="p06_files/figure-html/srt-plot-1.png" alt="Figure S2. Left: Mean SRT (ms) across trial positions in the search task. Right: Mean SRT (ms) on Trial 3 by task type. Error bars = 95% CI (Cousineau-Morey corrected)." width="960" />
+<img src="p06_files/figure-html/targfix-plot-1.png" alt="Figure S3. Target first-fixation rate (%) across trial positions by task type. Dashed gray line = chance (1/6 ≈ 16.7%). Error bars = 95% CI (Cousineau-Morey corrected)." width="864" />
 <p class="caption">
-Figure S2. Left: Mean SRT (ms) across trial positions in the search
-task. Right: Mean SRT (ms) on Trial 3 by task type. Error bars = 95% CI
+Figure S3. Target first-fixation rate (%) across trial positions by task
+type. Dashed gray line = chance (1/6 ≈ 16.7%). Error bars = 95% CI
 (Cousineau-Morey corrected).
 </p>
 </div>
-<p>Together, the three SRT comparisons showed that the only way we can
-learn distractor suppression is to be overtly captured by it first, that
-is, the eyes must actually move onto the distractor before suppression
-can develop. Our results indicated that central task trial 3 was
-statistically indistinguishable from search task trial 1, both represent
-a naive first encounter with the search display. Yet search task trial 3
-was significantly faster than both, and significantly faster than
-central task trial 3. The entire SRT advantage of the search task on the
-critical trial is therefore attributable to the two prior trials of
-suppression learning: without that experience (central task), SRT on
-trial 3 looks exactly like the very start of learning (search T1). These
-findings complement the paper’s Figure 6C — suppression learning not
-only reshapes where the first saccade goes but also when it departs,
-consistent with a broad reduction in oculomotor competition as the
-singleton is progressively deprioritized.</p>
 </div>
+<div id="summary" class="section level1">
+<h1>Summary</h1>
+<p>Across all five steps, target first-fixation rates showed a
+consistent pattern: robustly above chance throughout, but completely
+unmodulated by the three-trial suppression learning cycle. The one-way
+ANOVA within the search task was non-significant, and the cross-task
+trial 3 comparison was likewise non-significant. As visualised in the
+figure above, the two task-type lines run essentially flat and parallel
+across trial positions, both sitting well above the chance baseline.</p>
+<p>This null result is theoretically meaningful. Taken together with the
+original finding that singleton fixation drops sharply from trial 1 to
+trial 3, the flat target fixation curve reveals a clear dissociation:
+suppression learning selectively reduces the singleton’s oculomotor
+priority without boosting the target’s. This findings may indicate that
+the freed attentional resources do not automatically flow toward the
+goal — they disperse to other (nonsingleton) locations instead. This
+pattern supports a purely inhibitory account of learned oculomotor
+suppression: the mechanism acts by tagging and deprioritising the
+distractor, not by actively enhancing target guidance. Target
+prioritization and singleton suppression appear to operate through
+partially independent mechanisms within the attentional priority
+map.</p>
 </div>
 
 

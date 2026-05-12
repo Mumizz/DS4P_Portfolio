@@ -278,6 +278,9 @@ $(document).ready(function () {
 <li>
   <a href="p10.html">Portfolio 10</a>
 </li>
+<li>
+  <a href="p11.html">Portfolio 11</a>
+</li>
       </ul>
       <ul class="nav navbar-nav navbar-right">
         
@@ -304,42 +307,105 @@ and of high quality in terms of writing, grammar, presentation, etc.</p>
 </blockquote>
 <div id="background" class="section level1">
 <h1>Background</h1>
-<p>In portfolio 3, I found a significant interaction between word
-frequency and GPT-2 suprisal on total dwell time - the processing cost
-of contextually unexpected words was attenuated at higher frequency
-levels. However, total dwell time combines both first-pass and
-re-reading fixations, which are thought to reflect distinct cognitive
-processes. First-pass measures capture initial word recognition and
-early lexical access, while re-reading reflects later comprehension
-difficulty or integration failure. By combining these together,
-portfolio 3 could not determine <em>when</em> the interaction exerts its
-influence.</p>
-<p>This portfolio address the limitation by decomposing the analysis
-across three reading measures that tap into different stages of
-processing.</p>
+<div id="introduction" class="section level2">
+<h2>Introduction</h2>
+<p>This and following several portfolio will conduct a secondary
+analysis using data from an attention capture study (Zhang &amp;
+Gaspelin, 2026; 10.17605/OSF.IO/D4FX8). The original Experiment 3
+analysis (Manuscript: <em>From Capture to Control: Initial Capture
+Increases Learned Suppression</em>) examined how the oculomotor system
+learns to suppress a salient color singleton distractor across a 3-trial
+sequence in which the same distractor color repeated. The key measure
+was the <strong>oculomotor capture effect</strong>: the difference in
+the rate of first eye movements directed toward the salient singleton
+versus a nonsingleton distractor (Singleton% − Nonsingleton%). A
+positive value indicates initial capture (the eye was attracted to the
+singleton), while a negative value indicates learned suppression (the
+eye actively avoided the singleton).</p>
+<p>The two task types were compared:</p>
+<ul>
+<li><strong>Search Task</strong>: Participants actively searched for a
+target shape among distractors. Eye movements toward the display were
+required and free.</li>
+<li><strong>Central Task</strong>: Participants monitored a central
+letter stream. Eye movements were restricted during Trials 1 and 2; on
+Trial 3 (the critical trial), eye movements were released.</li>
+</ul>
+<p>The key comparison was on Trial 3 - did prior experience with active
+search (which produced initial capture on Trial 1) generate stronger
+suppression and no experience with initial capture (the central task)
+generate zero or below zero suppression?</p>
 </div>
-<div id="data" class="section level1">
-<h1>Data</h1>
-<p>This portfolio uses the same Onestop dataset as portfolio 2 and
-3.</p>
+<div id="what-the-original-analysis-did-not-inlucde"
+class="section level2">
+<h2>What the Original Analysis Did not Inlucde ?</h2>
+<p>Despite recording several rich behavioral and oculomotor variables,
+the original script only analyzed the oculomotor capture effect (first
+fixation direction) and singleton dwell time. Three measures that are
+fully available in the dataset were never analyzed:</p>
+<ol style="list-style-type: decimal">
+<li><strong>Response Time (RT)</strong> — the button-press latency at
+the end of each trial, reflecting overall task efficiency.</li>
+<li><strong>Saccade Reaction Time (SRT)</strong> — the latency from
+display onset to the initiation of the first eye movement, reflecting
+the speed of oculomotor deployment.</li>
+<li><strong>Target Fixation Rate</strong> — the proportion of first eye
+movements landing on the target rather than the singleton or a
+nonsingleton, reflecting the acquisition (not just the inhibition) side
+of attentional control.</li>
+</ol>
+</div>
 </div>
 <div id="goal" class="section level1">
 <h1>Goal</h1>
-<p>The goal of portfolio 4 is to address the limitation mentioned in
-portfolio 3 by testing whether the surprisal x frequency interaction
-observed in portfolio 3 operates at the level of initial word
-recognition, i.e., first-pass measures, later comprehension processes
-(re-reading), or both. If the interaction appears only in first-pass
-measures, it would suggest that frequency buffers against surprisal
-during early lexical access. If it appears only in re-reading, the
-buffering effect operates during later integration. If it appears in
-both, frequency modulates the processing cost of unpredictable words
-across multiple stages of reading</p>
+<p>These three secondary analyses test whether the suppression-learning
+pattern found in the oculomotor capture effect generalizes to
+complementary behavioral and oculomotor measures. Together, they provide
+a more complete picture of what changes across the 3-trial same-color
+sequence:</p>
+<table>
+<colgroup>
+<col width="33%" />
+<col width="33%" />
+<col width="33%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>Analysis</th>
+<th>What it measures</th>
+<th>Key question</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>RT</td>
+<td>Button-press speed</td>
+<td>Does search get faster as the singleton is suppressed?</td>
+</tr>
+<tr class="even">
+<td>SRT</td>
+<td>First saccade initiation speed</td>
+<td>Does the eye move more decisively as distractor competition
+drops?</td>
+</tr>
+<tr class="odd">
+<td>Target Fixation Rate</td>
+<td>Where the first eye movement lands</td>
+<td>Does suppression of the singleton redirect attention toward the
+target?</td>
+</tr>
+</tbody>
+</table>
+<p>The portfolio will look at the first secondary analysis, and the
+following two will examine the SRT and Target Fixation Rate,
+respectively.</p>
 </div>
 <div id="setup" class="section level1">
 <h1>Setup</h1>
-<pre class="r"><code># Load packages
-library(tidyverse)</code></pre>
+<pre class="r"><code>rm(list = ls())
+setwd(&quot;~/Documents/GitHub/DS4P_Portfolio&quot;) 
+library(&#39;NickPsych&#39;)
+library(&#39;tidyverse&#39;)</code></pre>
 <pre><code>## ── Attaching core tidyverse packages ──────────────────────── tidyverse 2.0.0 ──
 ## ✔ dplyr     1.1.4     ✔ readr     2.1.5
 ## ✔ forcats   1.0.1     ✔ stringr   1.5.2
@@ -350,770 +416,878 @@ library(tidyverse)</code></pre>
 ## ✖ dplyr::filter() masks stats::filter()
 ## ✖ dplyr::lag()    masks stats::lag()
 ## ℹ Use the conflicted package (&lt;http://conflicted.r-lib.org/&gt;) to force all conflicts to become errors</code></pre>
-<pre class="r"><code>library(scales)</code></pre>
+<pre class="r"><code>library(&#39;reshape2&#39;)</code></pre>
 <pre><code>## 
-## Attaching package: &#39;scales&#39;
+## Attaching package: &#39;reshape2&#39;
 ## 
-## The following object is masked from &#39;package:purrr&#39;:
+## The following object is masked from &#39;package:tidyr&#39;:
 ## 
-##     discard
-## 
-## The following object is masked from &#39;package:readr&#39;:
-## 
-##     col_factor</code></pre>
-<pre class="r"><code>library(patchwork)
-library(knitr)
-library(psych)</code></pre>
+##     smiths</code></pre>
+<pre class="r"><code>library(&#39;writexl&#39;)
+library(&#39;dplyr&#39;)
+library(&#39;bruceR&#39;)</code></pre>
 <pre><code>## 
-## Attaching package: &#39;psych&#39;
+## bruceR (v2026.1)
+## Broadly Useful Convenient and Efficient R functions
 ## 
-## The following objects are masked from &#39;package:scales&#39;:
+## Packages also loaded:
+## ✔ dplyr      ✔ data.table
+## ✔ tidyr      ✔ emmeans
+## ✔ stringr    ✔ lmerTest
+## ✔ forcats    ✔ effectsize
+## ✔ ggplot2    ✔ performance
+## ✔ cowplot    ✔ interactions
 ## 
-##     alpha, rescale
+## Main functions of `bruceR`:
+## cc()             Describe()  TTEST()
+## add()            Freq()      MANOVA()
+## .mean()          Corr()      EMMEANS()
+## set.wd()         Alpha()     PROCESS()
+## import()         EFA()       model_summary()
+## print_table()    CFA()       lavaan_summary()
 ## 
-## The following objects are masked from &#39;package:ggplot2&#39;:
+## For full functionality, please install all dependencies:
+## install.packages(&quot;bruceR&quot;, dep=TRUE)
 ## 
-##     %+%, alpha</code></pre>
-<pre class="r"><code>library(sjPlot)</code></pre>
+## Online documentation:
+## https://psychbruce.github.io/bruceR
+## 
+## To use this package in publications, please cite:
+## Bao, H. W. S. (2021). bruceR: Broadly useful convenient and efficient R functions (Version 2026.1) [Computer software]. https://doi.org/10.32614/CRAN.package.bruceR
+## 
+## 
+## These packages are dependencies but not yet installed:
+## - pacman, ggtext, see, vars, phia, MuMIn, BayesFactor, GGally
+## 
+## ***** Install All Dependencies *****
+## install.packages(&quot;bruceR&quot;, dep=TRUE)</code></pre>
+<pre class="r"><code>library(&#39;openxlsx&#39;)
+library(&#39;knitr&#39;)
+library(&#39;xtable&#39;)</code></pre>
 <pre><code>## 
-## Attaching package: &#39;sjPlot&#39;
+## Attaching package: &#39;xtable&#39;
 ## 
-## The following object is masked from &#39;package:ggplot2&#39;:
+## The following object is masked from &#39;package:performance&#39;:
 ## 
-##     set_theme</code></pre>
-<pre class="r"><code>library(lme4)</code></pre>
-<pre><code>## Loading required package: Matrix
+##     display
 ## 
-## Attaching package: &#39;Matrix&#39;
+## The following object is masked from &#39;package:effectsize&#39;:
 ## 
-## The following objects are masked from &#39;package:tidyr&#39;:
-## 
-##     expand, pack, unpack</code></pre>
-<pre class="r"><code>library(lmerTest)</code></pre>
-<pre><code>## 
-## Attaching package: &#39;lmerTest&#39;
-## 
-## The following object is masked from &#39;package:lme4&#39;:
-## 
-##     lmer
-## 
-## The following object is masked from &#39;package:stats&#39;:
-## 
-##     step</code></pre>
-<pre class="r"><code>library(broom.mixed)</code></pre>
-<pre class="r"><code># Load data
-ia &lt;- read_csv(&quot;~/Desktop/2025-2026/Courses/Data science for psych/Portfolio 1/ia_Paragraph_ordinary.csv&quot;)</code></pre>
-<pre><code>## Rows: 1104883 Columns: 157
-## ── Column specification ────────────────────────────────────────────────────────
-## Delimiter: &quot;,&quot;
-## chr (102): participant_id, EYE_REPORTED, EYE_TRACKED, IA_AVERAGE_FIX_PUPIL_S...
-## dbl  (51): TRIAL_INDEX, IA_AREA, IA_BOTTOM, IA_DWELL_TIME, IA_DWELL_TIME_%, ...
-## lgl   (4): question_preview, practice_trial, repeated_reading_trial, is_correct
-## 
-## ℹ Use `spec()` to retrieve the full column specification for this data.
-## ℹ Specify the column types or set `show_col_types = FALSE` to quiet this message.</code></pre>
+##     display</code></pre>
+<hr />
 </div>
-<div id="data-cleaning-and-transformation" class="section level1">
-<h1>Data Cleaning and Transformation</h1>
-<p>We apply the same cleaning steps as portfolio 3 - filtering out
-practice trials and repeated readings, converting variables to numeric,
-and removing extreme values. For this portfolio, we prepare three
-dependent variables: first fixation duration (FFD), gaze duration
-(first-run dwell time), and a binary re-reading indicator.</p>
-<div id="filter-and-transform" class="section level2">
-<h2>Filter and Transform</h2>
-<pre class="r"><code># Convert character columns to numeric
-ia_clean &lt;- ia %&gt;%
-  mutate(
-    IA_DWELL_TIME = as.numeric(IA_DWELL_TIME),
-    IA_FIRST_RUN_DWELL_TIME = as.numeric(IA_FIRST_RUN_DWELL_TIME),
-    IA_FIRST_FIXATION_DURATION = as.numeric(IA_FIRST_FIXATION_DURATION),
-    IA_FIXATION_COUNT = as.numeric(IA_FIXATION_COUNT)
-  )</code></pre>
-<pre><code>## Warning: There were 2 warnings in `mutate()`.
-## The first warning was:
-## ℹ In argument: `IA_FIRST_RUN_DWELL_TIME = as.numeric(IA_FIRST_RUN_DWELL_TIME)`.
-## Caused by warning:
-## ! NAs introduced by coercion
-## ℹ Run `dplyr::last_dplyr_warnings()` to see the 1 remaining warning.</code></pre>
-<pre class="r"><code># Filter out practice trials, repeated readings, and missing/extreme values
-ia_clean &lt;- ia_clean %&gt;%
-  filter(
-    practice_trial == FALSE,
-    repeated_reading_trial == FALSE,
-    !is.na(IA_DWELL_TIME),
-    !is.na(wordfreq_frequency),
-    !is.na(gpt2_surprisal),
-    !is.na(word_length_no_punctuation),
-    IA_FIRST_FIXATION_DURATION &gt;=80 &amp; IA_FIRST_FIXATION_DURATION &lt;= 800,
-    IA_DWELL_TIME &gt;= 50 &amp; IA_DWELL_TIME &lt;= 3000 
-  )</code></pre>
-<pre class="r"><code># Create re-reading indicator
-ia_clean &lt;- ia_clean %&gt;%  
-  mutate(
-    reread = ifelse(!is.na(IA_DWELL_TIME) &amp; !is.na(IA_FIRST_RUN_DWELL_TIME) &amp; IA_DWELL_TIME &gt; IA_FIRST_RUN_DWELL_TIME, 1, 0)
-  )</code></pre>
-<pre class="r"><code># Log-transform dwell time and center predictors
-ia_clean &lt;- ia_clean %&gt;%
-  mutate(
-    log_ffd = log(IA_FIRST_FIXATION_DURATION),
-    log_gaze = log(IA_FIRST_RUN_DWELL_TIME), 
-    freq_centered = wordfreq_frequency - mean(wordfreq_frequency, na.rm = TRUE),
-    surprisal_centered = gpt2_surprisal - mean(gpt2_surprisal, na.rm = TRUE),
-    length_centered = word_length_no_punctuation - mean(word_length_no_punctuation, na.rm = TRUE)
-  )</code></pre>
-<pre class="r"><code>ia_analysis &lt;- ia_clean %&gt;%
-  select(participant_id, paragraph_id,
-         IA_FIRST_FIXATION_DURATION, IA_FIRST_RUN_DWELL_TIME, IA_DWELL_TIME,
-         log_ffd, log_gaze, reread,
-         freq_centered, surprisal_centered, length_centered,
-         wordfreq_frequency, gpt2_surprisal, word_length_no_punctuation)</code></pre>
-</div>
-<div id="check-distribution" class="section level2">
-<h2>Check Distribution</h2>
-<pre class="r"><code>p1 &lt;- ggplot(ia_analysis, aes(x = log_ffd)) +
-  geom_histogram(bins = 50, fill = &quot;steelblue&quot;, alpha = 0.7) +
-  labs(title = &quot;First Fixation Duration&quot;, x = &quot;Log FFD&quot;, y = &quot;Count&quot;) +
-  theme_minimal()
+<div id="preprocessing" class="section level1">
+<h1>Preprocessing</h1>
+<p>All preprocessing is identical to
+<code>InitCap_Exp3_analysis.Rmd</code>.</p>
+<pre class="r"><code>## VARIABLES
+#Thresholds (RT, SRT, SD cut)
+hiRT =  2000 # default = 2000
+loRT =  200 # default = 200
+loSRT =  50 # default = 50
+hiSRT =  1000 # default = 1000
+SDcut =  3.5
+pracBlocks = 2
+monDelay = 7 # timing delay of monitor (7 ms) for the eye tracker in Nick&#39;s lab
 
-p2 &lt;- ggplot(ia_analysis, aes(x = log_gaze)) +
-  geom_histogram(bins = 50, fill = &quot;darkgreen&quot;, alpha = 0.7) +
-  labs(title = &quot;Gaze Duration (Log)&quot;, x = &quot;Log Gaze Duration&quot;, y = &quot;Count&quot;) +
-  theme_minimal()
+# Screen properties (to calculate fixation annulus later)
+scrW = 1920
+scrH = 1080
+ctrX = scrW/2
+ctrY = scrH/2
+samprate = 500
+setsize = 6
+shapesz = 54
+eccent = 270    # 4.5 degrees
+fixZone = 90    # 1.5 degrees
+outZone = 450   # 7.5 degress
+angle = 360 / setsize
 
-p3 &lt;- ggplot(ia_analysis, aes(x = factor(reread))) +
-  geom_bar(fill = &quot;coral&quot;, alpha = 0.7) +
-  labs(title = &quot;Re-reading Distribution&quot;, x = &quot;Re-read (0 = No, 1 = Yes)&quot;, y = &quot;Count&quot;) +
-  theme_minimal()
+loc = data.frame(x = numeric(setsize),
+                 y = numeric(setsize))
+loc$x[1] = ctrX
+loc$y[1] = ctrY - eccent
+for(i in 2:setsize){
+  coord = xyrotate(loc$x[1], loc$y[1],ctrX,ctrY,(i-1)*(360/setsize))
+  loc$x[i] = coord$X
+  loc$y[i] = coord$Y
+}
 
-(p1 + p2) / (p3 + plot_spacer())</code></pre>
-<p><img src="p04_files/figure-html/unnamed-chunk-7-1.png" width="672" />
-Both log-transformed first-pass measures show approximately normal
-distributions, sutable for linear mixed-effect modeling. The re-reading
-distribution shows that the majority of words are not re-read, which is
-consistent with my expectation as readers generally move forward through
-text and only return to words that caused difficulty. The binary
-re-reading variable will be analyzed with logistic mixed-effects
-models.</p>
-</div>
-</div>
-<div id="analysis-1-first-fixation-duration" class="section level1">
-<h1>Analysis 1: First Fixation Duration</h1>
-<p>First fixation duration is the earliest measure of word processing.
-If the surprisal × frequency interaction appears here, it would suggest
-that frequency modulates the predictability effect during the very first
-moment of encountering the word.</p>
-<pre class="r"><code>model_ffd &lt;- lmer(log_ffd ~ freq_centered * surprisal_centered + length_centered + (1 | participant_id) + (1 | paragraph_id), data = ia_analysis)
-summary(model_ffd)</code></pre>
-<pre><code>## Linear mixed model fit by REML. t-tests use Satterthwaite&#39;s method [
-## lmerModLmerTest]
-## Formula: log_ffd ~ freq_centered * surprisal_centered + length_centered +  
-##     (1 | participant_id) + (1 | paragraph_id)
-##    Data: ia_analysis
-## 
-## REML criterion at convergence: 416508.9
-## 
-## Scaled residuals: 
-##     Min      1Q  Median      3Q     Max 
-## -3.5006 -0.6392 -0.0291  0.6247  4.8752 
-## 
-## Random effects:
-##  Groups         Name        Variance  Std.Dev.
-##  participant_id (Intercept) 1.319e-02 0.114850
-##  paragraph_id   (Intercept) 1.135e-05 0.003369
-##  Residual                   1.109e-01 0.333006
-## Number of obs: 650295, groups:  participant_id, 180; paragraph_id, 7
-## 
-## Fixed effects:
-##                                    Estimate Std. Error         df t value
-## (Intercept)                       5.227e+00  8.670e-03  1.835e+02 602.889
-## freq_centered                     2.783e-03  1.188e-04  6.501e+05  23.430
-## surprisal_centered                5.359e-03  1.533e-04  6.490e+05  34.962
-## length_centered                   6.233e-04  2.085e-04  6.491e+05   2.989
-## freq_centered:surprisal_centered -2.211e-04  1.183e-05  6.500e+05 -18.681
-##                                  Pr(&gt;|t|)    
-## (Intercept)                        &lt;2e-16 ***
-## freq_centered                      &lt;2e-16 ***
-## surprisal_centered                 &lt;2e-16 ***
-## length_centered                    0.0028 ** 
-## freq_centered:surprisal_centered   &lt;2e-16 ***
-## ---
-## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
-## 
-## Correlation of Fixed Effects:
-##             (Intr) frq_cn srprs_ lngth_
-## freq_centrd  0.004                     
-## srprsl_cntr  0.007 -0.339              
-## lngth_cntrd -0.004 -0.526 -0.148       
-## frq_cntrd:_ -0.016 -0.238 -0.442  0.267</code></pre>
-<p>The main effect of word frequency was significant, b = .0003, t =
-23.43, p &lt; .001, indicating that higher word frequency values were
-associated with longer first fixation durations. The main effect of
-GPT-2 surprisal was also significant, b = .005, t = 34.96, p &lt; .001,
-confirming that less predictable words received longer initial
-fixations. Word length was a significant but smaller predictor, b =
-.001, t = 2.99, p = .003. Critically, the frequency x surprisal
-interaction was significant, b = -.0002, t = -18.68, p &lt; .001. The
-negative coefficient matches the direction found in portfolio 3’s dwell
-time model, indicating that the frequency buffering effect is already
-present at the eariest stage of word processing - the very first
-fixation on the word.</p>
-</div>
-<div id="analysis-2-gaze-duration-first-run-dwell-time"
-class="section level1">
-<h1>Analysis 2: Gaze Duration (first-run dwell time)</h1>
-<p>Gaze duration captures the full first-pass processing of a word,
-including any within-word re-fixations before the eyes move on. It
-reflects a slightly later and more complete stage of first-pass
-processing than FFD.</p>
-<pre class="r"><code>model_gaze &lt;- lmer(log_gaze ~ freq_centered * surprisal_centered + length_centered + (1 | participant_id) + (1 | paragraph_id), data = ia_analysis)
-summary(model_gaze)</code></pre>
-<pre><code>## Linear mixed model fit by REML. t-tests use Satterthwaite&#39;s method [
-## lmerModLmerTest]
-## Formula: log_gaze ~ freq_centered * surprisal_centered + length_centered +  
-##     (1 | participant_id) + (1 | paragraph_id)
-##    Data: ia_analysis
-## 
-## REML criterion at convergence: 612667
-## 
-## Scaled residuals: 
-##     Min      1Q  Median      3Q     Max 
-## -3.7137 -0.6490 -0.0707  0.5923  6.8990 
-## 
-## Random effects:
-##  Groups         Name        Variance  Std.Dev.
-##  participant_id (Intercept) 1.742e-02 0.131986
-##  paragraph_id   (Intercept) 4.393e-05 0.006628
-##  Residual                   1.499e-01 0.387216
-## Number of obs: 650295, groups:  participant_id, 180; paragraph_id, 7
-## 
-## Fixed effects:
-##                                    Estimate Std. Error         df t value
-## (Intercept)                       5.293e+00  1.017e-02  1.765e+02 520.496
-## freq_centered                     3.831e-03  1.381e-04  6.501e+05  27.731
-## surprisal_centered                9.167e-03  1.782e-04  6.499e+05  51.431
-## length_centered                   1.811e-02  2.425e-04  6.500e+05  74.707
-## freq_centered:surprisal_centered -9.937e-06  1.376e-05  6.501e+05  -0.722
-##                                  Pr(&gt;|t|)    
-## (Intercept)                        &lt;2e-16 ***
-## freq_centered                      &lt;2e-16 ***
-## surprisal_centered                 &lt;2e-16 ***
-## length_centered                    &lt;2e-16 ***
-## freq_centered:surprisal_centered     0.47    
-## ---
-## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
-## 
-## Correlation of Fixed Effects:
-##             (Intr) frq_cn srprs_ lngth_
-## freq_centrd  0.004                     
-## srprsl_cntr  0.007 -0.340              
-## lngth_cntrd -0.004 -0.526 -0.148       
-## frq_cntrd:_ -0.016 -0.238 -0.442  0.267</code></pre>
-<p>The main effect of word frequency was significant, b = 0.004, t =
-27.73, p &lt; .001, with higher frequency values associated with longer
-gaze durations. The main effect of GPT-2 surprisal was also significant,
-b = 0.009, t = 51.43, p &lt; .001, indicating that less predictable
-words received longer first-pass processing time. Word length was a
-strong predictor, b = 0.018, t = 74.71, p &lt; .001, with a notably
-larger effect than in the FFD model, reflecting that longer words
-require more within-word refixations during first-pass reading. However,
-the frequency × surprisal interaction was not significant, b &lt;
--0.001, t = -0.72, p = .47. This is a striking contrast with the FFD
-results. The frequency buffering effect was highly significant in first
-fixation duration but absent in gaze duration. This dissociation
-suggests that the interaction operates at the very earliest moment of
-word contact — the initial fixation — but does not persist through the
-full first-pass processing of the word. One possible interpretation is
-that frequency provides a brief initial advantage in processing
-unexpected words, but once the reader engages in fuller first-pass
-processing (including within-word refixations), the surprisal cost is
-similar regardless of frequency.</p>
-</div>
-<div id="analysis-3-re-reading-probability" class="section level1">
-<h1>Analysis 3: Re-reading Probability</h1>
-<p>Re-reading captures late processing, i.e., whether the reader returns
-to a word after initially moving past it. Since this is a binary outcome
-(0 = no re-reading, 1 = re-reading), we use a logistic mixed-effects
-model.</p>
-<pre class="r"><code>model_reread &lt;- glmer(reread ~ freq_centered * surprisal_centered + length_centered + (1 | participant_id) + (1 | paragraph_id), data = ia_analysis)</code></pre>
-<pre><code>## Warning in glmer(reread ~ freq_centered * surprisal_centered + length_centered
-## + : calling glmer() with family=gaussian (identity link) as a shortcut to
-## lmer() is deprecated; please call lmer() directly</code></pre>
-<pre class="r"><code>summary(model_reread)</code></pre>
-<pre><code>## Linear mixed model fit by REML [&#39;lmerMod&#39;]
-## Formula: reread ~ freq_centered * surprisal_centered + length_centered +  
-##     (1 | participant_id) + (1 | paragraph_id)
-##    Data: ia_analysis
-## 
-## REML criterion at convergence: 780501.8
-## 
-## Scaled residuals: 
-##     Min      1Q  Median      3Q     Max 
-## -2.1418 -0.7283 -0.4584  1.1663  2.4234 
-## 
-## Random effects:
-##  Groups         Name        Variance  Std.Dev.
-##  participant_id (Intercept) 0.0123693 0.11122 
-##  paragraph_id   (Intercept) 0.0001582 0.01258 
-##  Residual                   0.1941162 0.44059 
-## Number of obs: 650295, groups:  participant_id, 180; paragraph_id, 7
-## 
-## Fixed effects:
-##                                    Estimate Std. Error t value
-## (Intercept)                       2.980e-01  9.582e-03   31.10
-## freq_centered                     4.432e-03  1.572e-04   28.20
-## surprisal_centered                9.548e-03  2.028e-04   47.08
-## length_centered                   1.697e-02  2.759e-04   61.51
-## freq_centered:surprisal_centered -2.750e-04  1.566e-05  -17.57
-## 
-## Correlation of Fixed Effects:
-##             (Intr) frq_cn srprs_ lngth_
-## freq_centrd  0.005                     
-## srprsl_cntr  0.008 -0.340              
-## lngth_cntrd -0.005 -0.526 -0.148       
-## frq_cntrd:_ -0.020 -0.238 -0.442  0.267</code></pre>
-<p>The main effect of word frequency was significant, b = 0.004, t =
-28.20, p &lt; .001, indicating that higher word frequency values were
-associated with a higher probability of re-reading. The main effect of
-GPT-2 surprisal was also significant, b = 0.010, t = 47.08, p &lt; .001,
-confirming that less predictable words were more likely to be re-read.
-Word length was a significant predictor, b = 0.017, t = 61.51, p &lt;
-.001, with longer words more likely to receive regressions. The
-frequency x surprisal interaction was significant, b = -.0003, t =
--17.57, p &lt; .001. As with FFD, the negative coefficient indicates
-that the surprisal cost on re-reading probability is attenuated at
-higher frequency levels.</p>
-<pre class="r"><code>tab_model(model_ffd, model_gaze, model_reread,
-          title = &quot;Comparison of Frequency × Surprisal Interaction Across Measures&quot;,
-          dv.labels = c(&quot;Log FFD&quot;, &quot;Log Gaze Duration&quot;, &quot;Re-reading (logistic)&quot;),
-          show.stat = TRUE)</code></pre>
-<table style="border-collapse:collapse; border:none;">
-<caption style="font-weight: bold; text-align:left;">
-Comparison of Frequency × Surprisal Interaction Across Measures
-</caption>
-<tr>
-<th style="border-top: double; text-align:center; font-style:normal; font-weight:bold; padding:0.2cm;  text-align:left; ">
- 
-</th>
-<th colspan="4" style="border-top: double; text-align:center; font-style:normal; font-weight:bold; padding:0.2cm; ">
-Log FFD
-</th>
-<th colspan="4" style="border-top: double; text-align:center; font-style:normal; font-weight:bold; padding:0.2cm; ">
-Log Gaze Duration
-</th>
-<th colspan="4" style="border-top: double; text-align:center; font-style:normal; font-weight:bold; padding:0.2cm; ">
-Re-reading (logistic)
-</th>
-</tr>
-<tr>
-<td style=" text-align:center; border-bottom:1px solid; font-style:italic; font-weight:normal;  text-align:left; ">
-Predictors
-</td>
-<td style=" text-align:center; border-bottom:1px solid; font-style:italic; font-weight:normal;  ">
-Estimates
-</td>
-<td style=" text-align:center; border-bottom:1px solid; font-style:italic; font-weight:normal;  ">
-CI
-</td>
-<td style=" text-align:center; border-bottom:1px solid; font-style:italic; font-weight:normal;  ">
-Statistic
-</td>
-<td style=" text-align:center; border-bottom:1px solid; font-style:italic; font-weight:normal;  ">
-p
-</td>
-<td style=" text-align:center; border-bottom:1px solid; font-style:italic; font-weight:normal;  ">
-Estimates
-</td>
-<td style=" text-align:center; border-bottom:1px solid; font-style:italic; font-weight:normal;  col7">
-CI
-</td>
-<td style=" text-align:center; border-bottom:1px solid; font-style:italic; font-weight:normal;  col8">
-Statistic
-</td>
-<td style=" text-align:center; border-bottom:1px solid; font-style:italic; font-weight:normal;  col9">
-p
-</td>
-<td style=" text-align:center; border-bottom:1px solid; font-style:italic; font-weight:normal;  0">
-Estimates
-</td>
-<td style=" text-align:center; border-bottom:1px solid; font-style:italic; font-weight:normal;  1">
-CI
-</td>
-<td style=" text-align:center; border-bottom:1px solid; font-style:italic; font-weight:normal;  2">
-Statistic
-</td>
-<td style=" text-align:center; border-bottom:1px solid; font-style:italic; font-weight:normal;  3">
-p
-</td>
-</tr>
-<tr>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; ">
-(Intercept)
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
-5.23
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
-5.21 – 5.24
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
-602.89
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
-<strong>&lt;0.001</strong>
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
-5.29
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  col7">
-5.27 – 5.31
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  col8">
-520.50
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  col9">
-<strong>&lt;0.001</strong>
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  0">
-0.30
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  1">
-0.28 – 0.32
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  2">
-31.10
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  3">
-<strong>&lt;0.001</strong>
-</td>
-</tr>
-<tr>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; ">
-freq centered
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
-0.00
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
-0.00 – 0.00
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
-23.43
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
-<strong>&lt;0.001</strong>
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
-0.00
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  col7">
-0.00 – 0.00
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  col8">
-27.73
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  col9">
-<strong>&lt;0.001</strong>
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  0">
-0.00
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  1">
-0.00 – 0.00
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  2">
-28.20
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  3">
-<strong>&lt;0.001</strong>
-</td>
-</tr>
-<tr>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; ">
-surprisal centered
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
-0.01
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
-0.01 – 0.01
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
-34.96
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
-<strong>&lt;0.001</strong>
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
-0.01
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  col7">
-0.01 – 0.01
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  col8">
-51.43
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  col9">
-<strong>&lt;0.001</strong>
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  0">
-0.01
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  1">
-0.01 – 0.01
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  2">
-47.08
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  3">
-<strong>&lt;0.001</strong>
-</td>
-</tr>
-<tr>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; ">
-length centered
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
-0.00
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
-0.00 – 0.00
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
-2.99
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
-<strong>0.003</strong>
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
-0.02
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  col7">
-0.02 – 0.02
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  col8">
-74.71
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  col9">
-<strong>&lt;0.001</strong>
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  0">
-0.02
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  1">
-0.02 – 0.02
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  2">
-61.51
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  3">
-<strong>&lt;0.001</strong>
-</td>
-</tr>
-<tr>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; ">
-freq centered × surprisal<br>centered
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
--0.00
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
--0.00 – -0.00
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
--18.68
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
-<strong>&lt;0.001</strong>
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
--0.00
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  col7">
--0.00 – 0.00
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  col8">
--0.72
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  col9">
-0.470
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  0">
--0.00
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  1">
--0.00 – -0.00
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  2">
--17.57
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  3">
-<strong>&lt;0.001</strong>
-</td>
-</tr>
-<tr>
-<td colspan="13" style="font-weight:bold; text-align:left; padding-top:.8em;">
-Random Effects
-</td>
-</tr>
-<tr>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; padding-top:0.1cm; padding-bottom:0.1cm;">
-σ<sup>2</sup>
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
-0.11
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
-0.15
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
-0.19
-</td>
-</tr>
-<tr>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; padding-top:0.1cm; padding-bottom:0.1cm;">
-τ<sub>00</sub>
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
-0.01 <sub>participant_id</sub>
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
-0.02 <sub>participant_id</sub>
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
-0.01 <sub>participant_id</sub>
-</td>
-<tr>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; padding-top:0.1cm; padding-bottom:0.1cm;">
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
-0.00 <sub>paragraph_id</sub>
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
-0.00 <sub>paragraph_id</sub>
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
-0.00 <sub>paragraph_id</sub>
-</td>
-<tr>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; padding-top:0.1cm; padding-bottom:0.1cm;">
-ICC
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
-0.11
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
-0.10
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
-0.06
-</td>
-<tr>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; padding-top:0.1cm; padding-bottom:0.1cm;">
-N
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
-180 <sub>participant_id</sub>
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
-180 <sub>participant_id</sub>
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
-180 <sub>participant_id</sub>
-</td>
-<tr>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; padding-top:0.1cm; padding-bottom:0.1cm;">
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
-7 <sub>paragraph_id</sub>
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
-7 <sub>paragraph_id</sub>
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
-7 <sub>paragraph_id</sub>
-</td>
-<tr>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; padding-top:0.1cm; padding-bottom:0.1cm; border-top:1px solid;">
-Observations
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left; border-top:1px solid;" colspan="4">
-650295
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left; border-top:1px solid;" colspan="4">
-650295
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left; border-top:1px solid;" colspan="4">
-650295
-</td>
-</tr>
-<tr>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; padding-top:0.1cm; padding-bottom:0.1cm;">
-Marginal R<sup>2</sup> / Conditional R<sup>2</sup>
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
-0.006 / 0.112
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
-0.040 / 0.140
-</td>
-<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
-0.030 / 0.089
-</td>
-</tr>
-</table>
-</div>
-<div id="compare-the-interaction-across-measures"
-class="section level1">
-<h1>Compare the Interaction Across Measures</h1>
-<pre class="r"><code>interaction_comp &lt;- bind_rows(
-  tidy(model_ffd, effects = &quot;fixed&quot;, conf.int = TRUE) %&gt;%
-    filter(term == &quot;freq_centered:surprisal_centered&quot;) %&gt;%
-    mutate(measure = &quot;First Fixation\nDuration&quot;),
-  tidy(model_gaze, effects = &quot;fixed&quot;, conf.int = TRUE) %&gt;%
-    filter(term == &quot;freq_centered:surprisal_centered&quot;) %&gt;%
-    mutate(measure = &quot;Gaze\nDuration&quot;),
-  tidy(model_reread, effects = &quot;fixed&quot;, conf.int = TRUE) %&gt;%
-    filter(term == &quot;freq_centered:surprisal_centered&quot;) %&gt;%
-    mutate(measure = &quot;Re-reading\nProbability&quot;)
+## READ DATA &amp; PREPROCESS
+# Read Data
+raw = readFixReport(&quot;~/Desktop/2025-2026/Courses/Data science for psych/Experiment3/Analysis Script/42sub.txt&quot;)
+raw$ACC &lt;- as.numeric(raw$ACC)
+raw$RT &lt;- as.numeric(raw$RT)
+raw$SRT &lt;- as.numeric(raw$PREVIOUS_SAC_START_TIME)
+raw$block &lt;- as.numeric(raw$block)
+raw$Dwell &lt;- as.numeric(raw$CURRENT_FIX_DURATION)
+raw$trial &lt;- as.numeric(raw$trial)
+raw$targLoc &lt;- as.numeric(raw$targLoc)
+raw$singLoc &lt;- as.numeric(raw$singLoc)
+raw$targAngle &lt;- as.numeric(raw$targAngle)
+raw$singAngle &lt;- as.numeric(raw$singAngle)
+raw$singTargAngle &lt;- as.numeric(raw$singTargAngle)
+
+numtrials = aggregate(trial ~ subjnum, data = raw, FUN = max) #record the number of trials per subject
+raw_unique &lt;- raw %&gt;% distinct(subjnum, taskType, trial)
+numtrials1 &lt;- raw_unique %&gt;%
+  group_by(subjnum, taskType) %&gt;%
+  summarize(num_trials = n())</code></pre>
+<pre><code>## `summarise()` has grouped output by &#39;subjnum&#39;. You can override using the
+## `.groups` argument.</code></pre>
+<pre class="r"><code># create a practice/experimental label
+raw$phase = ifelse(raw$block &lt;= pracBlocks, &quot;practice&quot;, &quot;formal&quot;) 
+
+# Get Currently Fixated Item
+# X/Y coordinate of the fixation
+raw$currloc = getCurrFixLoc(raw$CURRENT_FIX_X, raw$CURRENT_FIX_Y, loc)
+# which item was fixated 
+raw$curritem = ifelse(is.na(raw$currloc), NA,
+                      ifelse(raw$currloc  == raw$targLoc, &#39;Target&#39;,
+                             ifelse(raw$currloc  == raw$singLoc,  &#39;Singleton&#39;,
+                                    &#39;Nonsingleton&#39;)))
+# First Fixation Index
+# Creates an annulus around the search items
+# Eye movements must leave the center fixation region
+# Creates &quot;wedges&quot; around each search item 
+raw$saccindex = adjustFixIndex(raw$subjnum, raw$trial, fixZone, outZone, raw$CURRENT_FIX_X, raw$CURRENT_FIX_Y, ctrX, ctrY)
+raw$numfix = ave(raw$saccindex, interaction(raw$subjnum, raw$trial), FUN = max)
+
+# Normalize XY Values
+coord = xyrotate(raw$CURRENT_FIX_X, raw$CURRENT_FIX_Y, ctrX, ctrY, -raw$targAngle)
+raw$normX = coord$X
+raw$normY = coord$Y
+raw$normcurrloc = getCurrFixLoc(raw$normX, raw$normY, loc)
+
+## COLLAPSE -60 and 60, -120 and 120
+raw$normX = ifelse(raw$singTargAngle == &#39;-60&#39;, 1920 - raw$normX,
+                   ifelse(raw$singTargAngle == &#39;-120&#39;, 1920 - raw$normX, raw$normX))
+
+raw$singTargAngle &lt;- ifelse(raw$singTargAngle == &#39;-60&#39;, &#39;60&#39;,
+                            ifelse(raw$singTargAngle == &#39;-300&#39;, &#39;60&#39;,
+                                   ifelse(raw$singTargAngle == &#39;-120&#39;, &#39;120&#39;,
+                                          ifelse(raw$singTargAngle == &#39;-240&#39;, &#39;120&#39;,
+                                                 ifelse(raw$singTargAngle == &#39;-180&#39;, &#39;180&#39;, raw$singTargAngle)))))
+
+# TIME DELAY CORRECTION
+# Correct the RT and SRT for the monitor delay
+raw$RT = raw$RT - monDelay
+raw$SRT = raw$SRT - monDelay
+
+## OUTLIER REPORT
+# Outlier Flags
+raw$keepRT  = ifelse( raw$RT &gt; loRT &amp; raw$RT &lt;= hiRT, 1, 0 )  # get rid of timeout trials
+#raw$keepSRT = ifelse( raw$SRT &gt; loSRT &amp; raw$SRT &lt; hiSRT, 1, 0 )
+raw$goodTrials = ifelse(raw$keepRT == 1 &amp; raw$ACC == 1, 1, 0 &amp; raw$brokeFixation != 1)
+
+# Outlier Report
+trimdata = subset(raw, phase != &#39;practice&#39; &amp; goodTrials == 1) 
+trimdata$RT &lt;- as.numeric(as.character(trimdata$RT))
+trimdata$SRT &lt;- as.numeric(as.character(trimdata$SRT))
+
+# Calculate mean RT and SRT for each subject
+trimdata &lt;- trimdata[!is.na(trimdata$RT) &amp; !is.na(trimdata$SRT), ]
+outlier1 = aggregate(cbind(RT, SRT) ~ subjnum, data = trimdata, mean) 
+
+# Calculate mean ACC for each subject
+trimdata = subset(raw, phase != &#39;practice&#39; &amp; keepRT == 1)
+outlier2 &lt;- aggregate(ACC~subjnum, data = trimdata, FUN = mean)
+
+# Calculate the number of trials removed because of eye-movement on central trials for each subject
+trimdata = subset(raw, phase != &#39;practice&#39; &amp; goodTrials == 1)
+outlier3 &lt;- aggregate(brokeFixation ~ subjnum, data = trimdata, FUN = function(x) mean(x == 1, na.rm = TRUE))
+colnames(outlier3)[2] &lt;- &quot;brokeFixationRate&quot;
+
+# Calculate the number of trials removed for each subject
+trimdata = subset(raw, phase != &#39;practice&#39;);
+outlier4 &lt;- aggregate(cbind( keepRT, goodTrials) ~ subjnum, data = trimdata, mean)
+outlier4$trialsRemoved &lt;- 1 - outlier4$goodTrials
+
+# Merge the outlier reports
+outlier &lt;- merge(outlier1, outlier2, by = &quot;subjnum&quot;)
+outlier &lt;- merge(outlier, outlier3, by = &quot;subjnum&quot;, all.x = TRUE)
+outlier &lt;- merge(outlier, outlier4, by = &quot;subjnum&quot;)
+
+# Calcaulte the cutoffs for each subject
+outlier$ACCcut = mean(outlier$ACC) - ( SDcut * sd(outlier$ACC) ) # ACC cutoff (SD cut)
+outlier$RTcut = mean(outlier$RT)  + ( SDcut * sd(outlier$RT)  ) # RT cutoff (SD cut)
+outlier$badsubjBrokeFix = mean(outlier$brokeFixationRate) + (SDcut * sd(outlier$brokeFixationRate)) # Broke fixation cutoff (SD cut)
+outlier$badsubj = with(outlier, ifelse( RT &gt; RTcut| ACC &lt; ACCcut| brokeFixationRate &gt; badsubjBrokeFix, 1, 0) )
+
+# flag any participants that exceed any of the SD cut procedures
+# Notes to flag each participant who exceeded each cut (ACC, RT, etc.)
+outlier$note = with( outlier, ifelse(RT &gt; RTcut, &quot;High RT&quot;, &quot;.&quot;) )
+outlier$note = with( outlier, ifelse(ACC &lt; ACCcut, &quot;Low ACC&quot;, note))
+outlier$note = with( outlier, ifelse(brokeFixationRate &gt; badsubjBrokeFix, &quot;High BrokeFixation&quot;, note))
+
+## DROP BAD SUBJECTS
+badsubjects = outlier$subjnum[outlier$note != &#39;.&#39;]
+trimdata = subset(raw, !(subjnum %in% badsubjects)) # keep the good participants&#39; data
+
+## MAKE FIXATION DATA
+#delete practice data
+fdata = subset(trimdata, brokeFixation != 1 &amp; phase != &quot;practice&quot; &amp; keepRT == 1) # call it &quot;first fixation data&quot; or fdata for short
+fdata = subset(fdata, 
+               (searchArray == &quot;search&quot; &amp; saccindex == 1 | 
+                  searchArray == &quot;letter&quot; &amp; saccindex == 0) 
+) # call it &quot;first fixation data&quot; or fdata for short
+fdata = subset(fdata, 
+               !(searchArray == &quot;letter&quot; &amp; !is.na(SRT)))
+
+accdata = subset(fdata, ACC == 1) # only look at correct response trials by analysis RT
+
+# create newtrial from trials 1-3
+accdata$newtrial &lt;- ((accdata$trial - 121) %% 3) + 1
+
+# mark broke trials (mark trialcut = 0 in 1-3 trials as long as there exists eye movement)
+accdata$trialcut &lt;- 1
+accdata &lt;- accdata %&gt;%
+  group_by(subjnum) %&gt;%  
+  mutate(
+    trial_group = (trial - 121) %/% 3  # Group trials into blocks of 3
+  ) %&gt;%
+  group_by(subjnum, trial_group) %&gt;%  # Group by both subject and trial group
+  mutate(
+    trialcut = ifelse(taskType == &quot;search&quot;, 1,
+                      ifelse(taskType == &quot;central&quot; &amp; sum(trialcut) == 3, 1, 0)) # Check group completeness and assign trialcut
+  ) %&gt;%
+  ungroup() 
+
+# record the percentage of trialcut = 0 in 1-3 trials
+outlier5 &lt;- accdata %&gt;%
+  group_by(subjnum) %&gt;%
+  summarise(
+    trialcut_zero_rate = mean(trialcut == 0, na.rm = TRUE))  #calculate the percentage of trialcut = 0 
+outlier &lt;- merge(outlier, outlier5, by = &quot;subjnum&quot;)
+
+# only keep trialcut = 1
+accdata &lt;- subset(accdata, trialcut == 1)
+
+# Record the number of trials per subject for each taskType
+numtrials_total &lt;- accdata %&gt;%
+  group_by(subjnum) %&gt;%
+  summarise(total_trials = n(), .groups = &quot;drop&quot;)
+
+numtrials_task &lt;- accdata %&gt;%
+  group_by(subjnum, taskType) %&gt;%
+  summarise(num_trials = n(), .groups = &quot;drop&quot;)
+
+final_trials &lt;- numtrials_task %&gt;%
+  left_join(numtrials_total, by = &quot;subjnum&quot;) %&gt;%
+  mutate(
+    percent_total = total_trials / 480,                 
+    low_percentage = ifelse(percent_total &lt; 0.75, 1, 0)  
+  )
+
+badsubjects = final_trials$subjnum[final_trials$low_percentage == 1]
+accdata = subset(accdata, !(subjnum %in% badsubjects)) # keep the good participants&#39; data</code></pre>
+<pre class="r"><code># -------------------------------------------------------------------------
+# Demographic Information
+# For detailed demographic characteristics of participants 
+# (e.g., age, gender, recruitment),
+# please see the manuscript: Experiment 3, Method section.
+# -------------------------------------------------------------------------
+raw &lt;- raw %&gt;%
+  mutate(gender = case_when(
+    tolower(gender) == &quot;m&quot; ~ &quot;M&quot;,
+    tolower(gender) == &quot;f&quot; ~ &quot;F&quot;,
+    TRUE ~ as.character(gender) 
+  ))
+
+raw$subjnum &lt;- factor(raw$subjnum)
+nSubject = levels(raw$subjnum)
+raw$age &lt;- as.numeric(as.character(raw$age))
+
+nSub2 &lt;- raw %&gt;% 
+  group_by(subjnum) %&gt;% 
+  summarise(RT = mean(RT))
+nSubject2 &lt;- nrow(nSub2)
+rm(nSub2)
+
+# Assuming gender == &quot;M&quot; represents females
+male_num &lt;- raw %&gt;%
+  filter(gender == &quot;M&quot;) %&gt;%
+  group_by(subjnum) %&gt;%
+  summarise(RT = mean(RT, na.rm = TRUE), .groups = &quot;drop&quot;) %&gt;%
+  nrow()
+
+# Assuming gender == &quot;F&quot; represents females
+female_num &lt;- raw %&gt;%
+  filter(gender == &quot;F&quot;) %&gt;%
+  group_by(subjnum) %&gt;%
+  summarise(RT = mean(RT, na.rm = TRUE), .groups = &quot;drop&quot;) %&gt;%
+  nrow()
+
+people &lt;- data.frame(all_sub_number=length(nSubject),
+                     effect_sub_number=nSubject2,
+                     male_num=male_num,
+                     female_num=female_num,
+                     age_max=max(raw$age),
+                     age_min=min(raw$age),
+                     age_mean = mean(raw$age, na.rm = TRUE),
+                     age_sd = sd(raw$age)
 )
 
-# Coefficient comparison plot
-ggplot(interaction_comp, aes(x = measure, y = estimate)) +
-  geom_point(size = 4, color = &quot;steelblue&quot;) +
-  geom_errorbar(aes(ymin = conf.low, ymax = conf.high),
-                width = 0.2, linewidth = 1, color = &quot;steelblue&quot;) +
-  geom_hline(yintercept = 0, linetype = &quot;dashed&quot;, color = &quot;red&quot;) +
-  labs(
-    title = &quot;Surprisal × Frequency Interaction Across Measures&quot;,
-    subtitle = &quot;dashed line = zero (no interaction)&quot;,
-    x = &quot;Reading Measure&quot;,
-    y = &quot;Interaction Coefficient&quot;
-  ) +
-  theme_minimal(base_size = 13)</code></pre>
-<p><img src="p04_files/figure-html/unnamed-chunk-12-1.png" width="768" /></p>
+print(people)</code></pre>
+<pre><code>##   all_sub_number effect_sub_number male_num female_num age_max age_min age_mean
+## 1             42                42       21         21      31      18 21.75074
+##     age_sd
+## 1 3.949685</code></pre>
+<pre class="r"><code># -------------------------------------------------------------------------
+# Data Exclusion
+# An exclusion criterion was established a prior. 
+# For details, please see the manuscript: Experiment 3, Data Analysis section.
+# -------------------------------------------------------------------------
+# Compute the total number of valid trials (excluding practice trials)
+total_trials = subset(raw, phase != &quot;practice&quot;)
+total_trials1 &lt;- nrow(total_trials)  # Total number of trials
+
+# Remove trials with invalid RT
+excluded_RT = nrow(subset(total_trials, keepRT == 0))  
+perc_excluded_RT = (excluded_RT / total_trials1) * 100
+
+# Remove trials with incorrect responses
+excluded_ACC = nrow(subset(total_trials, ACC == 0))
+perc_excluded_ACC = (excluded_ACC / total_trials1) * 100
+
+# Compute the total exclusion percentage (including all exclusion criteria)
+excluded_total = nrow(subset(total_trials, keepRT == 0 | ACC == 0))
+perc_excluded_total = (excluded_total / total_trials1) * 100
+
+# Create a data frame to store the results
+exclusion_report &lt;- data.frame(
+  Criteria = c(&quot;RT &lt; 200 ms or RT &gt; 2000 ms&quot;,
+               &quot;Incorrect Response (ACC = 0)&quot;,
+               &quot;Total Excluded Trials&quot;),
+  Excluded_Trials = c(excluded_RT, excluded_ACC, excluded_total),
+  Percentage = c(round(perc_excluded_RT, 2), 
+                 round(perc_excluded_ACC, 2),
+                 round(perc_excluded_total, 2))
+)
+# Print output
+print(exclusion_report)</code></pre>
+<pre><code>##                       Criteria Excluded_Trials Percentage
+## 1  RT &lt; 200 ms or RT &gt; 2000 ms            1828       2.89
+## 2 Incorrect Response (ACC = 0)            1542       2.44
+## 3        Total Excluded Trials            3203       5.07</code></pre>
+<pre class="r"><code>#Extract accdata as preprocessed data to a csv file 
+library(writexl)
+write.csv(accdata, &quot;/Users/mumizz./Desktop/2025-2026/Courses/Data science for psych/Experiment3/Analysis Script/accdata.csv&quot;, row.names = FALSE)</code></pre>
+<pre class="r"><code>#Extract Trim data to a csv file for later usage
+library(writexl)
+write.csv(trimdata, &quot;/Users/mumizz./Desktop/2025-2026/Courses/Data science for psych/Experiment3/Analysis Script/trimdata.csv&quot;, row.names = FALSE)</code></pre>
+<hr />
 </div>
-<div id="discussion" class="section level1">
-<h1>Discussion</h1>
-<p>This portfolio decomposed the surprisal × frequency interaction from
-Portfolio 3 across three reading measures: first fixation duration, gaze
-duration, and re-reading probability. The interaction was significant
-for FFD and re-reading, but not for gaze duration. Both significant
-coefficients were negative, consistent with portfolio 3’s direction.</p>
-<p>This dissociation suggests that frequency buffers against surprisal
-at two distinct stages but not during extended first-pass processing.
-During initial lexical contact (FFD), frequent words may have stronger
-representations that are less disrupted by unexpected contexts. This
-advantages is then absorbed during fuller first-pass processing (gaze
-duration), where the surprisal cost becomes similar regardless of
-frequency. The interaction re-emerges in re-reading, suggesting
-frequency again plays a role when readers decide whether to return to a
-difficult word, which is important for later comprehension monitoring.
-In this way, the interaction is not a single, uniform effect that scales
-with processing depth; instead, it appears to be stage-specific. This
-stage-specific pattern would have been invisible without decomposing the
-dependent variable, highlighting the value of examining multiple reading
-measures.</p>
+<div id="shared-plot-theme" class="section level1">
+<h1>Shared Plot Theme</h1>
+<p>To maintain visual consistency with the published figures, all plots
+use the same theme parameters as the original manuscript (axis sizes,
+line weights, classic style).</p>
+<pre class="r"><code># Reusable ggplot theme to match the original manuscript style
+axis_text_size &lt;- 20
+axis_tick_text_size &lt;- 18
+graph_color &lt;- &quot;black&quot;
+axis_tick_length &lt;- 0.25
+axis_tick_units &lt;- &quot;cm&quot;
+axis_thickness &lt;- 1
+
+manuscript_theme &lt;- theme_classic() +
+  theme(
+    axis.line = element_line(linewidth = axis_thickness, colour = graph_color),
+    axis.title = element_text(size = axis_text_size),
+    axis.text = element_text(colour = graph_color, size = axis_tick_text_size),
+    axis.ticks = element_line(linewidth = axis_thickness, colour = graph_color),
+    axis.ticks.length.y = unit(axis_tick_length, axis_tick_units),
+    axis.ticks.length.x = unit(axis_tick_length, axis_tick_units),
+    legend.position = &quot;top&quot;,
+    text = element_text(size = axis_tick_text_size)
+  )</code></pre>
+<hr />
+</div>
+<div id="secondary-analysis-1-reaction-time-rt" class="section level1">
+<h1>Secondary Analysis 1 – Reaction Time (RT)</h1>
+<p>RT is the time between display onset and the participant’s
+button-press response. In the search task, a shorter RT means the
+participant found the target more efficiently. If learning to suppress
+the singleton reduces attentional interference, RT should decrease
+monotonically across Trials 1 → 2 → 3, mirroring the drop in oculomotor
+capture.</p>
+<p>In the central task, the situation is different: participants are not
+searching, so RT reflects letter-detection speed rather than visual
+search efficiency. Any RT change in the central task across trials would
+reflect processes unrelated to singleton suppression (e.g., practice
+effects, temporal expectation). Including both tasks in a 2 × 3 ANOVA
+therefore lets us test whether RT changes are specific to the search
+task (a significant interaction) or general across both tasks (a main
+effect of trial with no interaction).</p>
+<p><strong>Predicted pattern:</strong></p>
+<ul>
+<li><em>Search task</em>: RT decreases from Trial 1 to Trial 3 as the
+singleton is increasingly suppressed and stops drawing attention away
+from the target.</li>
+<li><em>Central task</em>: Little or no systematic RT change across
+trials (no search, so no singleton interference to resolve).</li>
+<li><em>Interaction</em>: A significant <code>newtrial × taskType</code>
+interaction would confirm that RT change is suppression-driven rather
+than a generic practice effect.</li>
+</ul>
+<div id="data-preparation" class="section level2">
+<h2>Data Preparation</h2>
+<p>RT is a trial-level variable — it has one value per trial, but
+<code>accdata</code> has one row per fixation. We first deduplicate to
+one row per trial, then average across trial groups (i.e., across all
+sets of 3 trials) within each subject × condition × position cell.</p>
+<pre class="r"><code>rt_data &lt;- accdata %&gt;%
+  distinct(subjnum, taskType, trial, newtrial, RT) %&gt;%
+  group_by(subjnum, taskType, newtrial) %&gt;%
+  summarise(RT = mean(RT, na.rm = TRUE), .groups = &quot;drop&quot;)
+
+rt_data %&gt;%
+  group_by(taskType, newtrial) %&gt;%
+  summarise(M  = round(mean(RT), 2),
+            SD = round(sd(RT), 2),
+            n  = n(), .groups = &quot;drop&quot;) %&gt;%
+  kable(caption = &quot;Table 1. Mean RT (ms) by condition and trial position.&quot;)</code></pre>
+<table>
+<caption>Table 1. Mean RT (ms) by condition and trial
+position.</caption>
+<thead>
+<tr class="header">
+<th align="left">taskType</th>
+<th align="right">newtrial</th>
+<th align="right">M</th>
+<th align="right">SD</th>
+<th align="right">n</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">central</td>
+<td align="right">1</td>
+<td align="right">504.97</td>
+<td align="right">90.78</td>
+<td align="right">40</td>
+</tr>
+<tr class="even">
+<td align="left">central</td>
+<td align="right">2</td>
+<td align="right">453.80</td>
+<td align="right">57.66</td>
+<td align="right">40</td>
+</tr>
+<tr class="odd">
+<td align="left">central</td>
+<td align="right">3</td>
+<td align="right">958.84</td>
+<td align="right">154.69</td>
+<td align="right">40</td>
+</tr>
+<tr class="even">
+<td align="left">search</td>
+<td align="right">1</td>
+<td align="right">938.46</td>
+<td align="right">139.97</td>
+<td align="right">40</td>
+</tr>
+<tr class="odd">
+<td align="left">search</td>
+<td align="right">2</td>
+<td align="right">915.30</td>
+<td align="right">144.88</td>
+<td align="right">40</td>
+</tr>
+<tr class="even">
+<td align="left">search</td>
+<td align="right">3</td>
+<td align="right">907.51</td>
+<td align="right">144.32</td>
+<td align="right">40</td>
+</tr>
+</tbody>
+</table>
+<p>Patterns in both tasks are clear. In the search task, RT decreases
+flatly across trial positions, from 938ms on trial 1 to 908 on trial 3,
+consistent with the prediction that oculomotor suppression of the
+singleton reduces attentional competition and thereby speeds search
+efficiency. Differently, in the central task, RT is substantially lower
+on Trial 1 and 2, reflecting simple letter-detection responses rather
+than visual search. However, on trial 3, the RT dramatically spike to
+959ms over any trials in search task. This is structually meaningful:
+trial 3 of the central task is critical on which eye movements are
+relased and participants must search for the display for the first time,
+requiring a qualitatively different cognitive process than the
+monitoring performed on trial 1 and 2.</p>
+</div>
+<div id="within-subjects-anova" class="section level2">
+<h2>Within-subjects ANOVA</h2>
+<p>We first conducted a 2(taskType) × 3(newtrial) within-subjects ANOVA.
+Specifically, we predicted that the <code>newtrial</code> main effect
+tests whether RT changes across trial positions overall. The
+<code>taskType</code> main effect tests whether one task is generally
+faster. The <code>newtrial × taskType</code> interaction is the critical
+test: does RT change differently across trials depending on whether the
+task involved active search (and therefore singleton interference)?</p>
+<pre class="r"><code>MANOVA(data = rt_data,
+  subID = &quot;subjnum&quot;,
+  dv = &quot;RT&quot;,
+  within = c(&#39;newtrial&#39;, &#39;taskType&#39;),
+  digits = 2) %&gt;%
+  EMMEANS(&#39;newtrial&#39;) %&gt;%
+  EMMEANS(&#39;taskType&#39;) %&gt;%
+  EMMEANS(&#39;taskType&#39;, by = &#39;newtrial&#39;)</code></pre>
+<pre><code>## 
+##     * Data are aggregated to mean (across items/trials)
+##     if there are &gt;=2 observations per subject and cell.
+##     You may use Linear Mixed Model to analyze the data,
+##     e.g., with subjects and items as level-2 clusters.</code></pre>
+<pre><code>## 
+## ====== ANOVA (Within-Subjects Design) ======
+## 
+## Descriptives:
+## ─────────────────────────────────────────
+##  &quot;newtrial&quot; &quot;taskType&quot;   Mean     S.D.  n
+## ─────────────────────────────────────────
+##   newtrial1    central 504.97 ( 90.78) 40
+##   newtrial1    search  938.46 (139.97) 40
+##   newtrial2    central 453.80 ( 57.66) 40
+##   newtrial2    search  915.30 (144.88) 40
+##   newtrial3    central 958.84 (154.69) 40
+##   newtrial3    search  907.51 (144.32) 40
+## ─────────────────────────────────────────
+## Total sample size: N = 40
+## 
+## ANOVA Table:
+## Dependent variable(s):      RT
+## Between-subjects factor(s): –
+## Within-subjects factor(s):  newtrial, taskType
+## Covariate(s):               –
+## ─────────────────────────────────────────────────────────────────────────────────────────
+##                              MS      MSE df1 df2      F     p     η²p [90% CI of η²p] η²G
+## ─────────────────────────────────────────────────────────────────────────────────────────
+## newtrial             1438783.28  3513.16   2  78 409.54 &lt;.001 ***      .91 [.88, .93] .43
+## taskType             4745013.47 10863.84   1  39 436.77 &lt;.001 ***      .92 [.88, .94] .56
+## newtrial * taskType  1662766.39  3933.86   2  78 422.68 &lt;.001 ***      .92 [.89, .93] .47
+## ─────────────────────────────────────────────────────────────────────────────────────────
+## MSE = mean square error (the residual variance of the linear model)
+## η²p = partial eta-squared = SS / (SS + SSE) = F * df1 / (F * df1 + df2)
+## ω²p = partial omega-squared = (F - 1) * df1 / (F * df1 + df2 + 1)
+## η²G = generalized eta-squared (see Olejnik &amp; Algina, 2003)
+## Cohen’s f² = η²p / (1 - η²p)
+## 
+## Levene’s Test for Homogeneity of Variance:
+## No between-subjects factors. No need to do the Levene’s test.
+## 
+## Mauchly’s Test of Sphericity:
+## ──────────────────────────────────────────
+##                      Mauchly&#39;s W     p    
+## ──────────────────────────────────────────
+## newtrial                  0.3853 &lt;.001 ***
+## newtrial * taskType       0.5932 &lt;.001 ***
+## ──────────────────────────────────────────
+## The sphericity assumption is violated.
+## You may specify: sph.correction=&quot;GG&quot; (or =&quot;HF&quot;)
+## 
+## ------ EMMEANS (effect = &quot;newtrial&quot;) ------
+## 
+## Joint Tests of &quot;newtrial&quot;:
+## ──────────────────────────────────────────────────────────────────
+##               Effect df1 df2       F     p     η²p [90% CI of η²p]
+## ──────────────────────────────────────────────────────────────────
+##  taskType              1  39 436.771 &lt;.001 ***   .918 [.876, .941]
+##  newtrial              2  39 290.682 &lt;.001 ***   .937 [.905, .955]
+##  taskType * newtrial   2  39 271.876 &lt;.001 ***   .933 [.899, .952]
+## ──────────────────────────────────────────────────────────────────
+## Note. Simple effects of repeated measures with 3 or more levels
+## are different from the results obtained with SPSS MANOVA syntax.
+## 
+## Estimated Marginal Means of &quot;newtrial&quot;:
+## ───────────────────────────────────────────────
+##  &quot;newtrial&quot;      Mean [95% CI of Mean]     S.E.
+## ───────────────────────────────────────────────
+##   newtrial1 721.714 [690.678, 752.750] (15.344)
+##   newtrial2 684.549 [655.604, 713.494] (14.310)
+##   newtrial3 933.172 [886.300, 980.043] (23.173)
+## ───────────────────────────────────────────────
+## 
+## Pairwise Comparisons of &quot;newtrial&quot;:
+## ────────────────────────────────────────────────────────────────────────────────────
+##               Contrast Estimate     S.E. df      t     p     Cohen’s d [95% CI of d]
+## ────────────────────────────────────────────────────────────────────────────────────
+##  newtrial2 - newtrial1  -37.165 ( 4.401) 39 -8.445 &lt;.001 *** -0.366 [-0.475, -0.258]
+##  newtrial3 - newtrial1  211.457 (11.334) 39 18.658 &lt;.001 ***  2.083 [ 1.804,  2.363]
+##  newtrial3 - newtrial2  248.623 (10.755) 39 23.117 &lt;.001 ***  2.449 [ 2.184,  2.714]
+## ────────────────────────────────────────────────────────────────────────────────────
+## Pooled SD for computing Cohen’s d: 101.504
+## Results are averaged over the levels of: taskType
+## P-value adjustment: Bonferroni method for 3 tests.
+## 
+## Disclaimer:
+## By default, pooled SD is Root Mean Square Error (RMSE).
+## There is much disagreement on how to compute Cohen’s d.
+## You are completely responsible for setting `sd.pooled`.
+## You might also use `effectsize::t_to_d()` to compute d.
+## 
+## ------ EMMEANS (effect = &quot;taskType&quot;) ------
+## 
+## Joint Tests of &quot;taskType&quot;:
+## ──────────────────────────────────────────────────────────────────
+##               Effect df1 df2       F     p     η²p [90% CI of η²p]
+## ──────────────────────────────────────────────────────────────────
+##  taskType              1  39 436.771 &lt;.001 ***   .918 [.876, .941]
+##  newtrial              2  39 290.682 &lt;.001 ***   .937 [.905, .955]
+##  taskType * newtrial   2  39 271.876 &lt;.001 ***   .933 [.899, .952]
+## ──────────────────────────────────────────────────────────────────
+## Note. Simple effects of repeated measures with 3 or more levels
+## are different from the results obtained with SPSS MANOVA syntax.
+## 
+## Estimated Marginal Means of &quot;taskType&quot;:
+## ───────────────────────────────────────────────
+##  &quot;taskType&quot;      Mean [95% CI of Mean]     S.E.
+## ───────────────────────────────────────────────
+##     central 639.202 [611.795, 666.610] (13.550)
+##     search  920.420 [875.199, 965.642] (22.357)
+## ───────────────────────────────────────────────
+## 
+## Pairwise Comparisons of &quot;taskType&quot;:
+## ───────────────────────────────────────────────────────────────────────────────
+##          Contrast Estimate     S.E. df      t     p     Cohen’s d [95% CI of d]
+## ───────────────────────────────────────────────────────────────────────────────
+##  search - central  281.218 (13.456) 39 20.899 &lt;.001 ***    2.770 [2.502, 3.039]
+## ───────────────────────────────────────────────────────────────────────────────
+## Pooled SD for computing Cohen’s d: 101.504
+## Results are averaged over the levels of: newtrial
+## No need to adjust p values.
+## 
+## Disclaimer:
+## By default, pooled SD is Root Mean Square Error (RMSE).
+## There is much disagreement on how to compute Cohen’s d.
+## You are completely responsible for setting `sd.pooled`.
+## You might also use `effectsize::t_to_d()` to compute d.
+## 
+## ------ EMMEANS (effect = &quot;taskType&quot;) ------
+## 
+## Joint Tests of &quot;taskType&quot;:
+## ──────────────────────────────────────────────────────────────────
+##    Effect &quot;newtrial&quot; df1 df2       F     p     η²p [90% CI of η²p]
+## ──────────────────────────────────────────────────────────────────
+##  taskType  newtrial1   1  39 417.663 &lt;.001 ***   .915 [.871, .939]
+##  taskType  newtrial2   1  39 537.029 &lt;.001 ***   .932 [.898, .952]
+##  taskType  newtrial3   1  39  29.254 &lt;.001 ***   .429 [.234, .578]
+## ──────────────────────────────────────────────────────────────────
+## Note. Simple effects of repeated measures with 3 or more levels
+## are different from the results obtained with SPSS MANOVA syntax.
+## 
+## Estimated Marginal Means of &quot;taskType&quot;:
+## ───────────────────────────────────────────────────────────
+##  &quot;taskType&quot; &quot;newtrial&quot;       Mean [95% CI of Mean]     S.E.
+## ───────────────────────────────────────────────────────────
+##     central  newtrial1 504.968 [475.936,  534.000] (14.353)
+##     search   newtrial1 938.460 [893.694,  983.226] (22.132)
+##     central  newtrial2 453.802 [435.360,  472.243] ( 9.117)
+##     search   newtrial2 915.296 [868.963,  961.629] (22.907)
+##     central  newtrial3 958.838 [909.365, 1008.311] (24.459)
+##     search   newtrial3 907.505 [861.348,  953.663] (22.820)
+## ───────────────────────────────────────────────────────────
+## 
+## Pairwise Comparisons of &quot;taskType&quot;:
+## ──────────────────────────────────────────────────────────────────────────────────────────
+##          Contrast &quot;newtrial&quot; Estimate     S.E. df      t     p     Cohen’s d [95% CI of d]
+## ──────────────────────────────────────────────────────────────────────────────────────────
+##  search - central  newtrial1  433.492 (21.211) 39 20.437 &lt;.001 ***  4.271 [ 3.848,  4.693]
+##  search - central  newtrial2  461.494 (19.914) 39 23.174 &lt;.001 ***  4.547 [ 4.150,  4.943]
+##  search - central  newtrial3  -51.332 ( 9.491) 39 -5.409 &lt;.001 *** -0.506 [-0.695, -0.317]
+## ──────────────────────────────────────────────────────────────────────────────────────────
+## Pooled SD for computing Cohen’s d: 101.504
+## No need to adjust p values.
+## 
+## Disclaimer:
+## By default, pooled SD is Root Mean Square Error (RMSE).
+## There is much disagreement on how to compute Cohen’s d.
+## You are completely responsible for setting `sd.pooled`.
+## You might also use `effectsize::t_to_d()` to compute d.</code></pre>
+<p>All three effects we expected were highly significant. First, the
+trial position showed a significant main effect on RT, F(2,78) = 409.54,
+p &lt; .001, η²p = .91, suggesting that RT differed substantially across
+trial positions, averaged over both tasks. However, this main effect is
+hard to interpret in isolation given the dramatic and directionally
+opposite RT change, espeically in the trial 3 of the central task.
+Besides, a significant main effect of task type was showed, F(1, 39) =
+436.77, p &lt; .001, η²p = .92. Averaged across all three trials, search
+task RT (M = 920ms) was 281ms longer than central task RT (639ms), d =
+2.77. This refelcts the fundamental difference in task demands rather
+than suppression specifically. Critically, RT changed across trials in
+sharply different ways depending on the task, with decrease in the
+search task and spiking in the central task on trial 3, F(2, 78) =
+422.68, p &lt; .001, η²p = .92.</p>
+<p>Simple effects of task type at each trial position decompose the
+interaction. Specifically, in trial 1 and 2, RT of search task was much
+longer than central task, (trial1: F(1,39) = 417.66, p &lt; .001, η²p =
+.915; trial 2: F(1, 39) = 537.03, p &lt; .001, η²p = .932). Both tasks
+were far apart. The trend in trial 3 was reversed. Participants spent
+slightly more than on the central task than the search task, F(1, 39) =
+29.25, p &lt; .001, η²p = .429, d = −0.51, suggesting a clear the
+critical trial (trial 3) cost in central task. On the trial 3 of central
+task, participant searched the display with their eyes movement, in
+which they did so without ever having experience the singleton as a
+distractor before, meaning no suppression had been learned. By contrast,
+when participants doing search task, they had spent two prior trials
+learning to suppress that same singleton.</p>
+</div>
+<div id="one-way-anova-within-the-search-task" class="section level2">
+<h2>One-way ANOVA within the search task</h2>
+<p>Building upon the significant interaction above, this follow-up
+isolates the RT effect within the search task alone, without the central
+task serving as a reference. To isolate the suppression-specific RT
+effect, we ran an one-way within-subject ANOVA restricted to the search
+task, with trial position as the only predictor. This mirrors how the
+original manuscript reported the oculomotor capture ANOVA (search-only,
+Panel B).</p>
+<pre class="r"><code>rt_search &lt;- rt_data %&gt;% filter(taskType == &quot;search&quot;)
+MANOVA(
+  data = rt_search,
+  subID = &quot;subjnum&quot;,
+  dv = &quot;RT&quot;,
+  within = &#39;newtrial&#39;,
+  digits = 2
+) %&gt;%
+  EMMEANS(&#39;newtrial&#39;)</code></pre>
+<pre><code>## 
+##     * Data are aggregated to mean (across items/trials)
+##     if there are &gt;=2 observations per subject and cell.
+##     You may use Linear Mixed Model to analyze the data,
+##     e.g., with subjects and items as level-2 clusters.</code></pre>
+<pre><code>## 
+## ====== ANOVA (Within-Subjects Design) ======
+## 
+## Descriptives:
+## ──────────────────────────────
+##  &quot;newtrial&quot;   Mean     S.D.  n
+## ──────────────────────────────
+##   newtrial1 938.46 (139.97) 40
+##   newtrial2 915.30 (144.88) 40
+##   newtrial3 907.51 (144.32) 40
+## ──────────────────────────────
+## Total sample size: N = 40
+## 
+## ANOVA Table:
+## Dependent variable(s):      RT
+## Between-subjects factor(s): –
+## Within-subjects factor(s):  newtrial
+## Covariate(s):               –
+## ─────────────────────────────────────────────────────────────────────────
+##                 MS    MSE df1 df2     F     p     η²p [90% CI of η²p] η²G
+## ─────────────────────────────────────────────────────────────────────────
+## newtrial  10369.77 715.65   2  78 14.49 &lt;.001 ***      .27 [.13, .39] .01
+## ─────────────────────────────────────────────────────────────────────────
+## MSE = mean square error (the residual variance of the linear model)
+## η²p = partial eta-squared = SS / (SS + SSE) = F * df1 / (F * df1 + df2)
+## ω²p = partial omega-squared = (F - 1) * df1 / (F * df1 + df2 + 1)
+## η²G = generalized eta-squared (see Olejnik &amp; Algina, 2003)
+## Cohen’s f² = η²p / (1 - η²p)
+## 
+## Levene’s Test for Homogeneity of Variance:
+## No between-subjects factors. No need to do the Levene’s test.
+## 
+## Mauchly’s Test of Sphericity:
+## ───────────────────────────────
+##           Mauchly&#39;s W     p    
+## ───────────────────────────────
+## newtrial       0.9959  .925    
+## ───────────────────────────────
+## 
+## ------ EMMEANS (effect = &quot;newtrial&quot;) ------
+## 
+## Joint Tests of &quot;newtrial&quot;:
+## ──────────────────────────────────────────────────────
+##    Effect df1 df2      F     p     η²p [90% CI of η²p]
+## ──────────────────────────────────────────────────────
+##  newtrial   2  39 13.694 &lt;.001 ***   .413 [.204, .559]
+## ──────────────────────────────────────────────────────
+## Note. Simple effects of repeated measures with 3 or more levels
+## are different from the results obtained with SPSS MANOVA syntax.
+## 
+## Estimated Marginal Means of &quot;newtrial&quot;:
+## ───────────────────────────────────────────────
+##  &quot;newtrial&quot;      Mean [95% CI of Mean]     S.E.
+## ───────────────────────────────────────────────
+##   newtrial1 938.460 [893.694, 983.226] (22.132)
+##   newtrial2 915.296 [868.963, 961.629] (22.907)
+##   newtrial3 907.505 [861.348, 953.663] (22.820)
+## ───────────────────────────────────────────────
+## 
+## Pairwise Comparisons of &quot;newtrial&quot;:
+## ───────────────────────────────────────────────────────────────────────────────────
+##               Contrast Estimate    S.E. df      t     p     Cohen’s d [95% CI of d]
+## ───────────────────────────────────────────────────────────────────────────────────
+##  newtrial2 - newtrial1  -23.164 (5.912) 39 -3.918  .001 **  -0.612 [-1.003, -0.221]
+##  newtrial3 - newtrial1  -30.955 (6.168) 39 -5.018 &lt;.001 *** -0.818 [-1.226, -0.410]
+##  newtrial3 - newtrial2   -7.791 (5.861) 39 -1.329  .574     -0.206 [-0.593,  0.182]
+## ───────────────────────────────────────────────────────────────────────────────────
+## Pooled SD for computing Cohen’s d: 37.833
+## P-value adjustment: Bonferroni method for 3 tests.
+## 
+## Disclaimer:
+## By default, pooled SD is Root Mean Square Error (RMSE).
+## There is much disagreement on how to compute Cohen’s d.
+## You are completely responsible for setting `sd.pooled`.
+## You might also use `effectsize::t_to_d()` to compute d.</code></pre>
+<p>The ANOVA was significant: F(2, 78) = 14.49, p &lt; .001, η²p = .271,
+indicating that search RT changed reliably across the 3-trial same-color
+sequence. Pairwise comparisons (Bonferroni-corrected) revealed a
+statistically significant decrease (23.20ms) in RT of trial 2 compared
+to trial 1, t(39) = −3.92, p = .001, d = −.61, suggesting that
+suppression emerged quickly by the second encounter with the same
+singleton color. Similarly, comparing trial 1 and 3, RT decreased by
+31.00ms, t(39) = −5.02, p &lt; .001, d = −.82, demonstrating that the
+suppression benefit could be accumulated to speedup following trial 3.
+However, the additional RT decrease from trial 2 to trial 3 was only 7.8
+ms and was not significant (t(39) = −1.33, p = .574, d = −0.21). This
+non-significant difference suggested that the bulk of the RT benefit was
+already achieved by trial 2, with no further meaningful gain on Trial 3.
+This pattern aligns with the oculomotor capture data from the original
+analysis, where the sharpest change in capture direction also occurred
+between trial 1 and trial 2.</p>
+</div>
+</div>
+<div id="plot" class="section level1">
+<h1>Plot</h1>
+<pre class="r"><code>rt_plot &lt;- with(rt_data,
+                cmErrBar(RT, subjnum, paste(taskType, newtrial), &quot;ci&quot;)) %&gt;%
+  separate(group, into = c(&quot;condition&quot;, &quot;trial&quot;), sep = &quot; &quot;)
+rt_plot$trial &lt;- factor(rt_plot$trial, levels = c(&quot;1&quot;, &quot;2&quot;, &quot;3&quot;))
+
+ggplot(rt_plot, aes(x = trial, y = mean, group = condition, color = condition)) +
+  geom_errorbar(aes(ymin = minus, ymax = plus), width = 0.15, linewidth = 1.1) +
+  geom_line(linewidth = 1.1, aes(linetype = condition)) +
+  geom_point(size = 4, aes(shape = condition)) +
+  scale_color_manual(values = c(&quot;central&quot; = &quot;#4A90E2&quot;, &quot;search&quot; = &quot;#333333&quot;),
+                     labels = c(&quot;Central Task&quot;, &quot;Search Task&quot;)) +
+  scale_shape_manual(values = c(&quot;central&quot; = 17, &quot;search&quot; = 15),
+                     labels = c(&quot;Central Task&quot;, &quot;Search Task&quot;)) +
+  scale_linetype_manual(values = c(&quot;central&quot; = &quot;dashed&quot;, &quot;search&quot; = &quot;solid&quot;),
+                        labels = c(&quot;Central Task&quot;, &quot;Search Task&quot;)) +
+  labs(x     = &quot;Trials with Same Color&quot;,
+       y     = &quot;Response Time (ms)&quot;,
+       color = &quot;Task Type&quot;, shape = &quot;Task Type&quot;, linetype = &quot;Task Type&quot;) +
+  manuscript_theme</code></pre>
+<div class="figure">
+<img src="p04_files/figure-html/rt-plot-1.png" alt="Figure S1. Mean RT (ms) across trial positions by task type. Error bars = 95% CI (Cousineau-Morey corrected for within-subjects designs). Solid black = Search Task; Dashed blue = Central Task." width="768" />
+<p class="caption">
+Figure S1. Mean RT (ms) across trial positions by task type. Error bars
+= 95% CI (Cousineau-Morey corrected for within-subjects designs). Solid
+black = Search Task; Dashed blue = Central Task.
+</p>
+</div>
+<p>The plot showed the diverging RT patterns across the two tasks. The
+search task decreased gradually across the three trials, while the
+central task descends between trials 1 and 2 then sharply raises to
+cross above the search task at trial 3. The two lines converge and cross
+between trials 2 and 3, visually showing the significant interaction
+between trial position and task type. Additionally, the downward trend
+in the search task across all three trial bins, paired with slightly
+gentle plain between trials and 3, reinforces that suppression drives a
+fast initial RT gain from trial 1 to 2, and then levels off to trial
+3.</p>
 </div>
 
 

@@ -1,5 +1,5 @@
 ---
-title: "Exploring Eye-tracking Data in Reading"
+title: "Portfolio 2: Contextual Predictability and Word Frequency Effects on Reading Time"
 ---
 
 > The projects should be numbered consecutively (i.e., in the order in which you began them), and should include for each project a description of the goal, the product (computer program, hand graph, computer graph, etc.), the data, and some interpretation. Reports must be reproducible and of high quality in terms of writing, grammar, presentation, etc.
@@ -16,368 +16,266 @@ knitr::opts_chunk$set(
 ```
 
 
----
-
 # Background
 
-Eye movements during reading provide a window into real-time cognitive processing. When we read, our eyes make rapid movements (saccades) and brief pauses (fixations). The duration of fixations and the probability of skipping words reveal how factors like word length, frequency, and predictability influence visual attention allocation.
+This portfolio investigates the interaction between contextual predictability (measured by GPT-2 surprisal) and word frequency effects on reading time. Building upon Portfolio 1, which examined the interaction between word length and word frequency using simple linear regression, this work extends the analysis in two key ways: (1) incorporating contextual predictability as a predictor, and (2) employing linear mixed-effects models to account for the hierarchical structure of the data (observations nested within participants and paragraphs), directly addressing a limitation noted in Portfolio 1.
+
+Contextual predictability refers to how expected a word is given the preceding context. Smith and Levy (2013) demonstrated that the effect of word predictability on reading time is logarithmic: each doubling of a word's probability reduces reading time by a roughly constant amount. GPT-2 surprisal, measured in bits (i.e., negative log-probability), provides a natural operationalization of this logarithmic relationship, as surprisal is already on a log scale.
 
 ## Data
 
-This portfolio uses the OneStop Eye Movements Dataset (Berzak et al., 2025; 10.17605/OSF.IO/ZN9SQ), a large-scale corpus containing 360 participants reading news articles with eye-tracking measures. It also includes rich lexical annotations, such as word frequency, GPT-2 surprisal, and part-of-speech tags. This dataset will be used in portfolios as a practice of visualizing, analyzing, and interpreting eye-tracking data.
+This portfolio uses the OneStop Eye Movements Dataset (Berzak et al., 2025; 10.17605/OSF.IO/ZN9SQ), a large-scale corpus containing 360 participants reading news articles with eye-tracking measures.
 
 # Goal
 
-The goal of this portfolio is to explore and visualize eye-tracking data and investigate how word length and word frequency interact to influence reading behavior. Specifically, this portfolio:
+The goal of this portfolio is to investigate how contextual predictability interacts with word frequency effects on reading behavior. We anticipate that both word frequency and contextual predictability will individually influence reading times: lower-frequency words and words with higher surprisal (i.e., less predictable from context) are generally associated with longer processing times. The key focus is to examine whether and how these two effects interact, drawing on the theoretical framework of Smith and Levy (2013), who argue for a logarithmic effect of predictability on reading time.
 
-1. Explores and visualizes eye-tracking data during reading, demonstrating key phenomena documented in the psycholinguistics literature (e.g., effects of word length, frequency, predictability, and part of speech on fixation duration and skipping)
-
-2. Investigates whether the effect of word length on fixation duration differ for high-frequency vs. low-frequency words? This analysis tests the hypothesis that word length effects are stronger for unfamiliar (low-frequency) words, consistent with dual-route models of word recognition.
-
-
----
 
 # Setup
+
 ```{r}
 # Load packages
-library(tidyverse)   
-library(ggplot2)
-library(scales)     
-library(patchwork)  
-library(knitr) 
+library(tidyverse)
+library(scales)
+library(patchwork)
+library(knitr)
 library(psych)
-library(dplyr)
+library(sjPlot)
+library(lme4)
+library(lmerTest)
+library(broom.mixed)
 ```
 
-
 ```{r}
-# Load data 
+# Load data
 ia <- read_csv("~/Desktop/2025-2026/Courses/Data science for psych/Portfolio 1/ia_Paragraph_ordinary.csv")
 ```
 
+# Data Cleaning and Transformation
 
+In this section, we conduct data cleaning by checking for missing values in critical measures, converting variables to numeric types, filtering out practice and repeated trials, and removing extreme values. Following standard practice in psycholinguistics, we apply a logarithmic transformation to dwell time, as reading time distributions are typically positively skewed. Predictors are mean-centered to improve interpretability of the mixed-effects model coefficients: each main-effect coefficient then reflects the effect at the mean of the other predictors.
 
-# Data Exploration
+## Filter and Transform
 
-## Data Structure
-
-### Related Variables for Analysis
-
-The data contains word-level reading measures (eye-tracking + lexical) that are central to my goal:
-
-| Measure | Description | 
-|---------|-------------|
-| `IA_FIRST_FIXATION_DURATION` | Duration of first fixation on word (ms) | 
-| `IA_FIRST_RUN_DWELL_TIME` | Gaze duration: total time on word before leaving (ms) |
-| `IA_SKIP` | Whether the word was skipped (0 = fixated, 1 = skipped) |
-
-Other measures such as IA_DWELL_TIME, fixation counts, and regressions are available in the dataset, but the main analyses focus on the three eye-tracking measures above. But they might be used to clean or prepare data for our main analysis. 
-
-| Variable | Description | Expected Effect |
-|----------|-------------|-----------------|
-| `word_length_no_punctuation` | Number of characters in the word without counting punctuations | Longer words → longer fixations, fewer skips |
-| `wordfreq_frequency` | How common the word is in everyday language | Higher frequency → shorter fixations, more skips |
-
-### Dataset Overview
 ```{r}
-# Basic dimensions
-cat("Interest Area dataset dimensions:", dim(ia)[1], "rows x", dim(ia)[2], "columns\n")
-
-# Check key variable measures
-ia %>%
-  select(IA_FIRST_FIXATION_DURATION, 
-         IA_FIRST_RUN_DWELL_TIME, 
-         IA_DWELL_TIME, 
-         IA_FIXATION_COUNT, 
-         IA_SKIP, 
-         word_length_no_punctuation, 
-         wordfreq_frequency) %>%
+ia %>% 
+  select(IA_DWELL_TIME, word_length_no_punctuation, wordfreq_frequency, gpt2_surprisal) %>%
   summary()
 ```
 
-The dataset contains over 1 million word-level observations with 157 variables. The summary statistics show that eye-tracking measures are stored as character type, which will need conversion to numeric during cleaning. Word length ranges from 1-23 characters, with a median of 4 characters. Word frequency values are on a logarithmic scale, where higher values indicate more frequent words. 
-
----
-
-# Data Cleaning
-
-## Remove Practice Trials and Problematic Data
-
 ```{r}
-# Check for practice trials
-table(ia$practice_trial)
-```
-
-The dataset contains both practice trials (TRUE) and experimental trials (FALSE). Practice trials are used for participants to familiarize themselves with the task and should be excluded from analysis to ensure data quality.
-
-```{r warning=FALSE, message=FALSE}
+# Convert character columns to numeric
 ia_clean <- ia %>%
   mutate(
+    IA_DWELL_TIME = as.numeric(IA_DWELL_TIME),
     IA_FIRST_FIXATION_DURATION = as.numeric(IA_FIRST_FIXATION_DURATION),
-    IA_FIRST_RUN_DWELL_TIME = as.numeric(IA_FIRST_RUN_DWELL_TIME),
     IA_FIXATION_COUNT = as.numeric(IA_FIXATION_COUNT)
+  )
+
+# Filter out practice trials, repeated readings, and missing/extreme values
+ia_clean <- ia_clean %>%
+  filter(
+    practice_trial == FALSE,
+    repeated_reading_trial == FALSE,
+    !is.na(IA_DWELL_TIME),
+    !is.na(wordfreq_frequency),
+    !is.na(gpt2_surprisal),
+    !is.na(word_length_no_punctuation),
+    IA_DWELL_TIME > 0, # Remove skipped words (0 ms)
+    IA_DWELL_TIME >= 50 & IA_DWELL_TIME <= 3000 # Remove extreme values(I realized the cutoffs I applied for the last portfolio is too strict, after going through some literature)
   )
 ```
 
 ```{r}
+# Log-transform dwell time and center predictors
 ia_clean <- ia_clean %>%
-  filter(practice_trial == FALSE, 
-         repeated_reading_trial == FALSE,
-         !is.na(IA_FIRST_FIXATION_DURATION), 
-         IA_FIRST_FIXATION_DURATION >= 80 & IA_FIRST_FIXATION_DURATION <= 800)
+  mutate(
+    log_dwell = log(IA_DWELL_TIME),
+    freq_centered = wordfreq_frequency - mean(wordfreq_frequency, na.rm = TRUE),
+    surprisal_centered = gpt2_surprisal - mean(gpt2_surprisal, na.rm = TRUE),
+    length_centered = word_length_no_punctuation - mean(word_length_no_punctuation, na.rm = TRUE)
+  )
 ```
 
-## Check Distribution of Key Variables
+## Check Distributions
 
-```{r warning=FALSE, message=FALSE, fig.height=8}
-# Distribution of key reading measures
-p1 <- ggplot(ia_clean, aes(x = IA_FIRST_FIXATION_DURATION)) +
+```{r fig.height=8}
+p1 <- ggplot(ia_clean, aes(x = IA_DWELL_TIME)) +
   geom_histogram(bins = 50, fill = "steelblue", alpha = 0.7) +
-  labs(title = "First Fixation Duration", x = "Duration (ms)", y = "Count") +
+  labs(title = "Dwell Time (Raw)", x = "Dwell Time (ms)", y = "Count") +
   theme_minimal()
 
-p2 <- ggplot(ia_clean, aes(x = IA_FIRST_RUN_DWELL_TIME)) +
+p2 <- ggplot(ia_clean, aes(x = log_dwell)) +
+  geom_histogram(bins = 50, fill = "steelblue", alpha = 0.7) +
+  labs(title = "Dwell Time (Log-Transformed)", x = "Log Dwell Time", y = "Count") +
+  theme_minimal()
+
+p3 <- ggplot(ia_clean, aes(x = gpt2_surprisal)) +
   geom_histogram(bins = 50, fill = "darkgreen", alpha = 0.7) +
-  labs(title = "Gaze Duration (First Run Dwell Time)", x = "Duration (ms)", y = "Count") +
-  theme_minimal() +
-  xlim(0, 1500)
-
-p3 <- ggplot(ia_clean, aes(x = word_length_no_punctuation)) +
-  geom_bar(fill = "coral", alpha = 0.7) +
-  labs(title = "Word Length Distribution", x = "Number of characters", y = "Count") +
+  labs(title = "GPT-2 Surprisal Distribution", x = "Surprisal (bits)", y = "Count") +
   theme_minimal()
 
-p4 <- ggplot(ia_clean, aes(x = log10(wordfreq_frequency + 1))) +
+p4 <- ggplot(ia_clean, aes(x = wordfreq_frequency)) +
   geom_histogram(bins = 50, fill = "purple", alpha = 0.7) +
-  labs(title = "Word Frequency (log10)", x = "Log10(frequency)", y = "Count") +
+  labs(title = "Word Frequency Distribution", x = "Log Frequency", y = "Count") +
   theme_minimal()
 
 (p1 + p2) / (p3 + p4)
 ```
 
-The distributions reveal several patterns. First Fixation Duration shows a right-skewed distribution centered around 150-250 ms, which is typical for reading fixations. Gaze Duration is also right-skewed but with a longer tail, reflecting cases where readers made multiple fixations on words before moving on. Word Length peaks at 3-4 characters (might be common function words like "the", "and") with decreasing frequency for longer words. Word Frequency (log-transformed) shows a roughly normal distribution, indicating good coverage across the frequency spectrum.
+The raw dwell time distribution is right-skewed, as is typical for reading time data. The log transformation produces a more symmetric distribution, which better satisfies the normality assumption of linear models. GPT-2 surprisal and word frequency both show reasonable spread across their ranges.
 
----
 
-# Exploratory Visualizations
+# Data Exploration
 
-## Effect of Word Length on Reading
+## Bivariate Relationships
+
+Before fitting models, we examine the bivariate relationships between each predictor and dwell time to verify that the expected patterns are present in the data.
 
 ```{r}
-# Summarize by word length
-word_length_summary <- ia_clean %>%
-  filter(word_length_no_punctuation >= 1 & word_length_no_punctuation <= 15) %>%
-  group_by(word_length_no_punctuation) %>%
+surprisal_summary <- ia_clean %>%
+  mutate(surprisal_bin = ntile(gpt2_surprisal, 10)) %>%
+  group_by(surprisal_bin) %>%
   summarise(
-    mean_FFD = mean(IA_FIRST_FIXATION_DURATION, na.rm = TRUE),
-    se_FFD = sd(IA_FIRST_FIXATION_DURATION, na.rm = TRUE) / sqrt(n()),
-    mean_gaze = mean(IA_FIRST_RUN_DWELL_TIME, na.rm = TRUE),
-    se_gaze = sd(IA_FIRST_RUN_DWELL_TIME, na.rm = TRUE) / sqrt(n()),
-    skip_rate = mean(IA_SKIP == 1, na.rm = TRUE),
+    mean_surprisal = mean(gpt2_surprisal, na.rm = TRUE),
+    mean_dwell = mean(IA_DWELL_TIME, na.rm = TRUE),
+    se_dwell = sd(IA_DWELL_TIME, na.rm = TRUE) / sqrt(n()),
     n = n()
   )
-word_length_summary
-```
-
-```{r}
-# Plot word length effects
-p_length <- ggplot(word_length_summary, aes(x = word_length_no_punctuation)) +
-  geom_line(aes(y = mean_FFD), color = "steelblue", size = 1) +
-  geom_point(aes(y = mean_FFD), color = "steelblue", size = 2) +
-  geom_errorbar(aes(ymin = mean_FFD - se_FFD, ymax = mean_FFD + se_FFD),
-                width = 0.2, color = "steelblue") +
-  labs(title = "Word Length Effect on First Fixation Duration",
-       x = "Word Length (characters)", y = "Mean First Fixation Duration (ms)") +
-  theme_minimal() +
-  scale_x_continuous(breaks = 1:15)
-
-p_skip <- ggplot(word_length_summary, aes(x = word_length_no_punctuation, y = skip_rate)) +
-  geom_line(color = "coral", size = 1) +
-  geom_point(color = "coral", size = 2) +
-  labs(title = "Word Length Effect on Skipping Rate",
-       x = "Word Length (characters)", y = "Probability of Skipping") +
-  theme_minimal() +
-  scale_x_continuous(breaks = 1:15) +
-  scale_y_continuous(labels = percent)
-
-p_length / p_skip
-```
-
-From the two plots, we can see that word length is associated with eye movement patterns during reading. Specifically, the top panel shows a modest positive relationship between word length and fixation duration, where longer words tend to receive slightly longer first fixations. However, in the bottom panel, the skipping rate shows a clear negative relationship with word length. Short words with a few characters are skipped approximately 35-45% of the time, while longer words with above more than 10 characters are rarely skipped (<20%). This reflects the preview benefit—readers can often identify short words before directly fixating them.
-
-## Effect of Word Frequency on Reading
-
-```{r}
-# Create frequency bins
-ia_clean <- ia_clean %>%
-  mutate(freq_bin = ntile(wordfreq_frequency, 5),
-         freq_bin = factor(freq_bin, levels = 1:5,
-                           labels = c("Very Low", "Low", "Medium", "High", "Very High")))
-
-# Summarize by frequency
-freq_summary <- ia_clean %>%
-  filter(!is.na(freq_bin)) %>%
-  group_by(freq_bin) %>%
-  summarise(
-    mean_FFD = mean(IA_FIRST_FIXATION_DURATION, na.rm = TRUE),
-    se_FFD = sd(IA_FIRST_FIXATION_DURATION, na.rm = TRUE) / sqrt(n()),
-    mean_gaze = mean(IA_FIRST_RUN_DWELL_TIME, na.rm = TRUE),
-    skip_rate = mean(IA_SKIP == 1, na.rm = TRUE),
-    n = n()
-  )
-
-freq_summary
-```
-
-```{r}
-# Plot frequency effects
-ggplot(freq_summary, aes(x = freq_bin, y = mean_FFD)) +
-  geom_col(fill = "steelblue", alpha = 0.7) +
-  geom_errorbar(aes(ymin = mean_FFD - se_FFD, ymax = mean_FFD + se_FFD),
-                width = 0.2) +
-  labs(title = "Word Frequency Effect on First Fixation Duration",
-       x = "Word Frequency (binned)", y = "Mean First Fixation Duration (ms)") +
-  theme_minimal()
-```
-
-From the plot above, high-frequency words are processed a bit faster than low-frequency words. Words in the "Very High" frequency bin receive shorter first fixations compared to words in the "Very Low" bin, showing that common words have stronger lexical representations, allowing faster word recognition. 
-
----
-
-# Main Analysis: Word Length × Frequency Interaction
-
-The exploratory visualizations above reveal robust effects of word length and frequency on reading behavior. A question arises: do these effects operate independently, or do they interact?
-
-This section investigates the interaction between word length and word frequency of the most fundamental predictors of eye movements during reading.
-
-## Research Question
-
-Does the effect of word length on fixation duration differ for high-frequency vs. low-frequency words?
-
-### Background
-
-Both word length and word frequency are well-established predictors of eye movements during reading. Longer words receive longer fixations and are less likely to be skipped, and high-frequency words are processed faster and skipped more often. However, these effects may interact. One hypothesis is that readers can recognize short, high-frequency words rapidly through holistic pattern recognition, while longer and less frequent words require more serial, letter-by-letter processing. 
-
-> **Hypothesis**: The word length effect should be *stronger* for low-frequency words than for high-frequency words.
-
-## Create Analysis Variables
-
-```{r}
-# Create median split for frequency (high vs low) - have equal size of high and low frequency group
-freq_median <- median(ia_clean$wordfreq_frequency, na.rm = TRUE)
-
-ia_analysis <- ia_clean %>%
-  filter(word_length_no_punctuation >= 2 & word_length_no_punctuation <= 11) %>%
-  mutate(
-    freq_group = ifelse(wordfreq_frequency >= freq_median, "High Frequency", "Low Frequency"),
-    freq_group = factor(freq_group, levels = c("Low Frequency", "High Frequency"))
-  ) %>%
-  filter(!is.na(freq_group))
-```
-
-The median split creates two roughly equal-sized groups: Low Frequency and High Frequency words. Having balanced group sizes ensures that our statistical comparisons have adequate power and that differences between groups are not driven by unequal sample sizes. Words with lengths 2-11 characters are included to focus on the range where most meaningful variation and comparibility occurs.
-
-## Discriptive Statistics and Visualization
-
-```{r}
-# Summary by word length and frequency group (for plotting)
-interaction_summary <- ia_analysis %>%
-  group_by(word_length_no_punctuation, freq_group) %>%
-  summarise(
-    mean_FFD = mean(IA_FIRST_FIXATION_DURATION, na.rm = TRUE),
-    se_FFD = sd(IA_FIRST_FIXATION_DURATION, na.rm = TRUE) / sqrt(n()),
-    mean_gaze = mean(IA_FIRST_RUN_DWELL_TIME, na.rm = TRUE),
-    se_gaze = sd(IA_FIRST_RUN_DWELL_TIME, na.rm = TRUE) / sqrt(n()),
-    skip_rate = mean(IA_SKIP == 1, na.rm = TRUE),
-    n = n(),
-    .groups = "drop"
-  )
-
-kable(interaction_summary, digits = 2, caption = "Reading Measures by Word Length and Frequency")
 ```
 
 ```{r fig.width=12, fig.height=5}
-# First Fixation Duration 
-p_ffd_interaction <- ggplot(interaction_summary,
-                             aes(x = word_length_no_punctuation, y = mean_FFD,
-                                 color = freq_group, group = freq_group)) +
-  geom_line(linewidth = 1.2) +
-  geom_point(size = 3) +
-  geom_errorbar(aes(ymin = mean_FFD - se_FFD, ymax = mean_FFD + se_FFD),
-                width = 0.2, linewidth = 0.8) +
-  scale_color_manual(values = c("Low Frequency" = "#E41A1C", "High Frequency" = "#377EB8")) +
+# Effect of surprisal on dwell time 
+p_surp <- ggplot(surprisal_summary, aes(x = mean_surprisal, y = mean_dwell)) +
+  geom_point(size = 3, color = "darkgreen") +
+  geom_line(color = "darkgreen", linewidth = 1) +
+  geom_errorbar(aes(ymin = mean_dwell - se_dwell, ymax = mean_dwell + se_dwell),
+                width = 0.2, color = "darkgreen") +
   labs(
-    title = "Word Length × Frequency Interaction on First Fixation Duration",
-    subtitle = "Error bars represent ±1 SE",
-    x = "Word Length (characters)",
-    y = "Mean First Fixation Duration (ms)",
-    color = "Frequency Group"
+    title = "Contextual Predictability and Dwell Time",
+    subtitle = "Binned by GPT-2 Surprisal deciles",
+    x = "Mean GPT-2 Surprisal (bits)",
+    y = "Mean Dwell Time (ms)"
   ) +
-  theme_minimal(base_size = 12) +
-  theme(legend.position = "bottom") +
-  scale_x_continuous(breaks = 2:12)
-
-# Gaze Duration 
-p_gaze_interaction <- ggplot(interaction_summary,
-                              aes(x = word_length_no_punctuation, y = mean_gaze,
-                                  color = freq_group, group = freq_group)) +
-  geom_line(linewidth = 1.2) +
-  geom_point(size = 3) +
-  geom_errorbar(aes(ymin = mean_gaze - se_gaze, ymax = mean_gaze + se_gaze),
-                width = 0.2, linewidth = 0.8) +
-  scale_color_manual(values = c("Low Frequency" = "#E41A1C", "High Frequency" = "#377EB8")) +
-  labs(
-    title = "Word Length × Frequency Interaction on Gaze Duration",
-    x = "Word Length (characters)",
-    y = "Mean Gaze Duration (ms)",
-    color = "Frequency Group"
-  ) +
-  theme_minimal(base_size = 12) +
-  theme(legend.position = "bottom") +
-  scale_x_continuous(breaks = 2:12)
-
-p_ffd_interaction + p_gaze_interaction
+  theme_minimal()
 ```
 
-As shown in both plots, frequency group differences were observed in both eye-movement measures. For first fixation duration, mean fixation times were consistently higher for the high frequency group than the low frequency group across word lengths, with relatively small changes as a function of length, suggesting a weak length effect in this early measure. For gaze duration, mean reading times increased with word length for both groups; however, the increase was substantially steeper for the high frequency group, indicating a stronger interaction between word length and frequency in first-run processing than in first fixation duration. 
-
-## Statistical Analysis: Linear Regression
-
-We test the interaction using linear regression with word length, frequency, and their interaction as predictors. Before building regressions, predictors were mean-centered to make the intercept interpretable as the expected reading time for an average-length word with average frequency and to ensure that main-effect coefficients reflect effects at the mean of the other predictor in the presence of an interaction.
-
-```{r}
-# Center predictors for interpretable coefficients
-ia_analysis <- ia_analysis %>%
-  mutate(
-    length_centered = word_length_no_punctuation - mean(word_length_no_punctuation, na.rm = TRUE),
-    freq_centered = wordfreq_frequency - mean(wordfreq_frequency, na.rm = TRUE)
+```{r fig.width=12, fig.height=5}
+# Effect of frequency on dwell time 
+freq_summary <- ia_clean %>%
+  mutate(freq_bin = ntile(wordfreq_frequency, 10)) %>%
+  group_by(freq_bin) %>%
+  summarise(
+    mean_freq = mean(wordfreq_frequency, na.rm = TRUE),
+    mean_dwell = mean(IA_DWELL_TIME, na.rm = TRUE),
+    se_dwell = sd(IA_DWELL_TIME, na.rm = TRUE) / sqrt(n()),
+    n = n()
   )
+
+p_freq <- ggplot(freq_summary, aes(x = mean_freq, y = mean_dwell)) +
+  geom_point(size = 3, color = "steelblue") +
+  geom_line(color = "steelblue", linewidth = 1) +
+  geom_errorbar(aes(ymin = mean_dwell - se_dwell, ymax = mean_dwell + se_dwell),
+                width = 0.1, color = "steelblue") +
+  labs(
+    title = "Word Frequency and Dwell Time",
+    subtitle = "Binned by word frequency deciles",
+    x = "Mean Word Frequency (log)",
+    y = "Mean Dwell Time (ms)"
+  ) +
+  theme_minimal()
 ```
 
 ```{r}
-# Fit regression model for First Fixation Duration
-model_ffd <- lm(IA_FIRST_FIXATION_DURATION ~ length_centered * freq_centered,
-                data = ia_analysis)
-
-summary(model_ffd)
+p_surp + p_freq
 ```
 
-A multiple linear regression was conducted to test whether centered word length, word frequency, and their interaction predicted first fixation duration. The overall model was statistically significant, F(3, 629052) = 853.30, p < .001, R2 = .004. The main effect of word length was significant, b = −.15, SE = .05, t(629052) = −2.81, p = .005. Frequency was also a significant positive predictor, b = 1.02, SE = .02, t(629052) = 41.85, p < .001. The interaction between word length and frequency was significant, b = −.08, SE = .01, t(629052) = −8.91, p < .001, indicating that the association between word length and first fixation duration is slightly stronger for low-frequent words. 
+The left panel shows a positive relationship between GPT-2 surprisal and dwell time: as words become less predictable from context (higher surprisal), readers spend more time fixating on them. This pattern is consistent with the prediction that contextually surprising words require additional cognitive effort during processing. The right panel shows a positive relationship between word frequency and dwell time, such that more frequent words are associated with longer fixation times, reflecting the well-established frequency effect in reading. 
+
+(I was thinking if I should look at the correlations between these key variables. After a self-fight, I thought it may not much necessary to do it, since the relationships between the IVs and DVs are obvious enough.)
+
+# Main Analysis: Mixed-Effects Models
+
+To account for the hierarchical structure of the data — words nested within participants and paragraphs — we use linear mixed-effects models. This directly addresses the limitation of Portfolio 1, which used ordinary linear regression and did not account for the non-independence of observations within participants and paragraphs
+
+I built three models of increasing complexity to test (1) whether contextual predictability adds predictive value beyond word frequency, and (2) whether the two interact.
+
+## Model 1: Frequency + Word Length (Baseline)
 
 ```{r}
-# Fit regression model for Gaze Duration
-model_gaze <- lm(IA_FIRST_RUN_DWELL_TIME ~ length_centered * freq_centered,
-                 data = ia_analysis)
+model1 <- lmer(log_dwell ~ freq_centered + length_centered +
+                 (1 | participant_id) + (1 | paragraph_id),
+               data = ia_clean)
 
-summary(model_gaze)
+summary(model1)
 ```
 
-We then fit a linear model predicting first-run dwell time (gaze duration) from centered word length, centered word frequency, and their interaction. The overall model was statistically significant, F(3,629052) = 6718.00, p < .001, R2 = .03. At the mean length and frequency, predicted first-run dwell time was approximately 218 ms. Word length is a positive predictor of first-run dwell time, such that longer words were associated with longer dwell times, b = 3.17, SE = .008, t(629052) = 40.86, p < .001. Frequency also significantly predicted dwell time, b = 2.68, SE = .004, t(629052) = 75.54, p < .001. Importantly, the effect of word length in dwell time spending on reading depends on word frequency: the length penalty becomes larger as frequency values increase.b = 0.42, SE = 0.01, t(629052) = 33.12, p < .001. 
+## Model 2: Adding Surprisal
 
----
+```{r}
+model2 <- lmer(log_dwell ~ freq_centered + surprisal_centered + length_centered +
+                 (1 | participant_id) + (1 | paragraph_id),
+               data = ia_clean)
 
-# Discussion 
+summary(model2)
+```
 
-This analysis explored the interaction between word length and word frequency on eye movements during reading using the OneStop Eye Movements Dataset. Both word length and word frequency significantly predict fixation durations, consistent with decades of reading research. The interaction between word length and frequency was statistically significant, revealing that the effect of word length on fixation duration depends on word frequency. Additionally, the word length effect (longer words → longer fixations) is stronger for low-frequency words than for high-frequency words. This suggests that (1) High-frequency words may be recognized more holistically, reducing sensitivity to word length and (2) Low-frequency words require more analytical processing that scales with the number of letters
+## Model 3: Frequency × Surprisal Interaction
 
-However, there is some limitations. First, this portfolio used aggregated data; a more rigorous analysis would use mixed-effects models to account for participant and item random effects. Besides, the frequency measure used is corpus-based and may not perfectly reflect individual readers' experience
+```{r}
+model3 <- lmer(log_dwell ~ freq_centered * surprisal_centered + length_centered +
+                 (1 | participant_id) + (1 | paragraph_id),
+               data = ia_clean)
+
+summary(model3)
+```
+
+## Model Comparison
+
+```{r}
+anova(model1, model2, model3)
+```
+
+The model comparison via likelihood ratio tests revealed that each successive model significantly improved fit. Adding GPT-2 surprisal (Model 2) significantly improved fit over the baseline frequency + word length model, Χ²(1) = 6382.20, p < .001, indicating that contextual predictability explains additional variance in dwell time beyond what word frequency and word length already capture. Adding the frequency × surprisal interaction (Model 3) further improved fit over the additive model, Χ²(1) = 64.82, p < .001, suggesting that the effects of frequency and surprisal on reading time are not purely additive but depend on each other.
+
+
+## Model Diagnostics
+
+```{r fig.width=12, fig.height=5}
+par(mfrow = c(1, 2))
+
+plot(fitted(model3), resid(model3),
+     xlab = "Fitted Values", ylab = "Residuals",
+     main = "Residuals vs Fitted", pch = ".", col = "steelblue")
+abline(h = 0, col = "red", lty = 2)
+
+qqnorm(resid(model3), main = "QQ Plot of Residuals", pch = ".")
+qqline(resid(model3), col = "red")
+```
+
+The residuals vs. fitted plot shows residuals roughly centered around zero with no strong systematic pattern, suggesting that the model does not exhibit major violations of linearity or homoscedasticity. The QQ plot indicates that the residuals are approximately normally distributed.
+
+## Model Results
+
+```{r}
+tab_model(model3,
+          title = "Mixed-Effects Model: Frequency × Surprisal Interaction",
+          dv.labels = "Log Dwell Time",
+          show.stat = TRUE)
+```
+
+The fixed effects from the interaction model are summarized in the table above. The intercept, b = 5.52, 95% CI[5.49, 5.55], t = 338.58, p < .001, represents the predicted log dwell time for a word of average frequency, average surprisal, and average length. The main effect of word frequency was significant, b = 0.01, 95% CI [0.01, 0.01], t = 44.70, p < .001, indicating that higher word frequency values were associated with longer log dwell times. The main effect of GPT-2 surprisal was also significant, b = 0.02, 95% CI [0.02, 0.02], t = 75.38, p < .001, confirming that less predictable words (higher surprisal) incurred longer processing times. Word length, included as a control variable, was a significant predictor as well, b = 0.04, 95% CI [0.03, 0.04], t = 103.77, p < .001, with longer words receiving longer fixations.
+
+Critically, the interaction between word frequency and GPT-2 surprisal was significant, b = -0.00, t = -8.05, p < .001. The negative interaction coefficient indicates that the positive effect of surprisal on dwell time is attenuated at higher levels of word frequency. In other words, the processing cost of encountering a contextually unexpected word is slightly reduced for higher-frequency words, suggesting that word frequency provides some buffer against the difficulty of contextual unpredictability.
+
+
+# Discussion
+
+This portfolio examined the interaction between contextual predictability and word frequency effects on total dwell time during reading. Building upon Portfolio 1, which used ordinary linear regression to investigate word length × frequency interaction, this portfolio employed linear mixed-effects models with random intercepts for participants and paragraphs to appropriately account for the hierarchical structure of the eye-tracking data.
+
+Both word frequency and GPT-2 surprisal were significant predictors of log-transformed dwell time. Higher word frequency values were associated with longer dwell times, and higher-surprisal words — those less predictable from the preceding context — also incurred longer processing times, confirming that readers are sensitive to contextual expectations during reading. The model comparison demonstrated that adding surprisal significantly improved model fit beyond frequency and word length alone, and that the frequency × surprisal interaction further improved fit. The negative interaction coefficient indicates that the surprisal cost is attenuated at higher frequency levels, suggesting that frequency provides a partial buffer against the processing difficulty of contextual unpredictability.
+
+These findings are broadly consistent with the theoretical framework proposed by Smith and Levy (2013), who argued that the effect of word predictability on reading time is logarithmic. Because GPT-2 surprisal is measured in bits (negative log-probability), it naturally captures this logarithmic relationship: a one-bit increase in surprisal corresponds to a halving of the word's contextual probability. The significant main effect of surprisal on dwell time aligns with their prediction that predictability has a continuous, graded influence on reading effort. The significant interaction with frequency further suggests that contextual and lexical factors jointly shape the cognitive cost of word recognition, consistent with models of reading that emphasize the integration of multiple information sources during processing.
+
+There are several limitations to note. First, GPT-2 surprisal is a model-based estimate derived from a language model, and it may not perfectly reflect the contextual predictions that human readers generate during reading (Wilcox et al., 2020). Individual readers differ in their language experience and predictive processing, and a single surprisal value cannot capture this variability. Second, the random effects structure used here includes only random intercepts; including random slopes for frequency and surprisal could capture individual differences in sensitivity to these factors, though such models are more computationally demanding and may encounter convergence issues. Third, the dependent variable, total dwell time (`IA_DWELL_TIME`), combines both first-pass and re-reading fixations on a word. These components may reflect distinct cognitive processes - first-pass reading is thought to reflect initial lexical access, while re-reading may reflect comprehension difficulty or integration processes. Future work could separate these measures to gain a more fine-grained understanding of when contextual predictability exerts its influence during reading.
+

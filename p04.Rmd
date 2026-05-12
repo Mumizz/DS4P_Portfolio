@@ -7,193 +7,485 @@ title: "Portfolio 4"
 
 # Background 
 
-In portfolio 3, I found a significant interaction between word frequency and GPT-2 suprisal on total dwell time - the processing cost of contextually unexpected words was attenuated at higher frequency levels. However, total dwell time combines both first-pass and re-reading fixations, which are thought to reflect distinct cognitive processes. First-pass measures capture initial word recognition and early lexical access, while re-reading reflects later comprehension difficulty or integration failure. By combining these together, portfolio 3 could not determine *when* the interaction exerts its influence. 
+## Introduction 
 
-This portfolio address the limitation by decomposing the analysis across three reading measures that tap into different stages of processing. 
+This and following several portfolio will conduct a secondary analysis using data from an attention capture study (Zhang & Gaspelin, 2026; 10.17605/OSF.IO/D4FX8). The original Experiment 3 analysis (Manuscript: *From Capture to Control: Initial Capture Increases Learned Suppression*) examined how the oculomotor system learns to suppress a salient color singleton distractor across a 3-trial sequence in which the same distractor color repeated. The key measure was the **oculomotor capture effect**: the difference in the rate of first eye movements directed toward the salient singleton versus a nonsingleton distractor (Singleton% − Nonsingleton%). A positive value indicates initial capture (the eye was attracted to the singleton), while a negative value indicates learned suppression (the eye actively avoided the singleton).
 
-# Data 
+The two task types were compared: 
 
-This portfolio uses the same Onestop dataset as portfolio 2 and 3. 
+- **Search Task**: Participants actively searched for a target shape among distractors. Eye movements toward the display were required and free. 
+- **Central Task**: Participants monitored a central letter stream. Eye movements were restricted during Trials 1 and 2; on Trial 3 (the critical trial), eye movements were released. 
+
+The key comparison was on Trial 3 - did prior experience with active search (which produced initial capture on Trial 1) generate stronger suppression and no experience with initial capture (the central task) generate zero or below zero suppression?
+
+## What the Original Analysis Did not Inlucde ? 
+
+Despite recording several rich behavioral and oculomotor variables, the original script only analyzed the oculomotor capture effect (first fixation direction) and singleton dwell time. Three measures that are fully available in the dataset were never analyzed:
+
+1. **Response Time (RT)** — the button-press latency at the end of each trial, reflecting overall task efficiency.
+2. **Saccade Reaction Time (SRT)** — the latency from display onset to the initiation of the first eye movement, reflecting the speed of oculomotor deployment.
+3. **Target Fixation Rate** — the proportion of first eye movements landing on the target rather than the singleton or a nonsingleton, reflecting the acquisition (not just the inhibition) side of attentional control.
 
 # Goal 
 
-The goal of portfolio 4 is to address the limitation mentioned in portfolio 3 by testing whether the surprisal x frequency interaction observed in portfolio 3 operates at the level of initial word recognition, i.e., first-pass measures, later comprehension processes (re-reading), or both. If the interaction appears only in first-pass measures, it would suggest that frequency buffers against surprisal during early lexical access. If it appears only in re-reading, the buffering effect operates during later integration. If it appears in both, frequency modulates the processing cost of unpredictable words across multiple stages of reading 
+These three secondary analyses test whether the suppression-learning pattern found in the oculomotor capture effect generalizes to complementary behavioral and oculomotor measures. Together, they provide a more complete picture of what changes across the 3-trial same-color sequence:
 
-# Setup
+| Analysis | What it measures | Key question |
+|---|---|---|
+| RT | Button-press speed | Does search get faster as the singleton is suppressed? |
+| SRT | First saccade initiation speed | Does the eye move more decisively as distractor competition drops? |
+| Target Fixation Rate | Where the first eye movement lands | Does suppression of the singleton redirect attention toward the target? |
+
+The portfolio will look at the first secondary analysis, and the following two will examine the SRT and Target Fixation Rate, respectively. 
+
+
+# Setup 
 
 ```{r}
-# Load packages
-library(tidyverse)
-library(scales)
-library(patchwork)
-library(knitr)
-library(psych)
-library(sjPlot)
-library(lme4)
-library(lmerTest)
-library(broom.mixed)
+rm(list = ls())
+setwd("~/Documents/GitHub/DS4P_Portfolio") 
+library('NickPsych')
+library('tidyverse')
+library('reshape2')
+library('writexl')
+library('dplyr')
+library('bruceR')
+library('openxlsx')
+library('knitr')
+library('xtable')
 ```
 
+---
+
+# Preprocessing 
+
+All preprocessing is identical to `InitCap_Exp3_analysis.Rmd`.
+
 ```{r}
-# Load data
-ia <- read_csv("~/Desktop/2025-2026/Courses/Data science for psych/Portfolio 1/ia_Paragraph_ordinary.csv")
-```
+## VARIABLES
+#Thresholds (RT, SRT, SD cut)
+hiRT =  2000 # default = 2000
+loRT =  200 # default = 200
+loSRT =  50 # default = 50
+hiSRT =  1000 # default = 1000
+SDcut =  3.5
+pracBlocks = 2
+monDelay = 7 # timing delay of monitor (7 ms) for the eye tracker in Nick's lab
 
-# Data Cleaning and Transformation 
+# Screen properties (to calculate fixation annulus later)
+scrW = 1920
+scrH = 1080
+ctrX = scrW/2
+ctrY = scrH/2
+samprate = 500
+setsize = 6
+shapesz = 54
+eccent = 270    # 4.5 degrees
+fixZone = 90    # 1.5 degrees
+outZone = 450   # 7.5 degress
+angle = 360 / setsize
 
-We apply the same cleaning steps as portfolio 3 - filtering out practice trials and repeated readings, converting variables to numeric, and removing extreme values. For this portfolio, we prepare three dependent variables: first fixation duration (FFD), gaze duration (first-run dwell time), and a binary re-reading indicator. 
+loc = data.frame(x = numeric(setsize),
+                 y = numeric(setsize))
+loc$x[1] = ctrX
+loc$y[1] = ctrY - eccent
+for(i in 2:setsize){
+  coord = xyrotate(loc$x[1], loc$y[1],ctrX,ctrY,(i-1)*(360/setsize))
+  loc$x[i] = coord$X
+  loc$y[i] = coord$Y
+}
 
-## Filter and Transform
-```{r}
-# Convert character columns to numeric
-ia_clean <- ia %>%
+## READ DATA & PREPROCESS
+# Read Data
+raw = readFixReport("~/Desktop/2025-2026/Courses/Data science for psych/Experiment3/Analysis Script/42sub.txt")
+raw$ACC <- as.numeric(raw$ACC)
+raw$RT <- as.numeric(raw$RT)
+raw$SRT <- as.numeric(raw$PREVIOUS_SAC_START_TIME)
+raw$block <- as.numeric(raw$block)
+raw$Dwell <- as.numeric(raw$CURRENT_FIX_DURATION)
+raw$trial <- as.numeric(raw$trial)
+raw$targLoc <- as.numeric(raw$targLoc)
+raw$singLoc <- as.numeric(raw$singLoc)
+raw$targAngle <- as.numeric(raw$targAngle)
+raw$singAngle <- as.numeric(raw$singAngle)
+raw$singTargAngle <- as.numeric(raw$singTargAngle)
+
+numtrials = aggregate(trial ~ subjnum, data = raw, FUN = max) #record the number of trials per subject
+raw_unique <- raw %>% distinct(subjnum, taskType, trial)
+numtrials1 <- raw_unique %>%
+  group_by(subjnum, taskType) %>%
+  summarize(num_trials = n())
+
+# create a practice/experimental label
+raw$phase = ifelse(raw$block <= pracBlocks, "practice", "formal") 
+
+# Get Currently Fixated Item
+# X/Y coordinate of the fixation
+raw$currloc = getCurrFixLoc(raw$CURRENT_FIX_X, raw$CURRENT_FIX_Y, loc)
+# which item was fixated 
+raw$curritem = ifelse(is.na(raw$currloc), NA,
+                      ifelse(raw$currloc  == raw$targLoc, 'Target',
+                             ifelse(raw$currloc  == raw$singLoc,  'Singleton',
+                                    'Nonsingleton')))
+# First Fixation Index
+# Creates an annulus around the search items
+# Eye movements must leave the center fixation region
+# Creates "wedges" around each search item 
+raw$saccindex = adjustFixIndex(raw$subjnum, raw$trial, fixZone, outZone, raw$CURRENT_FIX_X, raw$CURRENT_FIX_Y, ctrX, ctrY)
+raw$numfix = ave(raw$saccindex, interaction(raw$subjnum, raw$trial), FUN = max)
+
+# Normalize XY Values
+coord = xyrotate(raw$CURRENT_FIX_X, raw$CURRENT_FIX_Y, ctrX, ctrY, -raw$targAngle)
+raw$normX = coord$X
+raw$normY = coord$Y
+raw$normcurrloc = getCurrFixLoc(raw$normX, raw$normY, loc)
+
+## COLLAPSE -60 and 60, -120 and 120
+raw$normX = ifelse(raw$singTargAngle == '-60', 1920 - raw$normX,
+                   ifelse(raw$singTargAngle == '-120', 1920 - raw$normX, raw$normX))
+
+raw$singTargAngle <- ifelse(raw$singTargAngle == '-60', '60',
+                            ifelse(raw$singTargAngle == '-300', '60',
+                                   ifelse(raw$singTargAngle == '-120', '120',
+                                          ifelse(raw$singTargAngle == '-240', '120',
+                                                 ifelse(raw$singTargAngle == '-180', '180', raw$singTargAngle)))))
+
+# TIME DELAY CORRECTION
+# Correct the RT and SRT for the monitor delay
+raw$RT = raw$RT - monDelay
+raw$SRT = raw$SRT - monDelay
+
+## OUTLIER REPORT
+# Outlier Flags
+raw$keepRT  = ifelse( raw$RT > loRT & raw$RT <= hiRT, 1, 0 )  # get rid of timeout trials
+#raw$keepSRT = ifelse( raw$SRT > loSRT & raw$SRT < hiSRT, 1, 0 )
+raw$goodTrials = ifelse(raw$keepRT == 1 & raw$ACC == 1, 1, 0 & raw$brokeFixation != 1)
+
+# Outlier Report
+trimdata = subset(raw, phase != 'practice' & goodTrials == 1) 
+trimdata$RT <- as.numeric(as.character(trimdata$RT))
+trimdata$SRT <- as.numeric(as.character(trimdata$SRT))
+
+# Calculate mean RT and SRT for each subject
+trimdata <- trimdata[!is.na(trimdata$RT) & !is.na(trimdata$SRT), ]
+outlier1 = aggregate(cbind(RT, SRT) ~ subjnum, data = trimdata, mean) 
+
+# Calculate mean ACC for each subject
+trimdata = subset(raw, phase != 'practice' & keepRT == 1)
+outlier2 <- aggregate(ACC~subjnum, data = trimdata, FUN = mean)
+
+# Calculate the number of trials removed because of eye-movement on central trials for each subject
+trimdata = subset(raw, phase != 'practice' & goodTrials == 1)
+outlier3 <- aggregate(brokeFixation ~ subjnum, data = trimdata, FUN = function(x) mean(x == 1, na.rm = TRUE))
+colnames(outlier3)[2] <- "brokeFixationRate"
+
+# Calculate the number of trials removed for each subject
+trimdata = subset(raw, phase != 'practice');
+outlier4 <- aggregate(cbind( keepRT, goodTrials) ~ subjnum, data = trimdata, mean)
+outlier4$trialsRemoved <- 1 - outlier4$goodTrials
+
+# Merge the outlier reports
+outlier <- merge(outlier1, outlier2, by = "subjnum")
+outlier <- merge(outlier, outlier3, by = "subjnum", all.x = TRUE)
+outlier <- merge(outlier, outlier4, by = "subjnum")
+
+# Calcaulte the cutoffs for each subject
+outlier$ACCcut = mean(outlier$ACC) - ( SDcut * sd(outlier$ACC) ) # ACC cutoff (SD cut)
+outlier$RTcut = mean(outlier$RT)  + ( SDcut * sd(outlier$RT)  ) # RT cutoff (SD cut)
+outlier$badsubjBrokeFix = mean(outlier$brokeFixationRate) + (SDcut * sd(outlier$brokeFixationRate)) # Broke fixation cutoff (SD cut)
+outlier$badsubj = with(outlier, ifelse( RT > RTcut| ACC < ACCcut| brokeFixationRate > badsubjBrokeFix, 1, 0) )
+
+# flag any participants that exceed any of the SD cut procedures
+# Notes to flag each participant who exceeded each cut (ACC, RT, etc.)
+outlier$note = with( outlier, ifelse(RT > RTcut, "High RT", ".") )
+outlier$note = with( outlier, ifelse(ACC < ACCcut, "Low ACC", note))
+outlier$note = with( outlier, ifelse(brokeFixationRate > badsubjBrokeFix, "High BrokeFixation", note))
+
+## DROP BAD SUBJECTS
+badsubjects = outlier$subjnum[outlier$note != '.']
+trimdata = subset(raw, !(subjnum %in% badsubjects)) # keep the good participants' data
+
+## MAKE FIXATION DATA
+#delete practice data
+fdata = subset(trimdata, brokeFixation != 1 & phase != "practice" & keepRT == 1) # call it "first fixation data" or fdata for short
+fdata = subset(fdata, 
+               (searchArray == "search" & saccindex == 1 | 
+                  searchArray == "letter" & saccindex == 0) 
+) # call it "first fixation data" or fdata for short
+fdata = subset(fdata, 
+               !(searchArray == "letter" & !is.na(SRT)))
+
+accdata = subset(fdata, ACC == 1) # only look at correct response trials by analysis RT
+
+# create newtrial from trials 1-3
+accdata$newtrial <- ((accdata$trial - 121) %% 3) + 1
+
+# mark broke trials (mark trialcut = 0 in 1-3 trials as long as there exists eye movement)
+accdata$trialcut <- 1
+accdata <- accdata %>%
+  group_by(subjnum) %>%  
   mutate(
-    IA_DWELL_TIME = as.numeric(IA_DWELL_TIME),
-    IA_FIRST_RUN_DWELL_TIME = as.numeric(IA_FIRST_RUN_DWELL_TIME),
-    IA_FIRST_FIXATION_DURATION = as.numeric(IA_FIRST_FIXATION_DURATION),
-    IA_FIXATION_COUNT = as.numeric(IA_FIXATION_COUNT)
-  )
-
-# Filter out practice trials, repeated readings, and missing/extreme values
-ia_clean <- ia_clean %>%
-  filter(
-    practice_trial == FALSE,
-    repeated_reading_trial == FALSE,
-    !is.na(IA_DWELL_TIME),
-    !is.na(wordfreq_frequency),
-    !is.na(gpt2_surprisal),
-    !is.na(word_length_no_punctuation),
-    IA_FIRST_FIXATION_DURATION >=80 & IA_FIRST_FIXATION_DURATION <= 800,
-    IA_DWELL_TIME >= 50 & IA_DWELL_TIME <= 3000 
-  )
-```
-
-```{r}
-# Create re-reading indicator
-ia_clean <- ia_clean %>%  
+    trial_group = (trial - 121) %/% 3  # Group trials into blocks of 3
+  ) %>%
+  group_by(subjnum, trial_group) %>%  # Group by both subject and trial group
   mutate(
-    reread = ifelse(!is.na(IA_DWELL_TIME) & !is.na(IA_FIRST_RUN_DWELL_TIME) & IA_DWELL_TIME > IA_FIRST_RUN_DWELL_TIME, 1, 0)
-  )
-```
+    trialcut = ifelse(taskType == "search", 1,
+                      ifelse(taskType == "central" & sum(trialcut) == 3, 1, 0)) # Check group completeness and assign trialcut
+  ) %>%
+  ungroup() 
 
-```{r}
-# Log-transform dwell time and center predictors
-ia_clean <- ia_clean %>%
+# record the percentage of trialcut = 0 in 1-3 trials
+outlier5 <- accdata %>%
+  group_by(subjnum) %>%
+  summarise(
+    trialcut_zero_rate = mean(trialcut == 0, na.rm = TRUE))  #calculate the percentage of trialcut = 0 
+outlier <- merge(outlier, outlier5, by = "subjnum")
+
+# only keep trialcut = 1
+accdata <- subset(accdata, trialcut == 1)
+
+# Record the number of trials per subject for each taskType
+numtrials_total <- accdata %>%
+  group_by(subjnum) %>%
+  summarise(total_trials = n(), .groups = "drop")
+
+numtrials_task <- accdata %>%
+  group_by(subjnum, taskType) %>%
+  summarise(num_trials = n(), .groups = "drop")
+
+final_trials <- numtrials_task %>%
+  left_join(numtrials_total, by = "subjnum") %>%
   mutate(
-    log_ffd = log(IA_FIRST_FIXATION_DURATION),
-    log_gaze = log(IA_FIRST_RUN_DWELL_TIME), 
-    freq_centered = wordfreq_frequency - mean(wordfreq_frequency, na.rm = TRUE),
-    surprisal_centered = gpt2_surprisal - mean(gpt2_surprisal, na.rm = TRUE),
-    length_centered = word_length_no_punctuation - mean(word_length_no_punctuation, na.rm = TRUE)
+    percent_total = total_trials / 480,                 
+    low_percentage = ifelse(percent_total < 0.75, 1, 0)  
   )
+
+badsubjects = final_trials$subjnum[final_trials$low_percentage == 1]
+accdata = subset(accdata, !(subjnum %in% badsubjects)) # keep the good participants' data
 ```
 
 ```{r}
-ia_analysis <- ia_clean %>%
-  select(participant_id, paragraph_id,
-         IA_FIRST_FIXATION_DURATION, IA_FIRST_RUN_DWELL_TIME, IA_DWELL_TIME,
-         log_ffd, log_gaze, reread,
-         freq_centered, surprisal_centered, length_centered,
-         wordfreq_frequency, gpt2_surprisal, word_length_no_punctuation)
-```
+# -------------------------------------------------------------------------
+# Demographic Information
+# For detailed demographic characteristics of participants 
+# (e.g., age, gender, recruitment),
+# please see the manuscript: Experiment 3, Method section.
+# -------------------------------------------------------------------------
+raw <- raw %>%
+  mutate(gender = case_when(
+    tolower(gender) == "m" ~ "M",
+    tolower(gender) == "f" ~ "F",
+    TRUE ~ as.character(gender) 
+  ))
 
-## Check Distribution 
-```{r fig.height=8}
-p1 <- ggplot(ia_analysis, aes(x = log_ffd)) +
-  geom_histogram(bins = 50, fill = "steelblue", alpha = 0.7) +
-  labs(title = "First Fixation Duration", x = "Log FFD", y = "Count") +
-  theme_minimal()
+raw$subjnum <- factor(raw$subjnum)
+nSubject = levels(raw$subjnum)
+raw$age <- as.numeric(as.character(raw$age))
 
-p2 <- ggplot(ia_analysis, aes(x = log_gaze)) +
-  geom_histogram(bins = 50, fill = "darkgreen", alpha = 0.7) +
-  labs(title = "Gaze Duration (Log)", x = "Log Gaze Duration", y = "Count") +
-  theme_minimal()
+nSub2 <- raw %>% 
+  group_by(subjnum) %>% 
+  summarise(RT = mean(RT))
+nSubject2 <- nrow(nSub2)
+rm(nSub2)
 
-p3 <- ggplot(ia_analysis, aes(x = factor(reread))) +
-  geom_bar(fill = "coral", alpha = 0.7) +
-  labs(title = "Re-reading Distribution", x = "Re-read (0 = No, 1 = Yes)", y = "Count") +
-  theme_minimal()
+# Assuming gender == "M" represents females
+male_num <- raw %>%
+  filter(gender == "M") %>%
+  group_by(subjnum) %>%
+  summarise(RT = mean(RT, na.rm = TRUE), .groups = "drop") %>%
+  nrow()
 
-(p1 + p2) / (p3 + plot_spacer())
-```
-Both log-transformed first-pass measures show approximately normal distributions, sutable for linear mixed-effect modeling. The re-reading distribution shows that the majority of words are not re-read, which is consistent with my expectation as readers generally move forward through text and only return to words that caused difficulty. The binary re-reading variable will be analyzed with logistic mixed-effects models.
+# Assuming gender == "F" represents females
+female_num <- raw %>%
+  filter(gender == "F") %>%
+  group_by(subjnum) %>%
+  summarise(RT = mean(RT, na.rm = TRUE), .groups = "drop") %>%
+  nrow()
 
-
-# Analysis 1: First Fixation Duration 
-First fixation duration is the earliest measure of word processing. If the surprisal × frequency interaction appears here, it would suggest that frequency modulates the predictability effect during the very first moment of encountering the word.
-```{r}
-model_ffd <- lmer(log_ffd ~ freq_centered * surprisal_centered + length_centered + (1 | participant_id) + (1 | paragraph_id), data = ia_analysis)
-summary(model_ffd)
-```
-
-The main effect of word frequency was significant, b = .0003, t = 23.43, p < .001, indicating that higher word frequency values were associated with longer first fixation durations. The main effect of GPT-2 surprisal was also significant, b = .005, t = 34.96, p < .001, confirming that less predictable words received longer initial fixations. Word length was a significant but smaller predictor, b = .001, t = 2.99, p = .003. Critically, the frequency x surprisal interaction was significant, b = -.0002, t = -18.68, p < .001. The negative coefficient matches the direction found in portfolio 3's dwell time model, indicating that the frequency buffering effect is already present at the eariest stage of word processing - the very first fixation on the word. 
-
-# Analysis 2: Gaze Duration (first-run dwell time)
-Gaze duration captures the full first-pass processing of a word, including any within-word re-fixations before the eyes move on. It reflects a slightly later and more complete stage of first-pass processing than FFD. 
-
-```{r}
-model_gaze <- lmer(log_gaze ~ freq_centered * surprisal_centered + length_centered + (1 | participant_id) + (1 | paragraph_id), data = ia_analysis)
-summary(model_gaze)
-```
-
-The main effect of word frequency was significant, b = 0.004, t = 27.73, p < .001, with higher frequency values associated with longer gaze durations. The main effect of GPT-2 surprisal was also significant, b = 0.009, t = 51.43, p < .001, indicating that less predictable words received longer first-pass processing time. Word length was a strong predictor, b = 0.018, t = 74.71, p < .001, with a notably larger effect than in the FFD model, reflecting that longer words require more within-word refixations during first-pass reading. However, the frequency × surprisal interaction was not significant, b < -0.001, t = -0.72, p = .47. This is a striking contrast with the FFD results. The frequency buffering effect was highly significant in first fixation duration but absent in gaze duration. This dissociation suggests that the interaction operates at the very earliest moment of word contact — the initial fixation — but does not persist through the full first-pass processing of the word. One possible interpretation is that frequency provides a brief initial advantage in processing unexpected words, but once the reader engages in fuller first-pass processing (including within-word refixations), the surprisal cost is similar regardless of frequency.
-
-# Analysis 3: Re-reading Probability 
-Re-reading captures late processing, i.e., whether the reader returns to a word after initially moving past it. Since this is a binary outcome (0 = no re-reading, 1 = re-reading), we use a logistic mixed-effects model. 
-
-```{r}
-model_reread <- glmer(reread ~ freq_centered * surprisal_centered + length_centered + (1 | participant_id) + (1 | paragraph_id), data = ia_analysis)
-summary(model_reread)
-```
-
-The main effect of word frequency was significant, b = 0.004, t = 28.20, p < .001, indicating that higher word frequency values were associated with a higher probability of re-reading. The main effect of GPT-2 surprisal was also significant, b = 0.010, t = 47.08, p < .001, confirming that less predictable words were more likely to be re-read. Word length was a significant predictor, b = 0.017, t = 61.51, p < .001, with longer words more likely to receive regressions. The frequency x surprisal interaction was significant, b = -.0003, t = -17.57, p < .001. As with FFD, the negative coefficient indicates that the surprisal cost on re-reading probability is attenuated at higher frequency levels.
-
-```{r}
-tab_model(model_ffd, model_gaze, model_reread,
-          title = "Comparison of Frequency × Surprisal Interaction Across Measures",
-          dv.labels = c("Log FFD", "Log Gaze Duration", "Re-reading (logistic)"),
-          show.stat = TRUE)
-```
-
-# Compare the Interaction Across Measures
-
-```{r fig.width=8, fig.height=5}
-interaction_comp <- bind_rows(
-  tidy(model_ffd, effects = "fixed", conf.int = TRUE) %>%
-    filter(term == "freq_centered:surprisal_centered") %>%
-    mutate(measure = "First Fixation\nDuration"),
-  tidy(model_gaze, effects = "fixed", conf.int = TRUE) %>%
-    filter(term == "freq_centered:surprisal_centered") %>%
-    mutate(measure = "Gaze\nDuration"),
-  tidy(model_reread, effects = "fixed", conf.int = TRUE) %>%
-    filter(term == "freq_centered:surprisal_centered") %>%
-    mutate(measure = "Re-reading\nProbability")
+people <- data.frame(all_sub_number=length(nSubject),
+                     effect_sub_number=nSubject2,
+                     male_num=male_num,
+                     female_num=female_num,
+                     age_max=max(raw$age),
+                     age_min=min(raw$age),
+                     age_mean = mean(raw$age, na.rm = TRUE),
+                     age_sd = sd(raw$age)
 )
 
-# Coefficient comparison plot
-ggplot(interaction_comp, aes(x = measure, y = estimate)) +
-  geom_point(size = 4, color = "steelblue") +
-  geom_errorbar(aes(ymin = conf.low, ymax = conf.high),
-                width = 0.2, linewidth = 1, color = "steelblue") +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
-  labs(
-    title = "Surprisal × Frequency Interaction Across Measures",
-    subtitle = "dashed line = zero (no interaction)",
-    x = "Reading Measure",
-    y = "Interaction Coefficient"
-  ) +
-  theme_minimal(base_size = 13)
+print(people)
 ```
 
+```{r}
+# -------------------------------------------------------------------------
+# Data Exclusion
+# An exclusion criterion was established a prior. 
+# For details, please see the manuscript: Experiment 3, Data Analysis section.
+# -------------------------------------------------------------------------
+# Compute the total number of valid trials (excluding practice trials)
+total_trials = subset(raw, phase != "practice")
+total_trials1 <- nrow(total_trials)  # Total number of trials
 
-# Discussion 
-This portfolio decomposed the surprisal × frequency interaction from Portfolio 3 across three reading measures: first fixation duration, gaze duration, and re-reading probability. The interaction was significant for FFD and re-reading, but not for gaze duration. Both significant coefficients were negative, consistent with portfolio 3's direction. 
+# Remove trials with invalid RT
+excluded_RT = nrow(subset(total_trials, keepRT == 0))  
+perc_excluded_RT = (excluded_RT / total_trials1) * 100
 
-This dissociation suggests that frequency buffers against surprisal at two distinct stages but not during extended first-pass processing. During initial lexical contact (FFD), frequent words may have stronger representations that are less disrupted by unexpected contexts. This advantages is then absorbed during fuller first-pass processing (gaze duration), where the surprisal cost becomes similar regardless of frequency. The interaction re-emerges in re-reading, suggesting frequency again plays a role when readers decide whether to return to a difficult word, which is important for later comprehension monitoring. In this way, the interaction is not a single, uniform effect that scales with processing depth; instead, it appears to be stage-specific. This stage-specific pattern would have been invisible without decomposing the dependent variable, highlighting the value of examining multiple reading measures. 
+# Remove trials with incorrect responses
+excluded_ACC = nrow(subset(total_trials, ACC == 0))
+perc_excluded_ACC = (excluded_ACC / total_trials1) * 100
+
+# Compute the total exclusion percentage (including all exclusion criteria)
+excluded_total = nrow(subset(total_trials, keepRT == 0 | ACC == 0))
+perc_excluded_total = (excluded_total / total_trials1) * 100
+
+# Create a data frame to store the results
+exclusion_report <- data.frame(
+  Criteria = c("RT < 200 ms or RT > 2000 ms",
+               "Incorrect Response (ACC = 0)",
+               "Total Excluded Trials"),
+  Excluded_Trials = c(excluded_RT, excluded_ACC, excluded_total),
+  Percentage = c(round(perc_excluded_RT, 2), 
+                 round(perc_excluded_ACC, 2),
+                 round(perc_excluded_total, 2))
+)
+# Print output
+print(exclusion_report)
+```
+
+```{r}
+#Extract accdata as preprocessed data to a csv file 
+library(writexl)
+write.csv(accdata, "/Users/mumizz./Desktop/2025-2026/Courses/Data science for psych/Experiment3/Analysis Script/accdata.csv", row.names = FALSE)
+```
+
+```{r}
+#Extract Trim data to a csv file for later usage
+library(writexl)
+write.csv(trimdata, "/Users/mumizz./Desktop/2025-2026/Courses/Data science for psych/Experiment3/Analysis Script/trimdata.csv", row.names = FALSE)
+```
+---
+
+# Shared Plot Theme
+
+To maintain visual consistency with the published figures, all plots use the same theme parameters as the original manuscript (axis sizes, line weights, classic style).
+
+```{r theme}
+# Reusable ggplot theme to match the original manuscript style
+axis_text_size <- 20
+axis_tick_text_size <- 18
+graph_color <- "black"
+axis_tick_length <- 0.25
+axis_tick_units <- "cm"
+axis_thickness <- 1
+
+manuscript_theme <- theme_classic() +
+  theme(
+    axis.line = element_line(linewidth = axis_thickness, colour = graph_color),
+    axis.title = element_text(size = axis_text_size),
+    axis.text = element_text(colour = graph_color, size = axis_tick_text_size),
+    axis.ticks = element_line(linewidth = axis_thickness, colour = graph_color),
+    axis.ticks.length.y = unit(axis_tick_length, axis_tick_units),
+    axis.ticks.length.x = unit(axis_tick_length, axis_tick_units),
+    legend.position = "top",
+    text = element_text(size = axis_tick_text_size)
+  )
+```
+
+---
+
+# Secondary Analysis 1 -- Reaction Time (RT)
+
+RT is the time between display onset and the participant's button-press response. In the search task, a shorter RT means the participant found the target more efficiently. If learning to suppress the singleton reduces attentional interference, RT should decrease monotonically across Trials 1 → 2 → 3, mirroring the drop in oculomotor capture.
+
+In the central task, the situation is different: participants are not searching, so RT reflects letter-detection speed rather than visual search efficiency. Any RT change in the central task across trials would reflect processes unrelated to singleton suppression (e.g., practice effects, temporal expectation). Including both tasks in a 2 × 3 ANOVA therefore lets us test whether RT changes are specific to the search task (a significant interaction) or general across both tasks (a main effect of trial with no interaction).
+
+**Predicted pattern:**
+
+- *Search task*: RT decreases from Trial 1 to Trial 3 as the singleton is increasingly suppressed and stops drawing attention away from the target.
+- *Central task*: Little or no systematic RT change across trials (no search, so no singleton interference to resolve).
+- *Interaction*: A significant `newtrial × taskType` interaction would confirm that RT change is suppression-driven rather than a generic practice effect.
+
+## Data Preparation 
+
+RT is a trial-level variable — it has one value per trial, but `accdata` has one row per fixation. We first deduplicate to one row per trial, then average across trial groups (i.e., across all sets of 3 trials) within each subject × condition × position cell.
+
+```{r}
+rt_data <- accdata %>%
+  distinct(subjnum, taskType, trial, newtrial, RT) %>%
+  group_by(subjnum, taskType, newtrial) %>%
+  summarise(RT = mean(RT, na.rm = TRUE), .groups = "drop")
+
+rt_data %>%
+  group_by(taskType, newtrial) %>%
+  summarise(M  = round(mean(RT), 2),
+            SD = round(sd(RT), 2),
+            n  = n(), .groups = "drop") %>%
+  kable(caption = "Table 1. Mean RT (ms) by condition and trial position.")
+```
+
+Patterns in both tasks are clear. In the search task, RT decreases flatly across trial positions, from 938ms on trial 1 to 908 on trial 3, consistent with the prediction that oculomotor suppression of the singleton reduces attentional competition and thereby speeds search efficiency. Differently, in the central task, RT is substantially lower on Trial 1 and 2, reflecting simple letter-detection responses rather than visual search. However, on trial 3, the RT dramatically spike to 959ms over any trials in search task. This is structually meaningful: trial 3 of the central task is critical on which eye movements are relased and participants must search for the display for the first time, requiring a qualitatively different cognitive process than the monitoring performed on trial 1 and 2. 
 
 
+## Within-subjects ANOVA 
+We first conducted a 2(taskType) × 3(newtrial) within-subjects ANOVA. Specifically, we predicted that the `newtrial` main effect tests whether RT changes across trial positions overall. The `taskType` main effect tests whether one task is generally faster. The `newtrial × taskType` interaction is the critical test: does RT change differently across trials depending on whether the task involved active search (and therefore singleton interference)?
+
+```{r}
+MANOVA(data = rt_data,
+  subID = "subjnum",
+  dv = "RT",
+  within = c('newtrial', 'taskType'),
+  digits = 2) %>%
+  EMMEANS('newtrial') %>%
+  EMMEANS('taskType') %>%
+  EMMEANS('taskType', by = 'newtrial')
+```
+
+All three effects we expected were highly significant. First, the trial position showed a significant main effect on RT, F(2,78) = 409.54, p < .001, η²p = .91, suggesting that RT differed substantially across trial positions, averaged over both tasks. However, this main effect is hard to interpret in isolation given the dramatic and directionally opposite RT change, espeically in the trial 3 of the central task. Besides, a significant main effect of task type was showed, F(1, 39) = 436.77, p < .001, η²p = .92. Averaged across all three trials, search task RT (M = 920ms) was 281ms longer than central task RT (639ms), d = 2.77. This refelcts the fundamental difference in task demands rather than suppression specifically. Critically, RT changed across trials in sharply different ways depending on the task, with decrease in the search task and spiking in the central task on trial 3, F(2, 78) = 422.68, p < .001, η²p = .92.
+
+Simple effects of task type at each trial position decompose the interaction. Specifically, in trial 1 and 2, RT of search task was much longer than central task, (trial1: F(1,39) = 417.66, p < .001, η²p = .915; trial 2: F(1, 39) = 537.03, p < .001, η²p = .932). Both tasks were far apart. The trend in trial 3 was reversed. Participants spent slightly more than on the central task than the search task, F(1, 39) = 29.25, p < .001, η²p = .429, d = −0.51, suggesting a clear the critical trial (trial 3) cost in central task. On the trial 3 of central task, participant searched the display with their eyes movement, in which they did so without ever having experience the singleton as a distractor before, meaning no suppression had been learned. By contrast, when participants doing search task, they had spent two prior trials learning to suppress that same singleton. 
 
 
+## One-way ANOVA within the search task 
 
+Building upon the significant interaction above, this follow-up isolates the RT effect within the search task alone, without the central task serving as a reference. To isolate the suppression-specific RT effect, we ran an one-way within-subject ANOVA restricted to the search task, with trial position as the only predictor. This mirrors how the original manuscript reported the oculomotor capture ANOVA (search-only, Panel B).
+
+```{r}
+rt_search <- rt_data %>% filter(taskType == "search")
+MANOVA(
+  data = rt_search,
+  subID = "subjnum",
+  dv = "RT",
+  within = 'newtrial',
+  digits = 2
+) %>%
+  EMMEANS('newtrial')
+```
+
+The ANOVA was significant: F(2, 78) = 14.49, p < .001, η²p = .271, indicating that search RT changed reliably across the 3-trial same-color sequence. Pairwise comparisons (Bonferroni-corrected) revealed a statistically significant decrease (23.20ms) in RT of trial 2 compared to trial 1, t(39) = −3.92, p = .001, d = −.61, suggesting that suppression emerged quickly by the second encounter with the same singleton color. Similarly, comparing trial 1 and 3, RT decreased by 31.00ms, t(39) = −5.02, p < .001, d = −.82, demonstrating that the  suppression benefit could be accumulated to speedup following trial 3. However, the additional RT decrease from trial 2 to trial 3 was only 7.8 ms and was not significant (t(39) = −1.33, p = .574, d = −0.21). This non-significant difference suggested that the bulk of the RT benefit was already achieved by trial 2, with no further meaningful gain on Trial 3. This pattern aligns with the oculomotor capture data from the original analysis, where the sharpest change in capture direction also occurred between trial 1 and trial 2.
+
+# Plot
+
+```{r rt-plot, fig.width=8, fig.height=5, fig.cap="Figure S1. Mean RT (ms) across trial positions by task type. Error bars = 95% CI (Cousineau-Morey corrected for within-subjects designs). Solid black = Search Task; Dashed blue = Central Task."}
+rt_plot <- with(rt_data,
+                cmErrBar(RT, subjnum, paste(taskType, newtrial), "ci")) %>%
+  separate(group, into = c("condition", "trial"), sep = " ")
+rt_plot$trial <- factor(rt_plot$trial, levels = c("1", "2", "3"))
+
+ggplot(rt_plot, aes(x = trial, y = mean, group = condition, color = condition)) +
+  geom_errorbar(aes(ymin = minus, ymax = plus), width = 0.15, linewidth = 1.1) +
+  geom_line(linewidth = 1.1, aes(linetype = condition)) +
+  geom_point(size = 4, aes(shape = condition)) +
+  scale_color_manual(values = c("central" = "#4A90E2", "search" = "#333333"),
+                     labels = c("Central Task", "Search Task")) +
+  scale_shape_manual(values = c("central" = 17, "search" = 15),
+                     labels = c("Central Task", "Search Task")) +
+  scale_linetype_manual(values = c("central" = "dashed", "search" = "solid"),
+                        labels = c("Central Task", "Search Task")) +
+  labs(x     = "Trials with Same Color",
+       y     = "Response Time (ms)",
+       color = "Task Type", shape = "Task Type", linetype = "Task Type") +
+  manuscript_theme
+```
+
+The plot showed the diverging RT patterns across the two tasks. The search task decreased gradually across the three trials, while the central task descends between trials 1 and 2 then sharply raises to cross above the search task at trial 3. The two lines converge and cross between trials 2 and 3, visually showing the significant interaction between trial position and task type. Additionally, the downward trend in the search task across all three trial bins, paired with slightly gentle plain between trials and 3, reinforces that suppression drives a fast initial RT gain from trial 1 to 2, and then levels off to trial 3. 
 
 

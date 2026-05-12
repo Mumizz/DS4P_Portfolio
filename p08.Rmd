@@ -1,18 +1,35 @@
 ---
-title: "Portfolio 8: Extension of Portfolio 7"
+title: "Portfolio 8 : Within-Trial Eye Movement Sequence"
 ---
 
 > The projects should be numbered consecutively (i.e., in the order in which you began them), and should include for each project a description of the goal, the product (computer program, hand graph, computer graph, etc.), the data, and some interpretation. Reports must be reproducible and of high quality in terms of writing, grammar, presentation, etc.
 
+# Background 
 
+The last two portfolios established that target first-fixation rate is robustly above chance throughout the three-trial suppression learning sequence but completely unmodulated by it. Singleton capture falls sharply from trials 1 to 3; target fixation rate does not rise. This may suggest that suppression is purely inhibitory - it removes the singleton's oculomotor priority without redistributing attention toward the goal.
 
-## Extension 1: Full First-Fixation Probability Decomposition
+But the analyses so far have looked at only one moment in each trial - the very first fixation. A full trial contains an entire sequence of eye movements as the participant scans the display, gets captured, recovers, and eventually finds the target. Two questions that no prior analysis can answer: 
 
-The main analysis of target fixation rate only examined the target row of `firstfix2`. But understanding where the freed probability mass goes as singleton fixation drops is theoretically important. If suppression actively redirects attention toward the goal, target fixation should rise as singleton fixation falls. If suppression is purely inhibitory, i.e., reducing the singleton's pull without boosting target priority, target fixation should stay flat and the freed probability should flow instead to nonsingleton items.
+- First, when the eye is captured by the singleton distractor, does suppression learning help participants escape more efficiently? If participants on trial 3 are better at immediately redirecting to the target after being trapped (compared to trial 1), that would suggest suppression reshapes not just whether capture happens, but the recovery dynamics that follow. Conversely, if post-capture recovery is constant across trial positions, it means suppression acts only at the initial decision stage, with no downstream influence once the eye has already landed on the wrong item.
 
-This extension plots and tests all three item types (Singleton, Target, Nonsingleton per item) simultaneously across trials 1–3 in the search task.
+- Second, does suppression learning make the overall search path more efficient? Fewer fixations needed to reach the target would indicate that deprioritizing the singleton streamlines the entire scan sequence. A flat result would suggest that the search process after the first saccade unfolds identically regardless of whether the participant is on trial 1 (unsuppressed) or trial 3 (fully suppressed). 
+
+Together, these two questions test where in the oculomotor hierarchy suppression learning operates. If both are null (post-capture recovery unchanged, fixation count to target unchanged), the conclusion is a sharp mechanistic one: suppression learning is exclusively a pre-saccadic phenomenon, operating during the initial motor planning period while the eye is still at the central fixation point. Once the eye leaves centre, everything that follows is identical across the learning arc. The mechanism does not make search smarter or faster; it simply prevents misdirection at the very first step. In this way, it is reasonable to infer that what participants learn in the process of distractor suppression is - more prepared (or more ready) to move their eyes for the first search. 
+
+# Goals 
+
+This portfolio examines the full within-trial fixation sequence in the search task to test whether suppression learning reshapes eye movement behavior beyond the first saccade. Two specific goals are pursued:
+
+- *Post-capture recovery*: On trials where the first fixation is captured by the singleton, does the probability of immediately redirecting the eye to the target on the next fixation increase across Trials 1 to 3? If so, suppression learning improves not just capture avoidance but also recovery efficiency once captured. If not, recovery behaviour is independent of suppression state.
+
+- *Search efficiency*: Does the number of fixations required to reach the target decrease across Trials 1 to 3? If suppression learning streamlines the overall scan path, participants should reach the target more directly on Trial 3 than on Trial 1. If the fixation count is flat, the benefit of suppression is confined entirely to the first saccade.
+
+# Analysis
+
+## Setup 
 
 ```{r setup, message=FALSE, warning=FALSE}
+# Identical to previous portfolio 
 rm(list = ls())
 setwd("~/Documents/GitHub/DS4P_Portfolio")
 library('NickPsych')
@@ -28,6 +45,8 @@ library('patchwork')
 
 # Load preprocessed data
 accdata <- read.csv("/Users/mumizz./Desktop/2025-2026/Courses/Data science for psych/Experiment3/Analysis Script/accdata.csv")
+
+trimdata <- read.csv("/Users/mumizz./Desktop/2025-2026/Courses/Data science for psych/Experiment3/Analysis Script/trimdata.csv")
 
 # Plot theme (matching manuscript style)
 axis_text_size <- 20
@@ -50,135 +69,278 @@ manuscript_theme <- theme_classic() +
   )
 ```
 
+## Data preparation 
+
+To address these questions we need the full fixation sequence per trial. The variable `search_full` is constructed from `trimdata` retaining all saccade indices (saccindex 0–10), filtered to good formal search trials for included subjects - the same population as all prior analyses, but with the saccindex == 1 restriction lifted.
+
 ```{r}
-# firstfix2 (identical to the original script)
-accdata2 <- subset(accdata, !is.na(SRT))
+# Create Search_full
+subj <- unique(accdata$subjnum)
 
-firstfix2 <- as.data.frame(
-  xtabs(~ curritem + subjnum + taskType + newtrial, data = accdata2)
-)
+search_full <- trimdata %>% 
+  filter(subjnum %in% subj,
+         phase != "practice",
+         ACC == 1,
+         keepRT == 1,
+         brokeFixation != 1,
+         searchArray == "search") %>%
+  mutate(newtrial = ((trial - 121) %% 3) + 1,
+         trial_group = (trial - 121) %/% 3)
 
-# Total number of fixations on items in the display 
-firstfix2$total <- with(firstfix2, ave(Freq, interaction(subjnum, taskType, newtrial), FUN = sum))
-# % of the toal each item was fixated 
-firstfix2$perc <- firstfix2$Freq / firstfix2$total
-
-firstfix2$perc <- with(firstfix2,
-  ifelse(curritem == 'Nonsingleton', perc / 4, perc))
-firstfix2$perc[is.nan(firstfix2$perc)] <- 0
-firstfix2 <- firstfix2[, -c(5, 6)]
+summary(search_full)
 ```
 
+## Part 1 - Post-capture Saccade 
+
 ```{r}
-# Descriptive table: all three item types 
-decomp_desc <- firstfix2 %>%
-  filter(taskType == "search") %>%
-  group_by(curritem, newtrial) %>%
-  summarise(M  = round(mean(perc) * 100, 2),
-            SD = round(sd(perc)  * 100, 2), .groups = "drop")
-kable(decomp_desc,
-      caption = "Table 4. First-fixation rate (%) by item type and trial position — search task only. Nonsingleton is a per-item rate (divided by 4). Chance = 16.67% for all three categories.")
+# Build captured-trial dataset and identify post-capture destination 
+
+## saccindex 1 = first fixation; saccindex 2 = second
+s1 <- search_full %>%
+  filter(saccindex == 1) %>%
+  select(subjnum, trial, newtrial, s1_item = curritem)
+
+s2 <- search_full %>%
+  filter(saccindex == 2) %>%
+  select(subjnum, trial, s2_item = curritem)
+
+## Keep only captured trials (s1 = Singleton) that also have a second fixation
+post_cap <- s1 %>%
+  left_join(s2, by = c("subjnum", "trial")) %>%
+  filter(s1_item == "Singleton", !is.na(s2_item)) %>%
+  mutate(s2_target = as.integer(s2_item == "Target"),
+         s2_nonsingleton = as.integer(s2_item == "Nonsingleton"),
+         s2_singleton = as.integer(s2_item == "Singleton"),
+         newtrial = factor(newtrial))
+
+## Overall 
+post_cap %>%
+  summarise(P_target = round(mean(s2_target)       * 100, 2),
+            P_nonsingleton = round(mean(s2_nonsingleton)  * 100, 2),
+            P_singleton_again = round(mean(s2_singleton)     * 100, 2),
+            n = n()) %>%
+  kable(caption = "Table 5. Post-capture saccade destination (% of captured trials)")
+
+## By newtrial
+post_cap %>%
+  group_by(newtrial) %>%
+  summarise(P_target = round(mean(s2_target)       * 100, 2),
+            P_nonsingleton = round(mean(s2_nonsingleton)  * 100, 2),
+            P_singleton_again = round(mean(s2_singleton)     * 100, 2),
+            n = n(), .groups = "drop") %>%
+  kable(caption = "Table 6. Post-capture destination by trial position.")
 ```
 
-To determine where the freed probability mass flows as singleton capture decreases, we examined all three item types simultaneously across trials 1–3 in the search task. Singleton fixation dropped gradually from 15.73% (SD = 5.06%) on Trial 1, to 9.88% (SD = 5.41%) on trial 2, then to 8.29% (SD = 4.35%) on trial 3. 
+On trials where the first fixation landed on the singleton, we examined where the eye moved next (i.e., the second fixation). Across all participants and trial positions, 1,381 such capture trials were identified. Overall, the second fixation went to the target on 52.14% of these trials, to a nonsingleton on 41.56%, and back to the singleton on 6.30%. Broken down by trial position, P(S2 = Target | S1 = Singleton) was 56.57% on trial 1, 49.67% on trial 2, and 49.92% on trial 3.
 
 ```{r}
-sing_fix <- firstfix2 %>% filter(taskType == "search", curritem == "Singleton")
-MANOVA(data = sing_fix,
+# ANOVA on P(s2 = Target | captured) - Given the eye was just captured, where does it go next?
+pct_subj <- post_cap %>%
+  group_by(subjnum, newtrial) %>%
+  summarise(p_target = mean(s2_target), .groups = "drop")
+
+MANOVA(data = pct_subj,
        subID = "subjnum",
-       dv = "perc",
-       within = 'newtrial',
+       dv = "p_target",
+       within = "newtrial",
        sph.correction = "GG",
-       digits = 3) %>%
-  EMMEANS('newtrial')
+       digits = 2) %>%
+  EMMEANS("newtrial")
 ```
 
-A one-way within-subjects ANOVA confirmed a significant effect of trial position on singleton fixation rate, F(1.69, 66.05) = 50.38, p < .001, η²p = .56 (Greenhouse-Geisser corrected; Mauchly's W = 0.819, p = .023). Both contrasts against trial 1 were highly significant after Bonferroni correction, (1) trial 2 vs. trial 1, Mdiff = -5.85%, t(39) = -6.26, p < .001, Cohen's d = -1.18, (2) trial 3 vs. trial 1, Mdiff = -7.44%, t(39) = -10.66, p < .001, Cohen's d = -1.51. The trial 3 vs. trial 2 contrast was marginal after Bonferroni correction (t(39) = -2.34, p = .073, Cohen's d = -.33), suggesting that the bulk of suppression development occurs on the first same-color repetition. 
+A one-way within-subjects ANOVA on subject-level P(S2 = Target | captured) revealed no significant effect of trial position, F(1.89, 71.86) = 1.07, p = .34, η²p = .027. All pairwise contrasts were non-significant after Bonferroni correction. Post-capture recovery behaviour (the probability of immediately redirecting to the target after being trapped by the singleton) was entirely stable across the three-trial learning arc.
 
-```{r decomp-plot, fig.width=8, fig.height=5, fig.cap="Figure S4. First-fixation rate (%) for each item type across trial positions in the search task. Chance baseline = 16.67% (dashed line). Error bars = 95% CI (Cousineau-Morey corrected)."}
-decomp_summary <- with(
-  firstfix2 %>%
-    filter(taskType == "search") %>%
-    mutate(group_label = paste(curritem, newtrial)),
-  cmErrBar(perc, subjnum, group_label, "ci")
-) %>%
-  separate(group, into = c("item", "trial"), sep = " ") %>%
-  mutate(trial = factor(trial, levels = c("1", "2", "3")),
-         item = factor(item, levels = c("Singleton", "Target", "Nonsingleton")))
+### Markov Transition Matrix
 
-ggplot(decomp_summary,
-       aes(x = trial, y = mean * 100, group = item,
-           color = item, linetype = item, shape = item)) +
-  geom_errorbar(aes(ymin = minus * 100, ymax = plus * 100),
-                width = 0.15, linewidth = 1.1) +
-  geom_line(linewidth = 1.1) +
-  geom_point(size = 4) +
-  geom_hline(yintercept = 100 / 6, linetype = "dashed",
-             color = "gray50", linewidth = 0.8) +
-  annotate("text", x = 0.6, y = 100 / 6 + 1.5,
-           label = "chance (1/6)", color = "gray50", size = 4.5, hjust = 0) +
-  scale_color_manual(
-    values = c("Singleton" = "#E74C3C", "Target" = "#333333", "Nonsingleton" = "#95A5A6"),
-    labels = c("Singleton", "Target", "Nonsingleton (per item)")) +
-  scale_shape_manual(
-    values = c("Singleton" = 15, "Target" = 16, "Nonsingleton" = 17),
-    labels = c("Singleton", "Target", "Nonsingleton (per item)")) +
-  scale_linetype_manual(
-    values = c("Singleton" = "dashed", "Target" = "solid", "Nonsingleton" = "dotted"),
-    labels = c("Singleton", "Target", "Nonsingleton (per item)")) +
-  labs(x = "Trials with Same Color",
-       y = "First-Fixation Rate (%)",
-       color = "Item Type",
-       shape = "Item Type",
-       linetype = "Item Type") +
-  manuscript_theme
-```
-
-The figure showed the first fixation rate for all three item types across the 3-trial same-color sequence in the search task. The target line sit flat approximately 39 throughout, well above the 16.67% chance baseline, indicating that target guidance is strong and entirely unaffected by the learning cycle. The singleton line told the opposite trend: it started near the chance at 15% on trial 1, then drops sharply to about 10% on trial 2 and falls further down to about 8% on trial 3, largely below chance by the end of the sequence. The nonsingleton line lay in at about 12% at trial 1 and drifts upward toward the chance line by trial 3. 
-
-Critically, the relationship between all three lines together might suggest: as the singleton line falls by approximately 8 percentage points across trials, the freed probability mass does not flow toward the target, i.e., remaining flat, but instead disperses to the nonsingleton items. This pattern is the hallmark of a purely inhibitory suppression process: the oculomotor system learns to remove the singleton's attentional priority without actively redirecting attention toward the goal, such that the beneficiaries of suppression are random non-target locations rather than the item participants are actually searching for. 
-
-## Extension 2: Individual Differences — Does T1 Capture Predict Learning?
-
-If being overtly captured by the singleton on trial 1 is what drives suppression learning, then participants who showed stronger T1 capture should show stronger T2/T3 suppression. This extension tests that prediction directly at the individual level using Pearson correlations between each participant's T1 singleton fixation rate and their subsequent learning magnitude (T1−T3 reduction in singleton fixation).
+Beyond the first capture, the full scan path can be described as a Markov chain of item-to-item transitions. This quantifies the complete search dynamics, not just what happens after saccindex 1, but at any point in the sequence. In other words, it treats the entire fixation sequence as a chain of transitions and computes the probability of moving from one item type to every item type, regardless of when in the trial that transition happens. 
 
 ```{r}
-# Per-participant singleton fixation rate in search task, wide format
-sing_wide <- firstfix2 %>%
-  filter(taskType == "search", curritem == "Singleton") %>%
-  pivot_wider(names_from = newtrial, values_from = perc) %>%
-  rename(t1 = `1`, t2 = `2`, t3 = `3`)
+pairs <- search_full %>%
+  arrange(subjnum, trial, saccindex) %>%
+  group_by(subjnum, trial) %>%
+  mutate(next_item = lead(curritem)) %>%
+  filter(!is.na(curritem), !is.na(next_item)) %>%
+  ungroup()
 
-# Learning magnitude = reduction in singleton fixation from T1 to T3
-sing_wide$learning_t1_t3 <- sing_wide$t1 - sing_wide$t3
-
-# Individual Differences: T1 Capture and Learning
-# Correlation: T1 singleton rate vs. T3 singleton rate
-cor1 <- cor.test(sing_wide$t1, sing_wide$t3, method = "pearson")
-print(cor1)
-
-# Correlation: T1 singleton rate vs. learning magnitude (T1 − T3) 
-cor2 <- cor.test(sing_wide$t1, sing_wide$learning_t1_t3, method = "pearson")
-print(cor2)
-
-# T1 singleton rate vs. T2 singleton rate
-cor3 <- cor.test(sing_wide$t1, sing_wide$t2, method = "pearson")
-print(cor3)
+# Full Markov Transition Matrix (all trials pooled)
+pairs %>%
+  group_by(curritem, next_item) %>%
+  summarise(n = n(), .groups = "drop") %>%
+  group_by(curritem) %>%
+  mutate(P = round(n / sum(n) * 100, 2)) %>%
+  arrange(curritem, next_item) %>%
+  kable(caption = "Table 7. Markov transition probabilities (%) between item types across the full fixation sequence.")
 ```
 
-Three Pearson's correlation analyses were conducted to examine whether individual difference in initial capture predicted subsequent learning. First, trial 1 singleton fixation rate was positively correlated with trial 3 singleton fixation rate, r = .57, t(38) = 4.25, p < .001, 95% CI[.31, .75], indicating that participants who were more strongly captured on Trial 1 still showed higher singleton fixation on trial 3 than others. Second, and more directly, trial 1 capture rate was positively correlated with learning magnitude (T1−T3 reduction), r = .59, t(38) = 4.46, p < .001, 95% CI[.34, .76], confirming that participants who experienced stronger initial capture showed greater suppression by Trial 3. This correlation allowed us to infer that high initial capture rate is associated with a larger learning rate within subjects. Furthermore, this relationship was detected by the 3rd correlation analysis: Trial 1 capture rate predicted Trial 2 singleton fixation rate, r = .37, t(38) = 2.44, p = .020, 95% CI[.06, .61], indicating that the learning advantage of high-capture individuals emerges as early as the first same-color repetition. Together, these correlations provide individual-level evidence for the capture-learning mechanism: the more strongly the oculomotor system was initially drawn to the singleton, the more forcefully it learned to suppress it, consistent with the interpretation that overt capture is not merely a correlate of the learning process but its primary driver.
+Examining all consecutive fixation pairs across the full scan sequence, the transition matrix revealed a consistent picture of target-directed search with modest singleton interference. Two comparisons are theoretically central. First, P(Singleton -> Target) = 44.14% vs. P(Nonsingleton -> Target) = 49.89%: after landing on the singleton at any point in a trial, the eye was approximately 6 percentage points less likely to redirect immediately to the target than after landing on a neutral nonsingleton distractor. Second, P(Singleton -> Nonsingleton) = 44.64% vs. P(Nonsingleton -> Nonsingleton) = 44.13%: these two rates are very close to each other, indicating that the reduction in target-directed transitions from the singleton is not redistributed to other nonsingleton distractors. Instead, the "missing" probability is absorbed by singleton refixations - P(Singleton -> Singleton) = 11.22%, nearly double the rate at which the eye returns to the singleton from a nonsingleton position (P(Nonsingleton -> Singleton) = 5.98%). Once the target was found, the eye stayed: P(Target -> Target) = 76.06%, reflecting strong dwell tendency upon finding the goal item.
 
-```{r ind-diff-plot, fig.width=7, fig.height=5, fig.cap="Figure S5. Scatter plot of Trial 1 singleton fixation rate vs. learning magnitude (Trial 1 − Trial 3 reduction). Each point = one participant. Line = OLS regression with 95% CI shading."}
-ggplot(sing_wide, aes(x = t1 * 100, y = learning_t1_t3 * 100)) +
-  geom_point(size = 3, color = "gray35", alpha = 0.8) +
-  geom_smooth(method = "lm", se = TRUE,
-              color = "black", fill = "gray80", linewidth = 1.1) +
-  annotate("text",
-           x = max(sing_wide$t1 * 100) - 1,
-           y = max(sing_wide$learning_t1_t3 * 100) - 1,
-           label = "r = .59, p < .001",
-           hjust = 1, size = 5.5) +
-  labs(x = "Trial 1 Singleton Fixation Rate",
-       y = "Learning Magnitude\n(T1-T3 Singleton Fixation Rate") +
+```{r}
+# Extract P(next = Target | current = Singleton) 
+sing_to_targ <- pairs %>%
+  filter(curritem == "Singleton") %>%
+  mutate(to_target = as.integer(next_item == "Target"),
+         newtrial = factor(newtrial)) %>%
+  group_by(subjnum, newtrial) %>%
+  summarise(p_escape = mean(to_target), .groups = "drop")
+
+# ANOVA: Singleton -> Target = 44.14%, whether the probability changes across all trials (learning trajectory)
+MANOVA(data = sing_to_targ,
+       subID = "subjnum",
+       dv = "p_escape",
+       within = "newtrial",
+       sph.correction = "GG",
+       digits = 2) %>%
+  EMMEANS("newtrial")
+```
+
+To test whether the singleton's mid-sequence holding power weakens as suppression is learned, we computed P(Singleton -> Target) per subject per trial position and submitted it to a one-way within-subjects ANOVA. The effect of trial position was marginal, F(1.90, 74.05) = 2.57, p = .086, η²p = .062. If anything, the trend ran counter to prediction - escape-to-target probability decreased slightly from trial 1 to trial 3 (48.0%, 46.8%, 43.8%) rather than increasing. This counterintuitive pattern almost certainly reflects selection bias: trial 3 captured trials are drawn exclusively from participants who were hardest to suppress, and such participants tend to be less efficient searchers overall. No reliable learning-driven change in mid-sequence singleton escape was observed.
+
+```{r fig.width=8, fig.height=4.5, fig.cap="Figure S8. Post-capture saccade destination (%) by trial position. Stacked bars show where the second fixation lands given the first fixation was captured. Error bars on Target component = 95% CI (Cousineau-Morey corrected)."}
+# Summary with error bars for Target component
+pc_ci <- with(
+  post_cap %>% mutate(group_label = paste("T", newtrial, sep="")),
+  cmErrBar(s2_target, subjnum, group_label, "ci")
+) %>%
+  rename(newtrial = group)
+
+# barplot data
+pc_stack <- post_cap %>%
+  group_by(newtrial) %>%
+  summarise(Target = round(mean(s2_target) * 100, 2),
+            Nonsingleton = round(mean(s2_nonsingleton) * 100, 2),
+            Singleton = round(mean(s2_singleton) * 100, 2),
+            .groups = "drop") %>%
+  pivot_longer(cols = c(Target, Nonsingleton, Singleton),
+               names_to = "destination", values_to = "pct") %>%
+  mutate(destination = factor(destination,
+                               levels = c("Singleton", "Nonsingleton", "Target")))
+
+ggplot(pc_stack,
+       aes(x = newtrial, y = pct, fill = destination)) +
+  geom_col(width = 0.6) +
+  geom_errorbar(
+    data = pc_ci %>%
+      mutate(newtrial = gsub("T","",newtrial)) %>%
+      mutate(y_base = pc_stack %>%
+               filter(destination %in% c("Singleton","Nonsingleton")) %>%
+               group_by(newtrial) %>%
+               summarise(base = sum(pct), .groups="drop") %>%
+               pull(base)),
+    aes(x = newtrial,
+        ymin = (minus + y_base) * 100,
+        ymax = (plus + y_base) * 100),
+    inherit.aes = FALSE, width = 0.15, linewidth = 0.9) +
+  scale_fill_manual(
+    values = c("Target" = "#2C3E50",
+               "Nonsingleton" = "#95A5A6",
+               "Singleton" = "#E74C3C"),
+    labels = c("Target", "Nonsingleton", "Singleton (re-fixation)")) +
+  scale_y_continuous(limits = c(0, 105),
+                     labels = scales::percent_format(scale = 1, accuracy = 1)) +
+  labs(x = "Trial Position within Group",
+       y = "Post-Capture Destination (%)",
+       fill = "Second Fixation") +
   manuscript_theme
 ```
+
+## Part 2 Fixation Count to Target - Search efficiency
+
+### Data preparation
+
+```{r}
+# For each trial, find the earliest saccindex at which the eye reached the target.
+# saccindex >= 1 excludes the central fixation (pre-search period)
+fix_count <- search_full %>%
+  filter(!is.na(curritem), saccindex >= 1) %>%
+  group_by(subjnum, trial, newtrial) %>%
+  summarise(
+    # First_targ = 1: the eye went directly to the target as the first fixation
+    first_targ = {
+      tix <- saccindex[curritem == "Target"]
+      if (length(tix) == 0) NA_real_ else min(tix)
+    },
+    .groups = "drop"
+  )
+
+fix_count_clean <- fix_count %>%
+  filter(!is.na(first_targ)) %>%
+  mutate(newtrial = factor(newtrial))
+
+# Descriptives (trial-level)
+fix_count_clean %>%
+  group_by(newtrial) %>%
+  summarise(M = round(mean(first_targ), 3),
+            SD = round(sd(first_targ),   3),
+            P_direct = round(mean(first_targ == 1) * 100, 2), # P_direct = % of trials where the target was fixated first.
+            .groups = "drop") %>%
+  kable(caption = "Table 8. First-target fixation index by trial position.")
+```
+
+### ANOVA
+
+```{r}
+fix_subj <- fix_count_clean %>%
+  group_by(subjnum, newtrial) %>%
+  summarise(mean_fix = mean(first_targ), .groups = "drop")
+
+MANOVA(data = fix_subj,
+       subID = "subjnum",
+       dv = "mean_fix",
+       within = "newtrial",
+       sph.correction = "GG",
+       digits = 2) %>%
+  EMMEANS("newtrial")
+```
+
+For each trial we computed the saccade index at which the eye first reached the target (saccindex ≥ 1). Subject-level means per trial position were submitted to a one-way within-subjects ANOVA. The ANOVA confirmed a completely flat result: F(1.793, 69.938) = 0.61, p = .53, η²p = .015. Trial-position means were almost identical - 2.054 (SD = .43) on trial 1, 2.029 (SD = 0.48) on trial 2, and 2.054 (SD = 0.43) on Trial 3. All pairwise contrasts were non-significant after Bonferroni correction. The number of fixations required to reach the target was entirely stable across the suppression learning
+
+### Plot
+
+```{r, fig.width=10, fig.height=4.5, fig.cap="Figure 1. Left: mean first-target fixation index (± 95% CI) by trial position. Right: distribution of first-target fixation index pooled across trial positions. Error bars = 95% CI (Cousineau-Morey corrected)."}
+# Panel A: mean per newtrial
+fc_sum <- with(
+  fix_subj %>% mutate(group_label = as.character(newtrial)),
+  cmErrBar(mean_fix, subjnum, group_label, "ci")
+) %>% rename(newtrial = group)
+
+p_fc_mean <- ggplot(fc_sum,
+                    aes(x = newtrial, y = mean, group = 1)) +
+  geom_errorbar(aes(ymin = minus, ymax = plus),
+                width = 0.15, linewidth = 1.1) +
+  geom_line(linewidth = 1.1, color = "#2C3E50") +
+  geom_point(size = 4,  color = "#2C3E50") +
+  scale_y_continuous(limits = c(1, 3)) +
+  labs(x = "Trial Position within Group",
+       y = "Mean Fixations before Target") +
+  manuscript_theme
+
+# Panel B: histogram of first_targ distribution
+fix_dist <- fix_count_clean %>%
+  filter(first_targ <= 8) %>%
+  mutate(newtrial = paste0("T", newtrial))
+
+p_fc_dist <- ggplot(fix_dist,
+                    aes(x = factor(first_targ), fill = newtrial)) +
+  geom_bar(position = "dodge", alpha = 0.85) +
+  scale_fill_manual(
+    values = c("T1" = "#2C3E50", "T2" = "#7F8C8D", "T3" = "#BDC3C7")) +
+  labs(x = "First-Target Fixation Index",
+       y = "Trial Count",
+       fill = "Trial Position") +
+  manuscript_theme
+
+p_fc_mean + p_fc_dist + plot_layout(widths = c(1, 1.4))
+```
+
+In the left panel, the three points sit essentially on top of each other at about 2.10, flat across trial positions. The error bars are narrow and fully overlapping. This is a clean visual confirmation of no trend whatever. 
+
+In the right panel, the distribution of first-target fixation index showed how many fixations did the eyes make before it first landed on the target. The vast majority of trials were resolved within the first two fixations. Crucially, the distributions were nearly identical in shape: the relative proportion of trials at each fixation index is stable across trial 1, trial 2, and trial 3. No trial position demonstrated a systematic shift toward lower indices that would indicate more direct target acquisition, nor a shift toward higher indices indicating longer search paths. This shape invariance was the visual complement to the flat ANOVA result.
+
+
+# Summary
+
+Both within-trial analyses returned strong null results. Post-capture recovery and search efficiency were completely invariant across the three-trial suppression learning sequence, despite singleton first-fixation rate dropping substantially across the same trials.
+
+This creates a sharp mechanistic dissociation: suppression learning is exclusively a pre-saccadic phenomenon. It operates during the initial oculomotor planning stage; while the eye is still at the central fixation point and exerts no downstream influence on search behavior once the first saccade is executed. Suppression does not make within-trial search smarter or more efficient; it simply prevents the eye from being misdirected at the very first step. Once a saccade is underway, the subsequent fixation sequence unfolds almost identically regardless of how much learning has accumulated across the trial group.
+
+

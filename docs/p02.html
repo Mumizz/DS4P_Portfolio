@@ -11,7 +11,7 @@
 
 
 
-<title>Exploring Eye-tracking Data in Reading</title>
+<title>Portfolio 2: Contextual Predictability and Word Frequency Effects on Reading Time</title>
 
 <script src="site_libs/header-attrs-2.30/header-attrs.js"></script>
 <script src="site_libs/jquery-3.6.0/jquery-3.6.0.min.js"></script>
@@ -278,6 +278,9 @@ $(document).ready(function () {
 <li>
   <a href="p10.html">Portfolio 10</a>
 </li>
+<li>
+  <a href="p11.html">Portfolio 11</a>
+</li>
       </ul>
       <ul class="nav navbar-nav navbar-right">
         
@@ -290,7 +293,8 @@ $(document).ready(function () {
 
 
 
-<h1 class="title toc-ignore">Exploring Eye-tracking Data in Reading</h1>
+<h1 class="title toc-ignore">Portfolio 2: Contextual Predictability and
+Word Frequency Effects on Reading Time</h1>
 
 </div>
 
@@ -302,807 +306,660 @@ of the goal, the product (computer program, hand graph, computer graph,
 etc.), the data, and some interpretation. Reports must be reproducible
 and of high quality in terms of writing, grammar, presentation, etc.</p>
 </blockquote>
-<hr />
 <div id="background" class="section level1">
 <h1>Background</h1>
-<p>Eye movements during reading provide a window into real-time
-cognitive processing. When we read, our eyes make rapid movements
-(saccades) and brief pauses (fixations). The duration of fixations and
-the probability of skipping words reveal how factors like word length,
-frequency, and predictability influence visual attention allocation.</p>
+<p>This portfolio investigates the interaction between contextual
+predictability (measured by GPT-2 surprisal) and word frequency effects
+on reading time. Building upon Portfolio 1, which examined the
+interaction between word length and word frequency using simple linear
+regression, this work extends the analysis in two key ways: (1)
+incorporating contextual predictability as a predictor, and (2)
+employing linear mixed-effects models to account for the hierarchical
+structure of the data (observations nested within participants and
+paragraphs), directly addressing a limitation noted in Portfolio 1.</p>
+<p>Contextual predictability refers to how expected a word is given the
+preceding context. Smith and Levy (2013) demonstrated that the effect of
+word predictability on reading time is logarithmic: each doubling of a
+word’s probability reduces reading time by a roughly constant amount.
+GPT-2 surprisal, measured in bits (i.e., negative log-probability),
+provides a natural operationalization of this logarithmic relationship,
+as surprisal is already on a log scale.</p>
 <div id="data" class="section level2">
 <h2>Data</h2>
 <p>This portfolio uses the OneStop Eye Movements Dataset (Berzak et al.,
 2025; 10.17605/OSF.IO/ZN9SQ), a large-scale corpus containing 360
-participants reading news articles with eye-tracking measures. It also
-includes rich lexical annotations, such as word frequency, GPT-2
-surprisal, and part-of-speech tags. This dataset will be used in
-portfolios as a practice of visualizing, analyzing, and interpreting
-eye-tracking data.</p>
+participants reading news articles with eye-tracking measures.</p>
 </div>
 </div>
 <div id="goal" class="section level1">
 <h1>Goal</h1>
-<p>The goal of this portfolio is to explore and visualize eye-tracking
-data and investigate how word length and word frequency interact to
-influence reading behavior. Specifically, this portfolio:</p>
-<ol style="list-style-type: decimal">
-<li><p>Explores and visualizes eye-tracking data during reading,
-demonstrating key phenomena documented in the psycholinguistics
-literature (e.g., effects of word length, frequency, predictability, and
-part of speech on fixation duration and skipping)</p></li>
-<li><p>Investigates whether the effect of word length on fixation
-duration differ for high-frequency vs. low-frequency words? This
-analysis tests the hypothesis that word length effects are stronger for
-unfamiliar (low-frequency) words, consistent with dual-route models of
-word recognition.</p></li>
-</ol>
-<hr />
+<p>The goal of this portfolio is to investigate how contextual
+predictability interacts with word frequency effects on reading
+behavior. We anticipate that both word frequency and contextual
+predictability will individually influence reading times:
+lower-frequency words and words with higher surprisal (i.e., less
+predictable from context) are generally associated with longer
+processing times. The key focus is to examine whether and how these two
+effects interact, drawing on the theoretical framework of Smith and Levy
+(2013), who argue for a logarithmic effect of predictability on reading
+time.</p>
 </div>
 <div id="setup" class="section level1">
 <h1>Setup</h1>
 <pre class="r"><code># Load packages
-library(tidyverse)   
-library(ggplot2)
-library(scales)     
-library(patchwork)  
-library(knitr) 
+library(tidyverse)
+library(scales)
+library(patchwork)
+library(knitr)
 library(psych)
-library(dplyr)</code></pre>
-<pre class="r"><code># Load data 
+library(sjPlot)
+library(lme4)
+library(lmerTest)
+library(broom.mixed)</code></pre>
+<pre class="r"><code># Load data
 ia &lt;- read_csv(&quot;~/Desktop/2025-2026/Courses/Data science for psych/Portfolio 1/ia_Paragraph_ordinary.csv&quot;)</code></pre>
 </div>
-<div id="data-exploration" class="section level1">
-<h1>Data Exploration</h1>
-<div id="data-structure" class="section level2">
-<h2>Data Structure</h2>
-<div id="related-variables-for-analysis" class="section level3">
-<h3>Related Variables for Analysis</h3>
-<p>The data contains word-level reading measures (eye-tracking +
-lexical) that are central to my goal:</p>
-<table>
-<colgroup>
-<col width="32%" />
-<col width="46%" />
-<col width="21%" />
-</colgroup>
-<thead>
-<tr class="header">
-<th>Measure</th>
-<th>Description</th>
-<th>Type</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>IA_FIRST_FIXATION_DURATION</code></td>
-<td>Duration of first fixation on word (ms)</td>
-<td>Early measure</td>
-</tr>
-<tr class="even">
-<td><code>IA_FIRST_RUN_DWELL_TIME</code></td>
-<td>Gaze duration: total time on word before leaving (ms)</td>
-<td>Early measure</td>
-</tr>
-<tr class="odd">
-<td><code>IA_SKIP</code></td>
-<td>Whether the word was skipped (0 = fixated, 1 = skipped)</td>
-<td>Binary</td>
-</tr>
-</tbody>
-</table>
-<p>Other measures such as IA_DWELL_TIME, fixation counts, and
-regressions are available in the dataset, but the main analyses focus on
-the three eye-tracking measures above. But they might be used to clean
-or prepare data for our main analysis.</p>
-<table>
-<colgroup>
-<col width="25%" />
-<col width="32%" />
-<col width="42%" />
-</colgroup>
-<thead>
-<tr class="header">
-<th>Variable</th>
-<th>Description</th>
-<th>Expected Effect</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td><code>word_length_no_punctuation</code></td>
-<td>Number of characters in the word without counting punctuations</td>
-<td>Longer words → longer fixations, fewer skips</td>
-</tr>
-<tr class="even">
-<td><code>wordfreq_frequency</code></td>
-<td>How common the word is in everyday language</td>
-<td>Higher frequency → shorter fixations, more skips</td>
-</tr>
-</tbody>
-</table>
-</div>
-<div id="dataset-overview" class="section level3">
-<h3>Dataset Overview</h3>
-<pre class="r"><code># Basic dimensions
-cat(&quot;Interest Area dataset dimensions:&quot;, dim(ia)[1], &quot;rows x&quot;, dim(ia)[2], &quot;columns\n&quot;)</code></pre>
-<pre><code>## Interest Area dataset dimensions: 1104883 rows x 157 columns</code></pre>
-<pre class="r"><code># Check key variable measures
-ia %&gt;%
-  select(IA_FIRST_FIXATION_DURATION, 
-         IA_FIRST_RUN_DWELL_TIME, 
-         IA_DWELL_TIME, 
-         IA_FIXATION_COUNT, 
-         IA_SKIP, 
-         word_length_no_punctuation, 
-         wordfreq_frequency) %&gt;%
+<div id="data-cleaning-and-transformation" class="section level1">
+<h1>Data Cleaning and Transformation</h1>
+<p>In this section, we conduct data cleaning by checking for missing
+values in critical measures, converting variables to numeric types,
+filtering out practice and repeated trials, and removing extreme values.
+Following standard practice in psycholinguistics, we apply a logarithmic
+transformation to dwell time, as reading time distributions are
+typically positively skewed. Predictors are mean-centered to improve
+interpretability of the mixed-effects model coefficients: each
+main-effect coefficient then reflects the effect at the mean of the
+other predictors.</p>
+<div id="filter-and-transform" class="section level2">
+<h2>Filter and Transform</h2>
+<pre class="r"><code>ia %&gt;% 
+  select(IA_DWELL_TIME, word_length_no_punctuation, wordfreq_frequency, gpt2_surprisal) %&gt;%
   summary()</code></pre>
-<pre><code>##  IA_FIRST_FIXATION_DURATION IA_FIRST_RUN_DWELL_TIME IA_DWELL_TIME  
-##  Length:1104883             Length:1104883          Min.   :    0  
-##  Class :character           Class :character        1st Qu.:    0  
-##  Mode  :character           Mode  :character        Median :  159  
-##                                                     Mean   :  203  
-##                                                     3rd Qu.:  287  
-##                                                     Max.   :16729  
-##  IA_FIXATION_COUNT    IA_SKIP       word_length_no_punctuation
-##  Min.   : 0.000    Min.   :0.0000   Min.   : 0.000            
-##  1st Qu.: 0.000    1st Qu.:0.0000   1st Qu.: 3.000            
-##  Median : 1.000    Median :1.0000   Median : 4.000            
-##  Mean   : 1.047    Mean   :0.5479   Mean   : 4.655            
-##  3rd Qu.: 1.000    3rd Qu.:1.0000   3rd Qu.: 6.000            
-##  Max.   :43.000    Max.   :1.0000   Max.   :23.000            
-##  wordfreq_frequency
-##  Min.   : 4.219    
-##  1st Qu.: 7.241    
-##  Median :10.630    
-##  Mean   :11.147    
-##  3rd Qu.:14.017    
-##  Max.   :36.541</code></pre>
-<p>The dataset contains over 1 million word-level observations with 157
-variables. The summary statistics show that eye-tracking measures are
-stored as character type, which will need conversion to numeric during
-cleaning. Word length ranges from 1-23 characters, with a median of 4
-characters. Word frequency values are on a logarithmic scale, where
-higher values indicate more frequent words.</p>
-<hr />
-</div>
-</div>
-</div>
-<div id="data-cleaning" class="section level1">
-<h1>Data Cleaning</h1>
-<div id="remove-practice-trials-and-problematic-data"
-class="section level2">
-<h2>Remove Practice Trials and Problematic Data</h2>
-<pre class="r"><code># Check for practice trials
-table(ia$practice_trial)</code></pre>
-<pre><code>## 
-##   FALSE    TRUE 
-## 1055203   49680</code></pre>
-<p>The dataset contains both practice trials (TRUE) and experimental
-trials (FALSE). Practice trials are used for participants to familiarize
-themselves with the task and should be excluded from analysis to ensure
-data quality.</p>
-<pre class="r"><code>ia_clean &lt;- ia %&gt;%
+<pre><code>##  IA_DWELL_TIME   word_length_no_punctuation wordfreq_frequency
+##  Min.   :    0   Min.   : 0.000             Min.   : 4.219    
+##  1st Qu.:    0   1st Qu.: 3.000             1st Qu.: 7.241    
+##  Median :  159   Median : 4.000             Median :10.630    
+##  Mean   :  203   Mean   : 4.655             Mean   :11.147    
+##  3rd Qu.:  287   3rd Qu.: 6.000             3rd Qu.:14.017    
+##  Max.   :16729   Max.   :23.000             Max.   :36.541    
+##  gpt2_surprisal     
+##  Min.   : 0.000121  
+##  1st Qu.: 1.571023  
+##  Median : 3.339208  
+##  Mean   : 4.134529  
+##  3rd Qu.: 5.827203  
+##  Max.   :42.688316</code></pre>
+<pre class="r"><code># Convert character columns to numeric
+ia_clean &lt;- ia %&gt;%
   mutate(
+    IA_DWELL_TIME = as.numeric(IA_DWELL_TIME),
     IA_FIRST_FIXATION_DURATION = as.numeric(IA_FIRST_FIXATION_DURATION),
-    IA_FIRST_RUN_DWELL_TIME = as.numeric(IA_FIRST_RUN_DWELL_TIME),
     IA_FIXATION_COUNT = as.numeric(IA_FIXATION_COUNT)
+  )
+
+# Filter out practice trials, repeated readings, and missing/extreme values
+ia_clean &lt;- ia_clean %&gt;%
+  filter(
+    practice_trial == FALSE,
+    repeated_reading_trial == FALSE,
+    !is.na(IA_DWELL_TIME),
+    !is.na(wordfreq_frequency),
+    !is.na(gpt2_surprisal),
+    !is.na(word_length_no_punctuation),
+    IA_DWELL_TIME &gt; 0, # Remove skipped words (0 ms)
+    IA_DWELL_TIME &gt;= 50 &amp; IA_DWELL_TIME &lt;= 3000 # Remove extreme values(I realized the cutoffs I applied for the last portfolio is too strict, after going through some literature)
   )</code></pre>
-<pre class="r"><code>ia_clean &lt;- ia_clean %&gt;%
-  filter(practice_trial == FALSE, 
-         repeated_reading_trial == FALSE,
-         !is.na(IA_FIRST_FIXATION_DURATION), 
-         IA_FIRST_FIXATION_DURATION &gt;= 80 &amp; IA_FIRST_FIXATION_DURATION &lt;= 800)</code></pre>
+<pre class="r"><code># Log-transform dwell time and center predictors
+ia_clean &lt;- ia_clean %&gt;%
+  mutate(
+    log_dwell = log(IA_DWELL_TIME),
+    freq_centered = wordfreq_frequency - mean(wordfreq_frequency, na.rm = TRUE),
+    surprisal_centered = gpt2_surprisal - mean(gpt2_surprisal, na.rm = TRUE),
+    length_centered = word_length_no_punctuation - mean(word_length_no_punctuation, na.rm = TRUE)
+  )</code></pre>
 </div>
-<div id="check-distribution-of-key-variables" class="section level2">
-<h2>Check Distribution of Key Variables</h2>
-<pre class="r"><code># Distribution of key reading measures
-p1 &lt;- ggplot(ia_clean, aes(x = IA_FIRST_FIXATION_DURATION)) +
+<div id="check-distributions" class="section level2">
+<h2>Check Distributions</h2>
+<pre class="r"><code>p1 &lt;- ggplot(ia_clean, aes(x = IA_DWELL_TIME)) +
   geom_histogram(bins = 50, fill = &quot;steelblue&quot;, alpha = 0.7) +
-  labs(title = &quot;First Fixation Duration&quot;, x = &quot;Duration (ms)&quot;, y = &quot;Count&quot;) +
+  labs(title = &quot;Dwell Time (Raw)&quot;, x = &quot;Dwell Time (ms)&quot;, y = &quot;Count&quot;) +
   theme_minimal()
 
-p2 &lt;- ggplot(ia_clean, aes(x = IA_FIRST_RUN_DWELL_TIME)) +
+p2 &lt;- ggplot(ia_clean, aes(x = log_dwell)) +
+  geom_histogram(bins = 50, fill = &quot;steelblue&quot;, alpha = 0.7) +
+  labs(title = &quot;Dwell Time (Log-Transformed)&quot;, x = &quot;Log Dwell Time&quot;, y = &quot;Count&quot;) +
+  theme_minimal()
+
+p3 &lt;- ggplot(ia_clean, aes(x = gpt2_surprisal)) +
   geom_histogram(bins = 50, fill = &quot;darkgreen&quot;, alpha = 0.7) +
-  labs(title = &quot;Gaze Duration (First Run Dwell Time)&quot;, x = &quot;Duration (ms)&quot;, y = &quot;Count&quot;) +
-  theme_minimal() +
-  xlim(0, 1500)
-
-p3 &lt;- ggplot(ia_clean, aes(x = word_length_no_punctuation)) +
-  geom_bar(fill = &quot;coral&quot;, alpha = 0.7) +
-  labs(title = &quot;Word Length Distribution&quot;, x = &quot;Number of characters&quot;, y = &quot;Count&quot;) +
+  labs(title = &quot;GPT-2 Surprisal Distribution&quot;, x = &quot;Surprisal (bits)&quot;, y = &quot;Count&quot;) +
   theme_minimal()
 
-p4 &lt;- ggplot(ia_clean, aes(x = log10(wordfreq_frequency + 1))) +
+p4 &lt;- ggplot(ia_clean, aes(x = wordfreq_frequency)) +
   geom_histogram(bins = 50, fill = &quot;purple&quot;, alpha = 0.7) +
-  labs(title = &quot;Word Frequency (log10)&quot;, x = &quot;Log10(frequency)&quot;, y = &quot;Count&quot;) +
+  labs(title = &quot;Word Frequency Distribution&quot;, x = &quot;Log Frequency&quot;, y = &quot;Count&quot;) +
   theme_minimal()
 
 (p1 + p2) / (p3 + p4)</code></pre>
-<p><img src="p02_files/figure-html/unnamed-chunk-7-1.png" width="960" style="display: block; margin: auto;" /></p>
-<p>The distributions reveal several patterns. First Fixation Duration
-shows a right-skewed distribution centered around 150-250 ms, which is
-typical for reading fixations. Gaze Duration is also right-skewed but
-with a longer tail, reflecting cases where readers made multiple
-fixations on words before moving on. Word Length peaks at 3-4 characters
-(might be common function words like “the”, “and”) with decreasing
-frequency for longer words. Word Frequency (log-transformed) shows a
-roughly normal distribution, indicating good coverage across the
-frequency spectrum.</p>
-<hr />
+<p><img src="p02_files/figure-html/unnamed-chunk-6-1.png" width="960" style="display: block; margin: auto;" /></p>
+<p>The raw dwell time distribution is right-skewed, as is typical for
+reading time data. The log transformation produces a more symmetric
+distribution, which better satisfies the normality assumption of linear
+models. GPT-2 surprisal and word frequency both show reasonable spread
+across their ranges.</p>
 </div>
 </div>
-<div id="exploratory-visualizations" class="section level1">
-<h1>Exploratory Visualizations</h1>
-<div id="effect-of-word-length-on-reading" class="section level2">
-<h2>Effect of Word Length on Reading</h2>
-<pre class="r"><code># Summarize by word length
-word_length_summary &lt;- ia_clean %&gt;%
-  filter(word_length_no_punctuation &gt;= 1 &amp; word_length_no_punctuation &lt;= 15) %&gt;%
-  group_by(word_length_no_punctuation) %&gt;%
+<div id="data-exploration" class="section level1">
+<h1>Data Exploration</h1>
+<div id="bivariate-relationships" class="section level2">
+<h2>Bivariate Relationships</h2>
+<p>Before fitting models, we examine the bivariate relationships between
+each predictor and dwell time to verify that the expected patterns are
+present in the data.</p>
+<pre class="r"><code>surprisal_summary &lt;- ia_clean %&gt;%
+  mutate(surprisal_bin = ntile(gpt2_surprisal, 10)) %&gt;%
+  group_by(surprisal_bin) %&gt;%
   summarise(
-    mean_FFD = mean(IA_FIRST_FIXATION_DURATION, na.rm = TRUE),
-    se_FFD = sd(IA_FIRST_FIXATION_DURATION, na.rm = TRUE) / sqrt(n()),
-    mean_gaze = mean(IA_FIRST_RUN_DWELL_TIME, na.rm = TRUE),
-    se_gaze = sd(IA_FIRST_RUN_DWELL_TIME, na.rm = TRUE) / sqrt(n()),
-    skip_rate = mean(IA_SKIP == 1, na.rm = TRUE),
+    mean_surprisal = mean(gpt2_surprisal, na.rm = TRUE),
+    mean_dwell = mean(IA_DWELL_TIME, na.rm = TRUE),
+    se_dwell = sd(IA_DWELL_TIME, na.rm = TRUE) / sqrt(n()),
     n = n()
-  )
-word_length_summary</code></pre>
-<pre><code>## # A tibble: 15 × 7
-##    word_length_no_punctuation mean_FFD se_FFD mean_gaze se_gaze skip_rate      n
-##                         &lt;dbl&gt;    &lt;dbl&gt;  &lt;dbl&gt;     &lt;dbl&gt;   &lt;dbl&gt;     &lt;dbl&gt;  &lt;int&gt;
-##  1                          1     195.  0.809      198.   0.849     0.436   9107
-##  2                          2     195.  0.293      200.   0.331     0.405  68467
-##  3                          3     195.  0.236      204.   0.288     0.364 102697
-##  4                          4     199.  0.229      214.   0.302     0.326 117274
-##  5                          5     201.  0.266      220.   0.367     0.281  86359
-##  6                          6     202.  0.285      227.   0.426     0.257  75542
-##  7                          7     202.  0.304      232.   0.471     0.230  65772
-##  8                          8     202.  0.364      239.   0.617     0.209  45100
-##  9                          9     203.  0.416      244.   0.760     0.189  34349
-## 10                         10     203.  0.530      258.   1.09      0.178  21514
-## 11                         11     203.  0.710      271.   1.68      0.151  11982
-## 12                         12     208.  1.06       282.   2.40      0.147   5767
-## 13                         13     205.  1.51       289.   3.51      0.147   2654
-## 14                         14     207.  1.72       316.   4.40      0.114   1944
-## 15                         15     214.  3.02       382.  11.3       0.112    714</code></pre>
-<pre class="r"><code># Plot word length effects
-p_length &lt;- ggplot(word_length_summary, aes(x = word_length_no_punctuation)) +
-  geom_line(aes(y = mean_FFD), color = &quot;steelblue&quot;, size = 1) +
-  geom_point(aes(y = mean_FFD), color = &quot;steelblue&quot;, size = 2) +
-  geom_errorbar(aes(ymin = mean_FFD - se_FFD, ymax = mean_FFD + se_FFD),
-                width = 0.2, color = &quot;steelblue&quot;) +
-  labs(title = &quot;Word Length Effect on First Fixation Duration&quot;,
-       x = &quot;Word Length (characters)&quot;, y = &quot;Mean First Fixation Duration (ms)&quot;) +
-  theme_minimal() +
-  scale_x_continuous(breaks = 1:15)
-
-p_skip &lt;- ggplot(word_length_summary, aes(x = word_length_no_punctuation, y = skip_rate)) +
-  geom_line(color = &quot;coral&quot;, size = 1) +
-  geom_point(color = &quot;coral&quot;, size = 2) +
-  labs(title = &quot;Word Length Effect on Skipping Rate&quot;,
-       x = &quot;Word Length (characters)&quot;, y = &quot;Probability of Skipping&quot;) +
-  theme_minimal() +
-  scale_x_continuous(breaks = 1:15) +
-  scale_y_continuous(labels = percent)
-
-p_length / p_skip</code></pre>
-<p><img src="p02_files/figure-html/unnamed-chunk-9-1.png" width="960" style="display: block; margin: auto;" /></p>
-<p>From the two plots, we can see that word length is associated with
-eye movement patterns during reading. Specifically, the top panel shows
-a modest positive relationship between word length and fixation
-duration, where longer words tend to receive slightly longer first
-fixations. However, in the bottom panel, the skipping rate shows a clear
-negative relationship with word length. Short words with a few
-characters are skipped approximately 35-45% of the time, while longer
-words with above more than 10 characters are rarely skipped (&lt;20%).
-This reflects the preview benefit—readers can often identify short words
-before directly fixating them.</p>
-</div>
-<div id="effect-of-word-frequency-on-reading" class="section level2">
-<h2>Effect of Word Frequency on Reading</h2>
-<pre class="r"><code># Create frequency bins
-ia_clean &lt;- ia_clean %&gt;%
-  mutate(freq_bin = ntile(wordfreq_frequency, 5),
-         freq_bin = factor(freq_bin, levels = 1:5,
-                           labels = c(&quot;Very Low&quot;, &quot;Low&quot;, &quot;Medium&quot;, &quot;High&quot;, &quot;Very High&quot;)))
-
-# Summarize by frequency
+  )</code></pre>
+<pre class="r"><code># Effect of surprisal on dwell time 
+p_surp &lt;- ggplot(surprisal_summary, aes(x = mean_surprisal, y = mean_dwell)) +
+  geom_point(size = 3, color = &quot;darkgreen&quot;) +
+  geom_line(color = &quot;darkgreen&quot;, linewidth = 1) +
+  geom_errorbar(aes(ymin = mean_dwell - se_dwell, ymax = mean_dwell + se_dwell),
+                width = 0.2, color = &quot;darkgreen&quot;) +
+  labs(
+    title = &quot;Contextual Predictability and Dwell Time&quot;,
+    subtitle = &quot;Binned by GPT-2 Surprisal deciles&quot;,
+    x = &quot;Mean GPT-2 Surprisal (bits)&quot;,
+    y = &quot;Mean Dwell Time (ms)&quot;
+  ) +
+  theme_minimal()</code></pre>
+<pre class="r"><code># Effect of frequency on dwell time 
 freq_summary &lt;- ia_clean %&gt;%
-  filter(!is.na(freq_bin)) %&gt;%
+  mutate(freq_bin = ntile(wordfreq_frequency, 10)) %&gt;%
   group_by(freq_bin) %&gt;%
   summarise(
-    mean_FFD = mean(IA_FIRST_FIXATION_DURATION, na.rm = TRUE),
-    se_FFD = sd(IA_FIRST_FIXATION_DURATION, na.rm = TRUE) / sqrt(n()),
-    mean_gaze = mean(IA_FIRST_RUN_DWELL_TIME, na.rm = TRUE),
-    skip_rate = mean(IA_SKIP == 1, na.rm = TRUE),
+    mean_freq = mean(wordfreq_frequency, na.rm = TRUE),
+    mean_dwell = mean(IA_DWELL_TIME, na.rm = TRUE),
+    se_dwell = sd(IA_DWELL_TIME, na.rm = TRUE) / sqrt(n()),
     n = n()
   )
 
-freq_summary</code></pre>
-<pre><code>## # A tibble: 5 × 6
-##   freq_bin  mean_FFD se_FFD mean_gaze skip_rate      n
-##   &lt;fct&gt;        &lt;dbl&gt;  &lt;dbl&gt;     &lt;dbl&gt;     &lt;dbl&gt;  &lt;int&gt;
-## 1 Very Low      192.  0.207      199.     0.392 130114
-## 2 Low           197.  0.211      210.     0.338 130114
-## 3 Medium        200.  0.214      221.     0.270 130114
-## 4 High          201.  0.214      230.     0.235 130113
-## 5 Very High     207.  0.226      252.     0.224 130113</code></pre>
-<pre class="r"><code># Plot frequency effects
-ggplot(freq_summary, aes(x = freq_bin, y = mean_FFD)) +
-  geom_col(fill = &quot;steelblue&quot;, alpha = 0.7) +
-  geom_errorbar(aes(ymin = mean_FFD - se_FFD, ymax = mean_FFD + se_FFD),
-                width = 0.2) +
-  labs(title = &quot;Word Frequency Effect on First Fixation Duration&quot;,
-       x = &quot;Word Frequency (binned)&quot;, y = &quot;Mean First Fixation Duration (ms)&quot;) +
+p_freq &lt;- ggplot(freq_summary, aes(x = mean_freq, y = mean_dwell)) +
+  geom_point(size = 3, color = &quot;steelblue&quot;) +
+  geom_line(color = &quot;steelblue&quot;, linewidth = 1) +
+  geom_errorbar(aes(ymin = mean_dwell - se_dwell, ymax = mean_dwell + se_dwell),
+                width = 0.1, color = &quot;steelblue&quot;) +
+  labs(
+    title = &quot;Word Frequency and Dwell Time&quot;,
+    subtitle = &quot;Binned by word frequency deciles&quot;,
+    x = &quot;Mean Word Frequency (log)&quot;,
+    y = &quot;Mean Dwell Time (ms)&quot;
+  ) +
   theme_minimal()</code></pre>
-<p><img src="p02_files/figure-html/unnamed-chunk-11-1.png" width="960" style="display: block; margin: auto;" /></p>
-<p>From the plot above, high-frequency words are processed a bit faster
-than low-frequency words. Words in the “Very High” frequency bin receive
-shorter first fixations compared to words in the “Very Low” bin. This
-trend aligns with our prediction that common words have stronger lexical
-representations, allowing faster word recognition.</p>
-<hr />
+<pre class="r"><code>p_surp + p_freq</code></pre>
+<p><img src="p02_files/figure-html/unnamed-chunk-10-1.png" width="960" style="display: block; margin: auto;" /></p>
+<p>The left panel shows a positive relationship between GPT-2 surprisal
+and dwell time: as words become less predictable from context (higher
+surprisal), readers spend more time fixating on them. This pattern is
+consistent with the prediction that contextually surprising words
+require additional cognitive effort during processing. The right panel
+shows a positive relationship between word frequency and dwell time,
+such that more frequent words are associated with longer fixation times,
+reflecting the well-established frequency effect in reading.</p>
+<p>(I was thinking if I should look at the correlations between these
+key variables. After a self-fight, I thought it may not much necessary
+to do it, since the relationships between the IVs and DVs are obvious
+enough.)</p>
 </div>
 </div>
-<div id="main-analysis-word-length-frequency-interaction"
-class="section level1">
-<h1>Main Analysis: Word Length × Frequency Interaction</h1>
-<p>The exploratory visualizations above reveal robust effects of word
-length and frequency on reading behavior. A question arises: do these
-effects operate independently, or do they interact?</p>
-<p>This section investigates the interaction between word length and
-word frequency of the most fundamental predictors of eye movements
-during reading.</p>
-<div id="research-question" class="section level2">
-<h2>Research Question</h2>
-<p>Does the effect of word length on fixation duration differ for
-high-frequency vs. low-frequency words?</p>
-<div id="background-1" class="section level3">
-<h3>Background</h3>
-<p>Both word length and word frequency are well-established predictors
-of eye movements during reading. Longer words receive longer fixations
-and are less likely to be skipped, and high-frequency words are
-processed faster and skipped more often. However, these effects may
-interact. One hypothesis is that readers can recognize short,
-high-frequency words rapidly through holistic pattern recognition, while
-longer and less frequent words require more serial, letter-by-letter
-processing.</p>
-<blockquote>
-<p><strong>Hypothesis</strong>: The word length effect should be
-<em>stronger</em> for low-frequency words than for high-frequency
-words.</p>
-</blockquote>
-</div>
-</div>
-<div id="create-analysis-variables" class="section level2">
-<h2>Create Analysis Variables</h2>
-<pre class="r"><code># Create median split for frequency (high vs low) - have equal size of high and low frequency group
-freq_median &lt;- median(ia_clean$wordfreq_frequency, na.rm = TRUE)
+<div id="main-analysis-mixed-effects-models" class="section level1">
+<h1>Main Analysis: Mixed-Effects Models</h1>
+<p>To account for the hierarchical structure of the data — words nested
+within participants and paragraphs — we use linear mixed-effects models.
+This directly addresses the limitation of Portfolio 1, which used
+ordinary linear regression and did not account for the non-independence
+of observations within participants and paragraphs</p>
+<p>I built three models of increasing complexity to test (1) whether
+contextual predictability adds predictive value beyond word frequency,
+and (2) whether the two interact.</p>
+<div id="model-1-frequency-word-length-baseline" class="section level2">
+<h2>Model 1: Frequency + Word Length (Baseline)</h2>
+<pre class="r"><code>model1 &lt;- lmer(log_dwell ~ freq_centered + length_centered +
+                 (1 | participant_id) + (1 | paragraph_id),
+               data = ia_clean)
 
-ia_analysis &lt;- ia_clean %&gt;%
-  filter(word_length_no_punctuation &gt;= 2 &amp; word_length_no_punctuation &lt;= 11) %&gt;%
-  mutate(
-    freq_group = ifelse(wordfreq_frequency &gt;= freq_median, &quot;High Frequency&quot;, &quot;Low Frequency&quot;),
-    freq_group = factor(freq_group, levels = c(&quot;Low Frequency&quot;, &quot;High Frequency&quot;))
-  ) %&gt;%
-  filter(!is.na(freq_group))</code></pre>
-<p>The median split creates two roughly equal-sized groups: Low
-Frequency and High Frequency words. Having balanced group sizes ensures
-that our statistical comparisons have adequate power and that
-differences between groups are not driven by unequal sample sizes. Words
-with lengths 2-11 characters are included to focus on the range where
-most meaningful variation and comparibility occurs.</p>
-</div>
-<div id="discriptive-statistics-and-visualization"
-class="section level2">
-<h2>Discriptive Statistics and Visualization</h2>
-<pre class="r"><code># Summary by word length and frequency group (for plotting)
-interaction_summary &lt;- ia_analysis %&gt;%
-  group_by(word_length_no_punctuation, freq_group) %&gt;%
-  summarise(
-    mean_FFD = mean(IA_FIRST_FIXATION_DURATION, na.rm = TRUE),
-    se_FFD = sd(IA_FIRST_FIXATION_DURATION, na.rm = TRUE) / sqrt(n()),
-    mean_gaze = mean(IA_FIRST_RUN_DWELL_TIME, na.rm = TRUE),
-    se_gaze = sd(IA_FIRST_RUN_DWELL_TIME, na.rm = TRUE) / sqrt(n()),
-    skip_rate = mean(IA_SKIP == 1, na.rm = TRUE),
-    n = n(),
-    .groups = &quot;drop&quot;
-  )
-
-kable(interaction_summary, digits = 2, caption = &quot;Reading Measures by Word Length and Frequency&quot;)</code></pre>
-<table style="width:100%;">
-<caption>Reading Measures by Word Length and Frequency</caption>
-<colgroup>
-<col width="29%" />
-<col width="16%" />
-<col width="9%" />
-<col width="7%" />
-<col width="10%" />
-<col width="8%" />
-<col width="10%" />
-<col width="6%" />
-</colgroup>
-<thead>
-<tr class="header">
-<th align="right">word_length_no_punctuation</th>
-<th align="left">freq_group</th>
-<th align="right">mean_FFD</th>
-<th align="right">se_FFD</th>
-<th align="right">mean_gaze</th>
-<th align="right">se_gaze</th>
-<th align="right">skip_rate</th>
-<th align="right">n</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td align="right">2</td>
-<td align="left">Low Frequency</td>
-<td align="right">193.70</td>
-<td align="right">0.30</td>
-<td align="right">198.36</td>
-<td align="right">0.34</td>
-<td align="right">0.41</td>
-<td align="right">63580</td>
-</tr>
-<tr class="even">
-<td align="right">2</td>
-<td align="left">High Frequency</td>
-<td align="right">205.73</td>
-<td align="right">1.16</td>
-<td align="right">216.96</td>
-<td align="right">1.50</td>
-<td align="right">0.36</td>
-<td align="right">4887</td>
-</tr>
-<tr class="odd">
-<td align="right">3</td>
-<td align="left">Low Frequency</td>
-<td align="right">194.00</td>
-<td align="right">0.25</td>
-<td align="right">201.80</td>
-<td align="right">0.29</td>
-<td align="right">0.37</td>
-<td align="right">91390</td>
-</tr>
-<tr class="even">
-<td align="right">3</td>
-<td align="left">High Frequency</td>
-<td align="right">206.33</td>
-<td align="right">0.79</td>
-<td align="right">223.48</td>
-<td align="right">1.09</td>
-<td align="right">0.31</td>
-<td align="right">11307</td>
-</tr>
-<tr class="odd">
-<td align="right">4</td>
-<td align="left">Low Frequency</td>
-<td align="right">197.15</td>
-<td align="right">0.26</td>
-<td align="right">209.64</td>
-<td align="right">0.33</td>
-<td align="right">0.34</td>
-<td align="right">85084</td>
-</tr>
-<tr class="even">
-<td align="right">4</td>
-<td align="left">High Frequency</td>
-<td align="right">204.38</td>
-<td align="right">0.46</td>
-<td align="right">223.93</td>
-<td align="right">0.66</td>
-<td align="right">0.30</td>
-<td align="right">32190</td>
-</tr>
-<tr class="odd">
-<td align="right">5</td>
-<td align="left">Low Frequency</td>
-<td align="right">198.77</td>
-<td align="right">0.39</td>
-<td align="right">215.22</td>
-<td align="right">0.53</td>
-<td align="right">0.30</td>
-<td align="right">38366</td>
-</tr>
-<tr class="even">
-<td align="right">5</td>
-<td align="left">High Frequency</td>
-<td align="right">203.04</td>
-<td align="right">0.36</td>
-<td align="right">223.49</td>
-<td align="right">0.50</td>
-<td align="right">0.27</td>
-<td align="right">47993</td>
-</tr>
-<tr class="odd">
-<td align="right">6</td>
-<td align="left">Low Frequency</td>
-<td align="right">198.21</td>
-<td align="right">0.56</td>
-<td align="right">218.44</td>
-<td align="right">0.80</td>
-<td align="right">0.27</td>
-<td align="right">17903</td>
-</tr>
-<tr class="even">
-<td align="right">6</td>
-<td align="left">High Frequency</td>
-<td align="right">202.86</td>
-<td align="right">0.33</td>
-<td align="right">229.91</td>
-<td align="right">0.50</td>
-<td align="right">0.25</td>
-<td align="right">57639</td>
-</tr>
-<tr class="odd">
-<td align="right">7</td>
-<td align="left">Low Frequency</td>
-<td align="right">198.53</td>
-<td align="right">0.73</td>
-<td align="right">222.66</td>
-<td align="right">1.06</td>
-<td align="right">0.23</td>
-<td align="right">10598</td>
-</tr>
-<tr class="even">
-<td align="right">7</td>
-<td align="left">High Frequency</td>
-<td align="right">203.25</td>
-<td align="right">0.33</td>
-<td align="right">233.40</td>
-<td align="right">0.52</td>
-<td align="right">0.23</td>
-<td align="right">55174</td>
-</tr>
-<tr class="odd">
-<td align="right">8</td>
-<td align="left">Low Frequency</td>
-<td align="right">195.75</td>
-<td align="right">1.10</td>
-<td align="right">222.44</td>
-<td align="right">1.76</td>
-<td align="right">0.21</td>
-<td align="right">4407</td>
-</tr>
-<tr class="even">
-<td align="right">8</td>
-<td align="left">High Frequency</td>
-<td align="right">203.12</td>
-<td align="right">0.39</td>
-<td align="right">241.19</td>
-<td align="right">0.66</td>
-<td align="right">0.21</td>
-<td align="right">40693</td>
-</tr>
-<tr class="odd">
-<td align="right">9</td>
-<td align="left">Low Frequency</td>
-<td align="right">201.24</td>
-<td align="right">1.45</td>
-<td align="right">229.75</td>
-<td align="right">2.01</td>
-<td align="right">0.20</td>
-<td align="right">2667</td>
-</tr>
-<tr class="even">
-<td align="right">9</td>
-<td align="left">High Frequency</td>
-<td align="right">202.65</td>
-<td align="right">0.43</td>
-<td align="right">244.71</td>
-<td align="right">0.81</td>
-<td align="right">0.19</td>
-<td align="right">31682</td>
-</tr>
-<tr class="odd">
-<td align="right">10</td>
-<td align="left">Low Frequency</td>
-<td align="right">194.26</td>
-<td align="right">1.76</td>
-<td align="right">235.33</td>
-<td align="right">2.85</td>
-<td align="right">0.17</td>
-<td align="right">1667</td>
-</tr>
-<tr class="even">
-<td align="right">10</td>
-<td align="left">High Frequency</td>
-<td align="right">203.88</td>
-<td align="right">0.55</td>
-<td align="right">259.90</td>
-<td align="right">1.16</td>
-<td align="right">0.18</td>
-<td align="right">19847</td>
-</tr>
-<tr class="odd">
-<td align="right">11</td>
-<td align="left">Low Frequency</td>
-<td align="right">194.18</td>
-<td align="right">5.36</td>
-<td align="right">213.79</td>
-<td align="right">7.60</td>
-<td align="right">0.20</td>
-<td align="right">105</td>
-</tr>
-<tr class="even">
-<td align="right">11</td>
-<td align="left">High Frequency</td>
-<td align="right">203.02</td>
-<td align="right">0.71</td>
-<td align="right">271.66</td>
-<td align="right">1.70</td>
-<td align="right">0.15</td>
-<td align="right">11877</td>
-</tr>
-</tbody>
-</table>
-<pre class="r"><code># First Fixation Duration 
-p_ffd_interaction &lt;- ggplot(interaction_summary,
-                             aes(x = word_length_no_punctuation, y = mean_FFD,
-                                 color = freq_group, group = freq_group)) +
-  geom_line(linewidth = 1.2) +
-  geom_point(size = 3) +
-  geom_errorbar(aes(ymin = mean_FFD - se_FFD, ymax = mean_FFD + se_FFD),
-                width = 0.2, linewidth = 0.8) +
-  scale_color_manual(values = c(&quot;Low Frequency&quot; = &quot;#E41A1C&quot;, &quot;High Frequency&quot; = &quot;#377EB8&quot;)) +
-  labs(
-    title = &quot;Word Length × Frequency Interaction on First Fixation Duration&quot;,
-    subtitle = &quot;Error bars represent ±1 SE&quot;,
-    x = &quot;Word Length (characters)&quot;,
-    y = &quot;Mean First Fixation Duration (ms)&quot;,
-    color = &quot;Frequency Group&quot;
-  ) +
-  theme_minimal(base_size = 12) +
-  theme(legend.position = &quot;bottom&quot;) +
-  scale_x_continuous(breaks = 2:12)
-
-# Gaze Duration 
-p_gaze_interaction &lt;- ggplot(interaction_summary,
-                              aes(x = word_length_no_punctuation, y = mean_gaze,
-                                  color = freq_group, group = freq_group)) +
-  geom_line(linewidth = 1.2) +
-  geom_point(size = 3) +
-  geom_errorbar(aes(ymin = mean_gaze - se_gaze, ymax = mean_gaze + se_gaze),
-                width = 0.2, linewidth = 0.8) +
-  scale_color_manual(values = c(&quot;Low Frequency&quot; = &quot;#E41A1C&quot;, &quot;High Frequency&quot; = &quot;#377EB8&quot;)) +
-  labs(
-    title = &quot;Word Length × Frequency Interaction on Gaze Duration&quot;,
-    x = &quot;Word Length (characters)&quot;,
-    y = &quot;Mean Gaze Duration (ms)&quot;,
-    color = &quot;Frequency Group&quot;
-  ) +
-  theme_minimal(base_size = 12) +
-  theme(legend.position = &quot;bottom&quot;) +
-  scale_x_continuous(breaks = 2:12)
-
-p_ffd_interaction + p_gaze_interaction</code></pre>
-<p><img src="p02_files/figure-html/unnamed-chunk-14-1.png" width="1152" style="display: block; margin: auto;" /></p>
-<p>As shown in both plots, frequency group differences were observed in
-both eye-movement measures. For first fixation duration, mean fixation
-times were consistently higher for the high frequency group than the low
-frequency group across word lengths, with relatively small changes as a
-function of length, suggesting a weak length effect in this early
-measure. For gaze duration, mean reading times increased with word
-length for both groups; however, the increase was substantially steeper
-for the high frequency group, indicating a stronger interaction between
-word length and frequency in furst-run processing than in first fixation
-duration.</p>
-</div>
-<div id="statistical-analysis-linear-regression" class="section level2">
-<h2>Statistical Analysis: Linear Regression</h2>
-<p>We test the interaction using linear regression with word length,
-frequency, and their interaction as predictors. Before building
-regressions, predictors were mean-centered to make the intercept
-interpretable as the expected reading time for an average-length word
-with average frequency and to ensure that main-effect coefficients
-reflect effects at the mean of the other predictor in the presence of an
-interaction.</p>
-<pre class="r"><code># Center predictors for interpretable coefficients
-ia_analysis &lt;- ia_analysis %&gt;%
-  mutate(
-    length_centered = word_length_no_punctuation - mean(word_length_no_punctuation, na.rm = TRUE),
-    freq_centered = wordfreq_frequency - mean(wordfreq_frequency, na.rm = TRUE)
-  )</code></pre>
-<pre class="r"><code># Fit regression model for First Fixation Duration
-model_ffd &lt;- lm(IA_FIRST_FIXATION_DURATION ~ length_centered * freq_centered,
-                data = ia_analysis)
-
-summary(model_ffd)</code></pre>
-<pre><code>## 
-## Call:
-## lm(formula = IA_FIRST_FIXATION_DURATION ~ length_centered * freq_centered, 
-##     data = ia_analysis)
+summary(model1)</code></pre>
+<pre><code>## Linear mixed model fit by REML. t-tests use Satterthwaite&#39;s method [
+## lmerModLmerTest]
+## Formula: log_dwell ~ freq_centered + length_centered + (1 | participant_id) +  
+##     (1 | paragraph_id)
+##    Data: ia_clean
 ## 
-## Residuals:
+## REML criterion at convergence: 1129004
+## 
+## Scaled residuals: 
 ##     Min      1Q  Median      3Q     Max 
-## -145.55  -50.96  -16.01   34.21  606.95 
+## -4.2947 -0.6845 -0.0846  0.6521  4.7464 
 ## 
-## Coefficients:
-##                                 Estimate Std. Error  t value Pr(&gt;|t|)    
-## (Intercept)                   200.146156   0.115892 1727.013  &lt; 2e-16 ***
-## length_centered                -0.149938   0.053352   -2.810  0.00495 ** 
-## freq_centered                   1.022320   0.024429   41.848  &lt; 2e-16 ***
-## length_centered:freq_centered  -0.078010   0.008753   -8.912  &lt; 2e-16 ***
+## Random effects:
+##  Groups         Name        Variance  Std.Dev.
+##  participant_id (Intercept) 0.0381865 0.19541 
+##  paragraph_id   (Intercept) 0.0003513 0.01874 
+##  Residual                   0.3131059 0.55956 
+## Number of obs: 672671, groups:  participant_id, 180; paragraph_id, 7
+## 
+## Fixed effects:
+##                  Estimate Std. Error        df t value Pr(&gt;|t|)    
+## (Intercept)     5.522e+00  1.622e-02 1.012e+02  340.46   &lt;2e-16 ***
+## freq_centered   1.609e-02  1.638e-04 6.725e+05   98.24   &lt;2e-16 ***
+## length_centered 3.723e-02  3.317e-04 6.725e+05  112.24   &lt;2e-16 ***
 ## ---
 ## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
 ## 
-## Residual standard error: 77.39 on 629052 degrees of freedom
-## Multiple R-squared:  0.004053,   Adjusted R-squared:  0.004048 
-## F-statistic: 853.3 on 3 and 629052 DF,  p-value: &lt; 2.2e-16</code></pre>
-<p>A multiple linear regression was conducted to test whether centered
-word length, word frequency, and their interaction predicted first
-fixation duration. The overall model was statistically significant, F(3,
-629052) = 853.30, p &lt; .001, R2 = .004. The main effect of word length
-was significant, b = −.15, SE = .05, t(629052) = −2.81, p = .005.
-Frequency was also a significant positive predictor, b = 1.02, SE = .02,
-t(629052) = 41.85, p &lt; .001. The interaction between word length and
-frequency was significant, b = −.08, SE = .01, t(629052) = −8.91, p &lt;
-.001, indicating that the association between word length and first
-fixation duration is slightly stronger for low-frequent words.</p>
-<pre class="r"><code># Fit regression model for Gaze Duration
-model_gaze &lt;- lm(IA_FIRST_RUN_DWELL_TIME ~ length_centered * freq_centered,
-                 data = ia_analysis)
+## Correlation of Fixed Effects:
+##             (Intr) frq_cn
+## freq_centrd  0.000       
+## lngth_cntrd  0.000 -0.595</code></pre>
+</div>
+<div id="model-2-adding-surprisal" class="section level2">
+<h2>Model 2: Adding Surprisal</h2>
+<pre class="r"><code>model2 &lt;- lmer(log_dwell ~ freq_centered + surprisal_centered + length_centered +
+                 (1 | participant_id) + (1 | paragraph_id),
+               data = ia_clean)
 
-summary(model_gaze)</code></pre>
-<pre><code>## 
-## Call:
-## lm(formula = IA_FIRST_RUN_DWELL_TIME ~ length_centered * freq_centered, 
-##     data = ia_analysis)
+summary(model2)</code></pre>
+<pre><code>## Linear mixed model fit by REML. t-tests use Satterthwaite&#39;s method [
+## lmerModLmerTest]
+## Formula: log_dwell ~ freq_centered + surprisal_centered + length_centered +  
+##     (1 | participant_id) + (1 | paragraph_id)
+##    Data: ia_clean
 ## 
-## Residuals:
-##    Min     1Q Median     3Q    Max 
-## -281.6  -66.8  -26.0   36.0 4827.8 
+## REML criterion at convergence: 1122636
 ## 
-## Coefficients:
-##                                Estimate Std. Error t value Pr(&gt;|t|)    
-## (Intercept)                   218.00152    0.16860 1293.03   &lt;2e-16 ***
-## length_centered                 3.17152    0.07762   40.86   &lt;2e-16 ***
-## freq_centered                   2.68456    0.03554   75.54   &lt;2e-16 ***
-## length_centered:freq_centered   0.42173    0.01273   33.12   &lt;2e-16 ***
+## Scaled residuals: 
+##     Min      1Q  Median      3Q     Max 
+## -4.3397 -0.6830 -0.0825  0.6524  4.7819 
+## 
+## Random effects:
+##  Groups         Name        Variance  Std.Dev.
+##  participant_id (Intercept) 0.0382293 0.19552 
+##  paragraph_id   (Intercept) 0.0003695 0.01922 
+##  Residual                   0.3101486 0.55691 
+## Number of obs: 672671, groups:  participant_id, 180; paragraph_id, 7
+## 
+## Fixed effects:
+##                     Estimate Std. Error        df t value Pr(&gt;|t|)    
+## (Intercept)        5.521e+00  1.631e-02 9.654e+01  338.59   &lt;2e-16 ***
+## freq_centered      8.351e-03  1.896e-04 6.725e+05   44.05   &lt;2e-16 ***
+## surprisal_centered 1.811e-02  2.261e-04 6.725e+05   80.08   &lt;2e-16 ***
+## length_centered    3.630e-02  3.303e-04 6.725e+05  109.90   &lt;2e-16 ***
 ## ---
 ## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
 ## 
-## Residual standard error: 112.6 on 629052 degrees of freedom
-## Multiple R-squared:  0.03104,    Adjusted R-squared:  0.03104 
-## F-statistic:  6718 on 3 and 629052 DF,  p-value: &lt; 2.2e-16</code></pre>
-<p>We then fit a linear model predicting first-run dwell time (gaze
-duration) from centered word length, centered word frequency, and their
-interaction. The overall model was statistically significant,
-F(3,629052) = 6718.00, p &lt; .001, R2 = .03. At the mean length and
-frequency, predicted first-run dwell time was approximately 218 ms. Word
-length is a positive predictor of first-run dwell time, such that longer
-words were associated with longer dwell times, b = 3.17, SE = .008,
-t(629052) = 40.86, p &lt; .001. Frequency also significantly predicted
-dwell time, b = 2.68, SE = .004, t(629052) = 75.54, p &lt; .001.
-Importantly, the effect of word length in dwell time spending on reading
-depends on word frequency: the length penalty becomes larger as
-frequency values increase.b = 0.42, SE = 0.01, t(629052) = 33.12, p &lt;
-.001.</p>
-<hr />
+## Correlation of Fixed Effects:
+##             (Intr) frq_cn srprs_
+## freq_centrd  0.000              
+## srprsl_cntr -0.001 -0.510       
+## lngth_cntrd  0.000 -0.493 -0.035</code></pre>
+</div>
+<div id="model-3-frequency-surprisal-interaction"
+class="section level2">
+<h2>Model 3: Frequency × Surprisal Interaction</h2>
+<pre class="r"><code>model3 &lt;- lmer(log_dwell ~ freq_centered * surprisal_centered + length_centered +
+                 (1 | participant_id) + (1 | paragraph_id),
+               data = ia_clean)
+
+summary(model3)</code></pre>
+<pre><code>## Linear mixed model fit by REML. t-tests use Satterthwaite&#39;s method [
+## lmerModLmerTest]
+## Formula: log_dwell ~ freq_centered * surprisal_centered + length_centered +  
+##     (1 | participant_id) + (1 | paragraph_id)
+##    Data: ia_clean
+## 
+## REML criterion at convergence: 1122592
+## 
+## Scaled residuals: 
+##     Min      1Q  Median      3Q     Max 
+## -4.2465 -0.6832 -0.0822  0.6523  4.7932 
+## 
+## Random effects:
+##  Groups         Name        Variance Std.Dev.
+##  participant_id (Intercept) 0.03824  0.19556 
+##  paragraph_id   (Intercept) 0.00037  0.01923 
+##  Residual                   0.31012  0.55688 
+## Number of obs: 672671, groups:  participant_id, 180; paragraph_id, 7
+## 
+## Fixed effects:
+##                                    Estimate Std. Error         df t value
+## (Intercept)                       5.523e+00  1.631e-02  9.651e+01 338.578
+## freq_centered                     8.725e-03  1.952e-04  6.725e+05  44.705
+## surprisal_centered                1.900e-02  2.521e-04  6.725e+05  75.379
+## length_centered                   3.557e-02  3.428e-04  6.725e+05 103.769
+## freq_centered:surprisal_centered -1.566e-04  1.945e-05  6.725e+05  -8.051
+##                                  Pr(&gt;|t|)    
+## (Intercept)                       &lt; 2e-16 ***
+## freq_centered                     &lt; 2e-16 ***
+## surprisal_centered                &lt; 2e-16 ***
+## length_centered                   &lt; 2e-16 ***
+## freq_centered:surprisal_centered 8.22e-16 ***
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+## 
+## Correlation of Fixed Effects:
+##             (Intr) frq_cn srprs_ lngth_
+## freq_centrd  0.004                     
+## srprsl_cntr  0.006 -0.339              
+## lngth_cntrd -0.004 -0.525 -0.148       
+## frq_cntrd:_ -0.014 -0.238 -0.442  0.267</code></pre>
+</div>
+<div id="model-comparison" class="section level2">
+<h2>Model Comparison</h2>
+<pre class="r"><code>anova(model1, model2, model3)</code></pre>
+<pre><code>## Data: ia_clean
+## Models:
+## model1: log_dwell ~ freq_centered + length_centered + (1 | participant_id) + (1 | paragraph_id)
+## model2: log_dwell ~ freq_centered + surprisal_centered + length_centered + (1 | participant_id) + (1 | paragraph_id)
+## model3: log_dwell ~ freq_centered * surprisal_centered + length_centered + (1 | participant_id) + (1 | paragraph_id)
+##        npar     AIC     BIC  logLik -2*log(L)    Chisq Df Pr(&gt;Chisq)    
+## model1    6 1128979 1129048 -564484   1128967                           
+## model2    7 1122599 1122679 -561292   1122585 6382.195  1  &lt; 2.2e-16 ***
+## model3    8 1122536 1122627 -561260   1122520   64.818  1  8.216e-16 ***
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1</code></pre>
+<p>The model comparison via likelihood ratio tests revealed that each
+successive model significantly improved fit. Adding GPT-2 surprisal
+(Model 2) significantly improved fit over the baseline frequency + word
+length model, Χ²(1) = 6382.20, p &lt; .001, indicating that contextual
+predictability explains additional variance in dwell time beyond what
+word frequency and word length already capture. Adding the frequency ×
+surprisal interaction (Model 3) further improved fit over the additive
+model, Χ²(1) = 64.82, p &lt; .001, suggesting that the effects of
+frequency and surprisal on reading time are not purely additive but
+depend on each other.</p>
+</div>
+<div id="model-diagnostics" class="section level2">
+<h2>Model Diagnostics</h2>
+<pre class="r"><code>par(mfrow = c(1, 2))
+
+plot(fitted(model3), resid(model3),
+     xlab = &quot;Fitted Values&quot;, ylab = &quot;Residuals&quot;,
+     main = &quot;Residuals vs Fitted&quot;, pch = &quot;.&quot;, col = &quot;steelblue&quot;)
+abline(h = 0, col = &quot;red&quot;, lty = 2)
+
+qqnorm(resid(model3), main = &quot;QQ Plot of Residuals&quot;, pch = &quot;.&quot;)
+qqline(resid(model3), col = &quot;red&quot;)</code></pre>
+<p><img src="p02_files/figure-html/unnamed-chunk-15-1.png" width="1152" style="display: block; margin: auto;" /></p>
+<p>The residuals vs. fitted plot shows residuals roughly centered around
+zero with no strong systematic pattern, suggesting that the model does
+not exhibit major violations of linearity or homoscedasticity. The QQ
+plot indicates that the residuals are approximately normally
+distributed.</p>
+</div>
+<div id="model-results" class="section level2">
+<h2>Model Results</h2>
+<pre class="r"><code>tab_model(model3,
+          title = &quot;Mixed-Effects Model: Frequency × Surprisal Interaction&quot;,
+          dv.labels = &quot;Log Dwell Time&quot;,
+          show.stat = TRUE)</code></pre>
+<table style="border-collapse:collapse; border:none;">
+<caption style="font-weight: bold; text-align:left;">
+Mixed-Effects Model: Frequency × Surprisal Interaction
+</caption>
+<tr>
+<th style="border-top: double; text-align:center; font-style:normal; font-weight:bold; padding:0.2cm;  text-align:left; ">
+ 
+</th>
+<th colspan="4" style="border-top: double; text-align:center; font-style:normal; font-weight:bold; padding:0.2cm; ">
+Log Dwell Time
+</th>
+</tr>
+<tr>
+<td style=" text-align:center; border-bottom:1px solid; font-style:italic; font-weight:normal;  text-align:left; ">
+Predictors
+</td>
+<td style=" text-align:center; border-bottom:1px solid; font-style:italic; font-weight:normal;  ">
+Estimates
+</td>
+<td style=" text-align:center; border-bottom:1px solid; font-style:italic; font-weight:normal;  ">
+CI
+</td>
+<td style=" text-align:center; border-bottom:1px solid; font-style:italic; font-weight:normal;  ">
+Statistic
+</td>
+<td style=" text-align:center; border-bottom:1px solid; font-style:italic; font-weight:normal;  ">
+p
+</td>
+</tr>
+<tr>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; ">
+(Intercept)
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+5.52
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+5.49 – 5.55
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+338.58
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+<strong>&lt;0.001</strong>
+</td>
+</tr>
+<tr>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; ">
+freq centered
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+0.01
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+0.01 – 0.01
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+44.70
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+<strong>&lt;0.001</strong>
+</td>
+</tr>
+<tr>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; ">
+surprisal centered
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+0.02
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+0.02 – 0.02
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+75.38
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+<strong>&lt;0.001</strong>
+</td>
+</tr>
+<tr>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; ">
+length centered
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+0.04
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+0.03 – 0.04
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+103.77
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+<strong>&lt;0.001</strong>
+</td>
+</tr>
+<tr>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; ">
+freq centered × surprisal<br>centered
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+-0.00
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+-0.00 – -0.00
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+-8.05
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:center;  ">
+<strong>&lt;0.001</strong>
+</td>
+</tr>
+<tr>
+<td colspan="5" style="font-weight:bold; text-align:left; padding-top:.8em;">
+Random Effects
+</td>
+</tr>
+<tr>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; padding-top:0.1cm; padding-bottom:0.1cm;">
+σ<sup>2</sup>
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
+0.31
+</td>
+</tr>
+<tr>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; padding-top:0.1cm; padding-bottom:0.1cm;">
+τ<sub>00</sub> <sub>participant_id</sub>
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
+0.04
+</td>
+<tr>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; padding-top:0.1cm; padding-bottom:0.1cm;">
+τ<sub>00</sub> <sub>paragraph_id</sub>
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
+0.00
+</td>
+<tr>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; padding-top:0.1cm; padding-bottom:0.1cm;">
+ICC
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
+0.11
+</td>
+<tr>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; padding-top:0.1cm; padding-bottom:0.1cm;">
+N <sub>participant_id</sub>
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
+180
+</td>
+<tr>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; padding-top:0.1cm; padding-bottom:0.1cm;">
+N <sub>paragraph_id</sub>
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
+7
+</td>
+<tr>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; padding-top:0.1cm; padding-bottom:0.1cm; border-top:1px solid;">
+Observations
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left; border-top:1px solid;" colspan="4">
+672671
+</td>
+</tr>
+<tr>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; text-align:left; padding-top:0.1cm; padding-bottom:0.1cm;">
+Marginal R<sup>2</sup> / Conditional R<sup>2</sup>
+</td>
+<td style=" padding:0.2cm; text-align:left; vertical-align:top; padding-top:0.1cm; padding-bottom:0.1cm; text-align:left;" colspan="4">
+0.076 / 0.178
+</td>
+</tr>
+</table>
+<p>The fixed effects from the interaction model are summarized in the
+table above. The intercept, b = 5.52, 95% CI[5.49, 5.55], t = 338.58, p
+&lt; .001, represents the predicted log dwell time for a word of average
+frequency, average surprisal, and average length. The main effect of
+word frequency was significant, b = 0.01, 95% CI [0.01, 0.01], t =
+44.70, p &lt; .001, indicating that higher word frequency values were
+associated with longer log dwell times. The main effect of GPT-2
+surprisal was also significant, b = 0.02, 95% CI [0.02, 0.02], t =
+75.38, p &lt; .001, confirming that less predictable words (higher
+surprisal) incurred longer processing times. Word length, included as a
+control variable, was a significant predictor as well, b = 0.04, 95% CI
+[0.03, 0.04], t = 103.77, p &lt; .001, with longer words receiving
+longer fixations.</p>
+<p>Critically, the interaction between word frequency and GPT-2
+surprisal was significant, b = -0.00, t = -8.05, p &lt; .001. The
+negative interaction coefficient indicates that the positive effect of
+surprisal on dwell time is attenuated at higher levels of word
+frequency. In other words, the processing cost of encountering a
+contextually unexpected word is slightly reduced for higher-frequency
+words, suggesting that word frequency provides some buffer against the
+difficulty of contextual unpredictability.</p>
 </div>
 </div>
 <div id="discussion" class="section level1">
 <h1>Discussion</h1>
-<p>This analysis explored the interaction between word length and word
-frequency on eye movements during reading using the OneStop Eye
-Movements Dataset. Both word length and word frequency significantly
-predict fixation durations, consistent with decades of reading research.
-The interaction between word length and frequency was statistically
-significant, revealing that the effect of word length on fixation
-duration depends on word frequency. Additionally, the word length effect
-(longer words → longer fixations) is stronger for low-frequency words
-than for high-frequency words. This suggests that (1) High-frequency
-words may be recognized more holistically, reducing sensitivity to word
-length and (2) Low-frequency words require more analytical processing
-that scales with the number of letters</p>
-<p>However, there is some limitations. First, this portfolio used
-aggregated data; a more rigorous analysis would use mixed-effects models
-to account for participant and item random effects. Besides, the
-frequency measure used is corpus-based and may not perfectly reflect
-individual readers’ experience</p>
+<p>This portfolio examined the interaction between contextual
+predictability and word frequency effects on total dwell time during
+reading. Building upon Portfolio 1, which used ordinary linear
+regression to investigate word length × frequency interaction, this
+portfolio employed linear mixed-effects models with random intercepts
+for participants and paragraphs to appropriately account for the
+hierarchical structure of the eye-tracking data.</p>
+<p>Both word frequency and GPT-2 surprisal were significant predictors
+of log-transformed dwell time. Higher word frequency values were
+associated with longer dwell times, and higher-surprisal words — those
+less predictable from the preceding context — also incurred longer
+processing times, confirming that readers are sensitive to contextual
+expectations during reading. The model comparison demonstrated that
+adding surprisal significantly improved model fit beyond frequency and
+word length alone, and that the frequency × surprisal interaction
+further improved fit. The negative interaction coefficient indicates
+that the surprisal cost is attenuated at higher frequency levels,
+suggesting that frequency provides a partial buffer against the
+processing difficulty of contextual unpredictability.</p>
+<p>These findings are broadly consistent with the theoretical framework
+proposed by Smith and Levy (2013), who argued that the effect of word
+predictability on reading time is logarithmic. Because GPT-2 surprisal
+is measured in bits (negative log-probability), it naturally captures
+this logarithmic relationship: a one-bit increase in surprisal
+corresponds to a halving of the word’s contextual probability. The
+significant main effect of surprisal on dwell time aligns with their
+prediction that predictability has a continuous, graded influence on
+reading effort. The significant interaction with frequency further
+suggests that contextual and lexical factors jointly shape the cognitive
+cost of word recognition, consistent with models of reading that
+emphasize the integration of multiple information sources during
+processing.</p>
+<p>There are several limitations to note. First, GPT-2 surprisal is a
+model-based estimate derived from a language model, and it may not
+perfectly reflect the contextual predictions that human readers generate
+during reading (Wilcox et al., 2020). Individual readers differ in their
+language experience and predictive processing, and a single surprisal
+value cannot capture this variability. Second, the random effects
+structure used here includes only random intercepts; including random
+slopes for frequency and surprisal could capture individual differences
+in sensitivity to these factors, though such models are more
+computationally demanding and may encounter convergence issues. Third,
+the dependent variable, total dwell time (<code>IA_DWELL_TIME</code>),
+combines both first-pass and re-reading fixations on a word. These
+components may reflect distinct cognitive processes - first-pass reading
+is thought to reflect initial lexical access, while re-reading may
+reflect comprehension difficulty or integration processes. Future work
+could separate these measures to gain a more fine-grained understanding
+of when contextual predictability exerts its influence during
+reading.</p>
 </div>
 
 

@@ -1,51 +1,52 @@
 ---
-title: "Portfolio 11: HMM Stage 2 - Participant-Level Feature Extraction (VST-First Group)"
+title: "Portfolio 11: HMM Stage 3 - Transfer Prediction (VST → RSVP)"
 ---
 
 # Background
 
-Portfolio 10 established that a 2-state joint HMM (item type + fixation duration) recovers two interpretable attentional modes - Efficient Search and Distractor Engagement, and that the VD-CD difference in state prevalence captures the learned distractor suppression signal at the group level. That proof-of-concept was fitted to all 48 participants pooled across task orders.
+Portfolios 9 and 10 established that a 2-state joint HMM (item type + fixation duration) recovers two attentional modes - Efficient Search and Distractor Engagement - and that the VD-CD difference in state prevalence captures the learned distractor suppression signal. Portfolio 10 extracted five participant-level features from the VST-first group (n = 24) that quantify how quickly and how completely each individual learned to suppress the consistent distractor:
 
-Stage 2 retains the pooled model for state estimation-because the hidden states represent stimulus-driven processing modes that should be invariant to whether participants completed the RSVP task first, fitting on all 48 participants yields more stable emission and transition parameter estimates than fitting on 24 alone. The model is fitted and decoded on the full sample, and then the focus narrows to the VST-first group (TaskOrder = 1; odd-numbered subjects, n = 24) for feature extraction. These participants completed the Visual Search Task before the RSVP task, making them the critical sample for testing whether individual differences in VST suppression learning predict cross-task transfer to RSVP (Stage 3). This portfolio extracts a set of participant-level features that quantify how quickly and how completely each individual learned to suppress the consistent distractor. The features are designed to serve as predictors in Stage 3's transfer regression.
+- Learning slope: rate of increase in P(Efficient Search) across trials.
+- Transition trial: the trial at which the 5-trial rolling mean of P(Efficient Search) first exceeds 0.50.
+- End-state P(Efficient Search): mean P(Efficient Search) in the final experimental block.
+- Overall suppression score: mean VD-CD difference in P(Distractor Engagement) across blocks.
+- Suppression growth: late - early change in the suppression score.
 
-The key features extracted are:
+The central question for Stage 3 is whether these HMM-derived individual differences in VST suppression learning predict cross-task transfer to the RSVP task. The VST-first group completed the Visual Search Task before the RSVP task, so any relationship between VST learning features and RSVP outcomes would constitute evidence that the latent suppression process captured by the HMM generalizes beyond the training task.
 
-- Learning slope: rate of increase in P(Efficient Search) across trials-how fast the participant shifts toward efficient processing.
-- Transition trial: the trial at which a 5-trial rolling mean of P(Efficient Search) first exceeds 0.50-the point at which efficient processing becomes the dominant mode.
-- End-state P(Efficient Search): mean P(Efficient Search) in the final experimental block-how well the participant learned by the end of training.
-- Overall suppression score: mean VD-CD difference in P(Distractor Engagement) across blocks-the participant's cumulative HMM-derived suppression signal.
-- Suppression growth: the increase in the VD-CD suppression score from early to late blocks, i.e., how much the condition difference in state occupancy develops over the course of the experiment.
+The primary RSVP transfer outcome is Blink_CD - the attentional blink magnitude for the consistent distractor color, computed as the difference in target accuracy between lag 8 and lag 2, where lag is the distance in stream positions between a distractor (a hashtag) and the single target that follows it. If learned suppression transfers, participants who showed stronger or faster suppression learning in the VST should show a reduced attentional blink for the consistent distractor color in the RSVP task.
+
+This approach follows the logic of individual-differences transfer designs used in the learned attention literature, where the strength of statistical learning during training predicts the magnitude of transfer effects in a novel task.
 
 
 # Goals
 
-1. Fit the 2-state joint HMM on the full sample (all 48 participants) for stable state estimation, and decode every trial via posterior probabilities.
-2. Filter to the VST-first group and compute trial-level P(Efficient Search).
-3. Track Level 2 dynamics: how P(Efficient Search) evolves across blocks for CD vs. VD, and test whether the HMM suppression score (VD-CD) grows from early to late blocks.
-4. Extract participant-level features for Stage 3 transfer prediction.
-5. Fit separate per-block HMMs to examine whether the emission parameters themselves shift as learning progresses.
-6. Visualize individual learning trajectories and feature distributions.
+1. Load the participant-level HMM features from Portfolio 10 and the RSVP transfer outcomes, and merge by participant.
+2. Examine descriptive statistics and distributions of the RSVP outcome (Blink_CD) and all HMM predictors.
+3. Run bivariate correlations between each HMM feature and Blink_CD to identify which aspects of suppression learning are associated with transfer.
+4. Fit a multiple regression with the most promising predictors to test their joint and unique contributions.
+5. Visualize the key predictor–outcome relationships.
+6. Evaluate assumptions (normality, influential cases) and report results in APA style.
 
 
 # Setup
 
-```{r setup, message=FALSE, warning=FALSE}
+```{r}
 rm(list = ls())
 
 library(tidyverse)
 library(readxl)
-library(depmixS4)
 library(knitr)
 library(patchwork)
-library(zoo)  # for rollmean in transition point calculation
+library(car)
 
 select <- dplyr::select
 filter <- dplyr::filter
 ```
 
 
-```{r theme}
-# Plot theme (matching manuscript style from p10)
+```{r}
+# Plot theme (matching manuscript style from p09/p10)
 axis_text_size <- 14
 axis_tick_text_size <- 12
 graph_color <- "black"
@@ -67,447 +68,106 @@ manuscript_theme <- theme_classic() +
     text = element_text(size = axis_tick_text_size)
   )
 
-# State colors (consistent with p10)
+# Consistent color palette
 col_efficient <- "#1F77B4"
 col_engaged <- "#D62728"
-state_colors <- c("Efficient Search" = col_efficient,
-                  "Distractor Engagement" = col_engaged)
 ```
 
 
-# Data Preparation
+# Data Loading and Merging
 
-We load the same preprocessed fixation data as in Portfolio 10, using all 48 participants for model fitting. Trials with fewer than 2 fixations are excluded because a single-fixation sequence provides no transition information for the HMM. The VST-first filter is applied after decoding, at the feature extraction stage.
+## Load HMM Features (from Portfolio 10)
 
-```{r data-load}
-fdata_file <- "summary/VST_DataSummary_SL_EyeTracking_Final.xlsx"
-fdata <- read_excel(fdata_file, sheet = "fdata")
-```
-
-```{r data-prep}
-hmm_data <- fdata %>%
-  mutate(
-    subjnum = as.integer(subjnum),
-    block = as.integer(block),
-    block_Norm = as.integer(block_Norm),
-    trial = as.integer(trial),
-    saccindex = as.integer(saccindex),
-    Dwell = as.numeric(CURRENT_FIX_DURATION),
-    # Fixation durations are right-skewed; log makes the Gaussian emission a sensible fit.
-    log_dur = log(as.numeric(CURRENT_FIX_DURATION)),
-    # obs is an integer code kept for export readability; depmixS4's multinomial
-    # response actually consumes the factor `obs_factor` defined just below.
-    obs = case_when(
-      curritem == "Target" ~ 1L,
-      curritem == "TCD" ~ 2L,
-      curritem == "Distractor" ~ 3L
-    ),
-    obs_factor = factor(obs, levels = 1:3,
-                        labels = c("Target", "TCD", "Distractor")),
-    condition = factor(condition, levels = c("CD", "VD")),
-    # TaskOrder kept as integer here (1 = VST-first, 2 = RSVP-first) for simple
-    # == 1, filtering downstream; p10 used a labelled factor for plot facets.
-    TaskOrder = as.integer(TaskOrder)
-  ) %>%
-  group_by(subjnum) %>%
-  mutate(
-    # `trial_id` uniquely identifies each trial within a participant - used later by `ntimes` to mark independent HMM sequences so the model resets at trial boundaries instead of treating all data as one continuous chain.
-    trial_id = paste(subjnum, block, trial, sep = "_"),
-    # `trial_num` is a per-participant 1..N index that makes regression slopes against trial number well-defined within each participant.
-    trial_num = dense_rank(interaction(block, trial))
-  ) %>%
-  ungroup() %>%
-  filter(!is.na(obs), !is.na(log_dur), is.finite(log_dur)) %>%
-  select(subjnum, TaskOrder, block, block_Norm, trial, trial_num, trial_id,
-         condition, saccindex, curritem, obs, obs_factor, Dwell, log_dur,
-         CURRENT_FIX_X, CURRENT_FIX_Y) %>%
-  arrange(subjnum, trial_num, saccindex)
-
-# Remove trials with fewer than 2 fixations: a single-fixation sequence has zero transitions, so it contributes nothing to the posterior decoding's transition structure (the loaded model already treats trials as independent sequences).
-trial_counts <- hmm_data %>% count(trial_id, name = "n_fix")
-hmm_data <- hmm_data %>%
-  semi_join(trial_counts %>% filter(n_fix >= 2), by = "trial_id") %>%
-  arrange(subjnum, trial_num, saccindex)
-
-# Use rle on the row-ordered trial_id so seq_lengths matches the data row order (count() would sort alphabetically and break alignment with arrange()).
-# Even though we are not re-fitting the HMM here, `seq_lengths` makes the trial boundaries explicit and is reused by the per-block re-fits later in the file.
-seq_lengths <- rle(as.character(hmm_data$trial_id))$lengths
+```{r}
+# Participant-level HMM features extracted in p10 (VST-first group, n = 24)
+hmm_features <- read_csv("output/stage2_participant_features_vst_first.csv",
+                         show_col_types = FALSE)
 ```
 
 
-## Descriptive Summary
+## Load RSVP Transfer Outcomes
 
-```{r descriptives}
-n_subj <- length(unique(hmm_data$subjnum))
-n_subj_vst <- length(unique(hmm_data$subjnum[hmm_data$TaskOrder == 1]))
-
-trials_per_subj <- hmm_data %>%
-  distinct(subjnum, trial_id) %>%
-  count(subjnum) %>%
-  summarise(M = mean(n), SD = sd(n), Min = min(n), Max = max(n))
-
-fix_per_trial <- hmm_data %>%
-  count(trial_id) %>%
-  summarise(M = mean(n), SD = sd(n), Min = min(n), Max = max(n))
-
-kable(trials_per_subj, digits = 1,
-      caption = "Table 1. Trials per participant (full sample, used for model fitting).")
-kable(fix_per_trial, digits = 2,
-      caption = "Table 2. Fixations per trial (full sample, after excluding 1-fixation trials).")
-```
-
-The full sample includes `r n_subj` participants (`r n_subj_vst` VST-first) contributing an average of `r sprintf("%.0f", trials_per_subj$M)` trials each, with `r sprintf("%.2f", fix_per_trial$M)` fixations per trial on average. The model is fitted on all participants; feature extraction below is restricted to the VST-first group.
-
-
-# Loading the 2-State Joint HMM (from Portfolio 10)
-
-Rather than re-fitting the HMM from scratch (which can land on a different local optimum due to EM sensitivity), we load the fitted model object saved by Portfolio 10. This guarantees that the emission parameters, transition matrix, and state labels are identical across portfolios. The model was fitted in p10 on all 48 participants with 10 random restarts; see Portfolio 10 for full fitting details.
-
-```{r load-fitted-model}
-# Load the fitted 2-state joint HMM from p10
-fit_vst_first <- readRDS("output/stage1_fitted_model.rds")
-```
-
-
-## State Interpretation
-
-```{r state-interpretation}
-# Container for the per-state emission parameters; we'll back-transform the
-# Gaussian's location parameter to the duration's median in ms (see note below).
-emission_df <- data.frame(
-  state = 1:2,
-  p_target = NA, p_tcd = NA, p_distractor = NA,
-  median_dur_ms = NA, sd_log_dur = NA
+```{r}
+# RSVP accuracy data
+rsvp_acc <- read_excel(
+  "summary/RSVP_DataSummary_SL_EyeTracking_Final.xlsx",
+  sheet = "ACC"
 )
 
-# `@response[[s]][[1]]` is the multinomial (item-type) emission for state s;
-# `@response[[s]][[2]]` is the Gaussian (log-duration) emission
-# family = multinomial("identity") - the multinomial coefficients are emission probabilities directly (no link function to invert).
-for (s in 1:2) {
-  rp_cat <- fit_vst_first@response[[s]][[1]]@parameters$coefficients
-  rp_gauss <- fit_vst_first@response[[s]][[2]]@parameters
-  emission_df$p_target[s] <- rp_cat[1]
-  emission_df$p_tcd[s] <- rp_cat[2]
-  emission_df$p_distractor[s] <- rp_cat[3]
-  # exp(mu_log) is the median (not arithmetic mean) of the log-normal duration distribution; the arithmetic mean would be exp(mu + sigma^2/2). Reporting the median keeps the central-tendency value consistent with the asymmetric +/- 1 SD bounds plotted in Figure 1.
-  emission_df$median_dur_ms[s] <- exp(rp_gauss$coefficients)
-  emission_df$sd_log_dur[s] <- rp_gauss$sd # SD on log scale
-}
-
-# Label states by content rather than depmixS4's arbitrary state index.
-# State indices (1, 2) can flip between fits / restarts (the "label-switching" problem), so we identify Efficient Search as whichever state has higher P(Target). Doing this once here means downstream code references states by meaning, not by raw index.
-efficient_state <- which.max(emission_df$p_target)
-engaged_state <- setdiff(1:2, efficient_state)
-emission_df$state_label <- ifelse(
-  emission_df$state == efficient_state,
-  "Efficient Search", "Distractor Engagement"
-)
-
-# Transition matrix: `@transition[[i]]` holds the from-state-i row of the transition model. 
-# Under the baseline (no-covariate) spec used in p10, `@parameters$coefficients` is just a length-K vector of probabilities --> the row of the K x K transition matrix.
-trans_mat <- matrix(NA, 2, 2)
-for (i in 1:2) {
-  trans_mat[i, ] <- fit_vst_first@transition[[i]]@parameters$coefficients
-}
-colnames(trans_mat) <- rownames(trans_mat) <- emission_df$state_label
-
-# Initial state probabilities - what state a trial is most likely to begin in.
-# depmixS4 stores parameters in a fixed order: the K initial-state probabilities first, then transition parameters, then emission parameters. 
-# With K = 2, indices 1:2 are P(start in state 1) and P(start in state 2).
-init_pars <- getpars(fit_vst_first)
-init_probs <- init_pars[1:2]
+# Filter to VST-first group (Order == "VST_RSVP")
+rsvp_vst <- rsvp_acc %>%
+  filter(Order == "VST_RSVP") %>%
+  mutate(subjnum = as.integer(subjnum))
 ```
 
-```{r emission-table}
-em_display <- emission_df %>%
-  select(State = state_label,
-         `P(Target)` = p_target,
-         `P(TCD)` = p_tcd,
-         `P(Distractor)` = p_distractor,
-         `Median Duration (ms)` = median_dur_ms,
-         `SD log(dur)` = sd_log_dur)
+Each RSVP stream contains a distractor (a hashtag) followed by a single target; lag indexes the number of stream positions between them. The dataset contains target accuracy for each condition (CD, ND, VD_Match, VD_Mismatch) at two lags (2 and 8), along with pre-computed attentional blink scores (Blink = target accuracy at lag 8 − target accuracy at lag 2). The primary outcome is Blink_CD: the attentional blink magnitude for the consistent distractor color.
 
-kable(em_display, digits = 3,
-      caption = "Table 3. Emission parameters for each hidden state (full sample).")
+
+## Merge Datasets
+
+```{r}
+# Merge by subject number. We use inner_join (not left_join) on purpose: any participant who has features but no RSVP record (or vice versa) is dropped from analysis, which keeps `transfer_data` to the participants who can contribute to every model below. The setdiff checks below report whether anyone was lost so a silent drop never goes unnoticed.
+transfer_data <- hmm_features %>%
+  inner_join(rsvp_vst, by = "subjnum")
+
+
+# Diagnostic: who, if anyone, was lost in the merge
+hmm_only <- setdiff(hmm_features$subjnum, rsvp_vst$subjnum)
+rsvp_only <- setdiff(rsvp_vst$subjnum, hmm_features$subjnum)
+if (length(hmm_only) > 0) cat("  Participants in HMM but not RSVP:", hmm_only, "\n")
+if (length(rsvp_only) > 0) cat("  Participants in RSVP but not HMM:", rsvp_only, "\n")
+if (length(hmm_only) == 0 & length(rsvp_only) == 0) cat("  All participants matched.\n")
 ```
 
-```{r emission-plots, fig.width=11, fig.height=5, fig.cap="Figure 1. Emission profiles of the 2-state joint HMM (full sample). Left: item-type emission probabilities. Right: median fixation duration by state (back-transformed from the Gaussian on log duration), with the 16th-84th percentile bounds (i.e. exp(μ ± σ) on the log scale)."}
-p_item <- emission_df %>%
-  pivot_longer(cols = c(p_target, p_tcd, p_distractor),
-               names_to = "item", values_to = "probability") %>%
-  mutate(
-    item = recode(item,
-      "p_target" = "Target", "p_tcd" = "TCD", "p_distractor" = "Distractor"),
-    item = factor(item, levels = c("Target", "TCD", "Distractor"))
+
+# Descriptive Statistics
+
+## RSVP Outcome: Blink_CD
+
+```{r}
+# Compute M/SD/Min/Max for each of the four blink measures, producing one wide row with columns like `Blink_CD_M`, `Blink_CD_SD`, ...
+# The two pivots then reshape this into a tidy measure x {M,SD,Min,Max} table:
+## pivot_longer's `names_pattern = "(.+)_(M|SD|Min|Max)"` splits each column name into a measure stem and a statistic suffix
+## pivot_wider then puts each statistic in its own column
+blink_summary <- transfer_data %>%
+  summarise(
+    across(c(Blink_CD, Blink_ND, Blink_VD_Match, Blink_VD_Mismatch),
+           list(M = ~mean(., na.rm = TRUE),
+                SD = ~sd(., na.rm = TRUE),
+                Min = ~min(., na.rm = TRUE),
+                Max = ~max(., na.rm = TRUE)),
+           .names = "{.col}_{.fn}")
   ) %>%
-  ggplot(aes(x = item, y = probability, fill = state_label)) +
-  geom_col(position = position_dodge(0.8), width = 0.7) +
-  scale_fill_manual(values = state_colors) +
-  scale_y_continuous(labels = scales::percent_format(), limits = c(0, 1)) +
-  labs(x = "Item Type", y = "Emission Probability", fill = "Hidden State") +
-  manuscript_theme
+  pivot_longer(everything(),
+               names_to = c("measure", "stat"),
+               names_pattern = "(.+)_(M|SD|Min|Max)") %>%
+  pivot_wider(names_from = stat, values_from = value)
 
-p_dur <- emission_df %>%
-  mutate(
-    dur_lo = exp(log(median_dur_ms) - sd_log_dur),
-    dur_hi = exp(log(median_dur_ms) + sd_log_dur)
-  ) %>%
-  ggplot(aes(x = state_label, y = median_dur_ms, fill = state_label)) +
-  geom_col(width = 0.6) +
-  geom_errorbar(aes(ymin = dur_lo, ymax = dur_hi), width = 0.2, linewidth = 0.8) +
-  geom_text(aes(label = sprintf("%.0f ms", median_dur_ms)),
-            vjust = -0.5, size = 4.5) +
-  scale_fill_manual(values = state_colors) +
-  labs(x = "Hidden State", y = "Median Fixation Duration (ms)", fill = "Hidden State") +
-  manuscript_theme +
-  theme(legend.position = "none")
-
-p_item + p_dur + plot_layout(widths = c(1.2, 1))
+kable(blink_summary, digits = 3,
+      caption = "Table 1. Descriptive statistics for RSVP attentional blink scores (VST-first group).")
 ```
 
-The 2-state joint model fitted to the full sample recovered the same two attentional modes as in Portfolio 10. The Efficient Search state was characterized by elevated P(Target) = `r sprintf("%.3f", emission_df$p_target[efficient_state])` and shorter fixation duration (Mdn = `r sprintf("%.0f", emission_df$median_dur_ms[efficient_state])` ms). The Distractor Engagement state showed higher P(TCD) = `r sprintf("%.3f", emission_df$p_tcd[engaged_state])` and P(Distractor) = `r sprintf("%.3f", emission_df$p_distractor[engaged_state])`, with longer fixation duration (Mdn = `r sprintf("%.0f", emission_df$median_dur_ms[engaged_state])` ms).
-
-```{r transition-table}
-kable(round(trans_mat, 3),
-      caption = "Table 4. Transition matrix between hidden states (full sample).")
-```
-
-```{r transition-heatmap, fig.width=7, fig.height=5, fig.cap="Figure 2. Transition probability matrix. Diagonal entries are self-persistence; off-diagonal entries are switches. Distractor Engagement is more self-persistent than Efficient Search, consistent with the asymmetric attractor structure characterized in Portfolio 10."}
-trans_long <- as.data.frame(trans_mat) %>%
-  mutate(from = rownames(trans_mat)) %>%
-  pivot_longer(-from, names_to = "to", values_to = "prob") %>%
-  mutate(
-    from = factor(from, levels = emission_df$state_label),
-    to   = factor(to, levels = emission_df$state_label)
-  )
-
-ggplot(trans_long, aes(x = to, y = from, fill = prob)) +
-  geom_tile(color = "white") +
-  geom_text(aes(label = sprintf("%.2f", prob)),
-            color = ifelse(trans_long$prob > 0.5, "white", "black"), size = 5) +
-  scale_fill_gradient(low = "#EBF5FB", high = "#1B4F72", limits = c(0, 1)) +
-  labs(x = "To State", y = "From State", fill = "P(transition)") +
-  coord_equal() +
-  manuscript_theme +
-  theme(axis.ticks = element_blank())
-```
-
-The initial state probabilities were P(Efficient Search) = `r sprintf("%.3f", init_probs[efficient_state])` and P(Distractor Engagement) = `r sprintf("%.3f", init_probs[engaged_state])`.
-
-
-# Posterior Decoding and Trial-Level State Occupancy
-
-We extract the smoothed marginal posterior P(state | full fixation sequence for that trial) for every fixation in all 48 participants, then average those per-fixation posteriors within each trial to obtain trial-level P(Efficient Search) and P(Distractor Engagement). The Viterbi-decoded most-likely path is also stored as `decoded` for completeness, but it is not used in feature extraction-all downstream analyses operate on the soft (continuous) posterior probabilities. After decoding, we filter to the VST-first group (TaskOrder = 1) for all subsequent analyses and feature extraction.
-
-```{r decode}
-# `posterior(fit)` returns one row per fixation in the data frame the model was fit to. 
-
-# Columns:
-## `state`: Viterbi-decoded most likely state for that fixation (joint over the whole trial — not the per-fixation argmax)
-## `S1`, `S2`: smoothed marginal posteriors P(state = k | full trial), from the forward-backward algorithm. These are what we use.
-post <- depmixS4::posterior(fit_vst_first)
-
-# Index by content not by raw index: `efficient_state` and `engaged_state` were resolved above against P(Target). Using paste0("S", efficient_state) here means the assignment is robust to label-switching across re-fits or model versions.
-hmm_data$p_efficient <- post[, paste0("S", efficient_state)]
-hmm_data$p_engaged <- post[, paste0("S", engaged_state)]
-hmm_data$decoded <- ifelse(post$state == efficient_state,
-                           "Efficient Search", "Distractor Engagement")
-
-# Trial-level state occupancy: average the per-fixation smoothed posteriors within each trial. # The result `p_efficient` per trial is the expected fraction of fixations spent in Efficient Search under the model's posterior --> a soft generalization of "what fraction of this trial was efficient search?".
-trial_states_all <- hmm_data %>%
-  group_by(subjnum, TaskOrder, block_Norm, trial, trial_num, trial_id, condition) %>%
-  summarise(
-    p_efficient = mean(p_efficient),
-    p_engaged = mean(p_engaged),
-    n_fix = n(),
-    .groups = "drop"
-  )
-
-# Filter to VST-first group for all subsequent participant-level work.
-# The model fit on all 48 participants; VST-first is the relevant subsample for Stage 3 transfer prediction because they did the VST before the RSVP.)
-trial_states <- trial_states_all %>%
-  filter(TaskOrder == 1)
-```
-
-
-# Level 2: Across-Trial Evolution of State Prevalence
-
-The within-trial HMM (Level 1) gives us P(Efficient Search) for each trial. Level 2 examines how this probability evolves across blocks and conditions as participants learn to suppress the consistent distractor.
-
-## Block × Condition Learning Trajectories
-
-```{r block-states}
-# Block × condition averages of the trial-level posteriors. SE is across
-# trials within each cell (not across participants); used only for plotting.
-block_states <- trial_states %>%
-  group_by(condition, block_Norm) %>%
-  summarise(
-    M_efficient = mean(p_efficient),
-    SE_efficient = sd(p_efficient) / sqrt(n()),
-    M_engaged = mean(p_engaged),
-    SE_engaged = sd(p_engaged) / sqrt(n()),
-    .groups = "drop"
-  )
-```
-
-```{r learning-trajectory, fig.width=8, fig.height=5, fig.cap="Figure 3. P(Efficient Search) across blocks by condition (VST-first group only). If suppression is learned, CD should show higher P(Efficient Search) than VD, especially in later blocks."}
-ggplot(block_states,
-       aes(x = block_Norm, y = M_efficient, color = condition,
-           ymin = M_efficient - SE_efficient,
-           ymax = M_efficient + SE_efficient)) +
-  geom_line(linewidth = 1.1) +
-  geom_point(size = 3) +
-  geom_errorbar(width = 0.15, linewidth = 0.8) +
-  scale_color_manual(
-    values = c("CD" = "#2196F3", "VD" = "#FF9800"),
-    labels = c("CD" = "Consistent Distractor", "VD" = "Variable Distractor")) +
-  labs(x = "Block", y = "P(Efficient Search)", color = "Condition") +
+```{r blink-distribution, fig.width=8, fig.height=5, fig.cap="Figure 1. Distribution of attentional blink magnitude for the consistent distractor color (Blink_CD). Each bar represents a VST-first participant. Positive values indicate a standard attentional blink (better target accuracy at lag 8 than lag 2); negative values indicate a reversed blink."}
+ggplot(transfer_data, aes(x = Blink_CD)) +
+  geom_histogram(binwidth = 0.05, fill = col_efficient, color = "white", alpha = 0.8) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "gray40") +
+  geom_vline(xintercept = mean(transfer_data$Blink_CD, na.rm = TRUE),
+             linetype = "solid", color = col_engaged, linewidth = 1) +
+  labs(x = "Blink_CD (Lag 8 - Lag 2 Accuracy)",
+       y = "Count") +
+  annotate("text", x = mean(transfer_data$Blink_CD, na.rm = TRUE), y = Inf,
+           label = "Mean", vjust = 2, hjust = -0.2, color = col_engaged, size = 5) +
   manuscript_theme
 ```
 
 
-## HMM Suppression Score (VD - CD)
+## HMM Predictor Summary
 
-The HMM suppression score is computed as VD - CD in P(Distractor Engagement). Positive values indicate that participants spend more time in the engaged state on VD trials than CD trials-the expected direction if suppression is learned for the consistent distractor.
-
-```{r suppress-scores}
-# Per-participant × block suppression score: VD - CD in P(Distractor Engagement).
-# Pivot wide so each row has one CD and one VD value to subtract; the resulting `suppress_score` is the HMM analog of the standard behavioural VD - CD score.
-hmm_suppress <- trial_states %>%
-  group_by(subjnum, block_Norm, condition) %>%
-  summarise(M_engaged = mean(p_engaged), .groups = "drop") %>%
-  pivot_wider(names_from = condition, values_from = M_engaged) %>%
-  mutate(suppress_score = VD - CD)
-
-# Group-level (across-participant) average suppression score per block, with between-participant SE for the trajectory plot.
-block_suppress <- hmm_suppress %>%
-  group_by(block_Norm) %>%
+```{r}
+# Same wide-summarise -> pivot pattern as the blink summary above, applied to the five HMM predictors. We carry M and SD only (not Min/Max) because the predictors are bounded transformations of probabilities or trial indices and their range is less informative than the spread.
+predictor_summary <- transfer_data %>%
   summarise(
-    M_score = mean(suppress_score, na.rm = TRUE),
-    SE_score = sd(suppress_score, na.rm = TRUE) / sqrt(sum(!is.na(suppress_score))),
-    .groups = "drop"
-  )
-```
-
-```{r suppress-plot, fig.width=8, fig.height=5, fig.cap="Figure 4. HMM suppression score (VD - CD in P(Distractor Engagement)) across blocks. Values above the dashed line indicate suppression of the consistent distractor."}
-ggplot(block_suppress,
-       aes(x = block_Norm, y = M_score,
-           ymin = M_score - SE_score, ymax = M_score + SE_score)) +
-  geom_line(linewidth = 1.1, color = col_engaged) +
-  geom_point(size = 3, color = col_engaged) +
-  geom_errorbar(width = 0.15, linewidth = 0.8, color = col_engaged) +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50", linewidth = 0.8) +
-  labs(x = "Block", y = "Suppression Score (VD - CD)") +
-  manuscript_theme
-```
-
-
-## Early vs. Late Suppression
-
-To test whether the suppression score grows across the experiment, we compare the mean suppression score in the first two blocks (early: blocks 1-2) against the last two blocks (late: blocks 7-8) using a paired *t*-test.
-
-```{r early-late-test}
-# Early = blocks 1-2, Late = blocks 7-8; blocks 3-6 are deliberately excluded to keep the contrast cleanly between the start and the end of training. 
-# Within each participant, average the suppression score within each half, then compute a within-participant late - early difference and one-sample t-test against zero (equivalent to a paired t-test on early vs. late).
-suppress_by_half <- hmm_suppress %>%
-  mutate(half = ifelse(block_Norm <= 2, "early",
-                       ifelse(block_Norm >= 7, "late", NA))) %>%
-  filter(!is.na(half)) %>%
-  group_by(subjnum, half) %>%
-  summarise(M = mean(suppress_score, na.rm = TRUE), .groups = "drop") %>%
-  pivot_wider(names_from = half, values_from = M) %>%
-  mutate(diff = late - early)
-
-t_result <- t.test(suppress_by_half$diff)
-```
-
-The mean suppression score went from M= `r sprintf("%.3f", mean(suppress_by_half$early, na.rm = TRUE))` in blocks 1-2 to M = `r sprintf("%.3f", mean(suppress_by_half$late, na.rm = TRUE))` in blocks 7-8. A paired t-test on the within-participant difference yielded t(`r t_result$parameter`) = `r sprintf("%.2f", t_result$statistic)`, p = `r sprintf("%.4f", t_result$p.value)`. `r if (t_result$p.value < .05) "This indicates that HMM-derived suppression grew significantly across the experiment." else "This suggests that the growth in HMM-derived suppression across blocks did not reach significance in this subsample, possibly due to reduced power with 24 participants."`
-
-
-# Participant-Level Feature Extraction
-
-For each participant, we extract the following features from the decoded trial-level data. These features quantify individual differences in how quickly and how completely each participant developed suppression, and will serve as predictors in Stage 3's transfer regression.
-
-```{r feature-extraction}
-# Overall features (pooled across conditions)
-participant_features <- trial_states %>%
-  group_by(subjnum) %>%
-  arrange(trial_num) %>%
-  summarise(
-    # Overall P(Efficient Search)
-    mean_p_efficient = mean(p_efficient),
-
-    # Learning slope: slope of P(Efficient) across trials
-    learning_slope = coef(lm(p_efficient ~ trial_num))[2],
-
-    # Transition trial: first trial where 5-trial rolling mean exceeds 0.50
-    transition_trial = {
-      rm <- rollmean(p_efficient, k = 5, fill = NA, align = "center")
-      idx <- which(rm > 0.5)
-      if (length(idx) > 0) trial_num[idx[1]] else NA_integer_
-    },
-
-    # End-state: P(Efficient) in last block
-    end_p_efficient = mean(p_efficient[block_Norm == max(block_Norm)]),
-
-    # Early vs late P(Efficient)
-    early_p_efficient = mean(p_efficient[block_Norm <= 2]),
-    late_p_efficient = mean(p_efficient[block_Norm >= 7]),
-
-    .groups = "drop"
-  )
-
-# CD- and VD-specific features. The Stage 3 transfer regression uses the pooled features above (learning_slope, transition_trial, end_p_efficient, overall_suppress, suppress_growth); these condition-specific versions are saved alongside as exploratory extras so condition-level patterns can be inspected without re-fitting.
-cd_features <- trial_states %>%
-  filter(condition == "CD") %>%
-  group_by(subjnum) %>%
-  summarise(
-    cd_mean_efficient = mean(p_efficient),
-    cd_learning_slope = coef(lm(p_efficient ~ trial_num))[2],
-    cd_end_efficient = mean(p_efficient[block_Norm == max(block_Norm)]),
-    .groups = "drop"
-  )
-
-vd_features <- trial_states %>%
-  filter(condition == "VD") %>%
-  group_by(subjnum) %>%
-  summarise(
-    vd_mean_efficient = mean(p_efficient),
-    vd_learning_slope = coef(lm(p_efficient ~ trial_num))[2],
-    vd_end_efficient = mean(p_efficient[block_Norm == max(block_Norm)]),
-    .groups = "drop"
-  )
-
-# Per-participant suppression scores
-subj_suppress <- hmm_suppress %>%
-  group_by(subjnum) %>%
-  summarise(
-    overall_suppress = mean(suppress_score, na.rm = TRUE),
-    early_suppress = mean(suppress_score[block_Norm <= 2], na.rm = TRUE),
-    late_suppress = mean(suppress_score[block_Norm >= 7], na.rm = TRUE),
-    suppress_growth = late_suppress - early_suppress,
-    .groups = "drop"
-  )
-
-# Combine all features
-participant_features <- participant_features %>%
-  left_join(cd_features, by = "subjnum") %>%
-  left_join(vd_features, by = "subjnum") %>%
-  left_join(subj_suppress, by = "subjnum")
-```
-
-
-## Feature Summary
-
-```{r feature-summary}
-# Compute M and SD for each feature, producing one column per feature × stat (e.g. `learning_slope_M`, `learning_slope_SD`). 
-# The two pivots then reshape this wide one-row tibble into a tidy feature × {M, SD} table:
-## pivot_longer's `names_pattern = "(.+)_(M|SD)"` splits each column name into a feature stem and a statistic suffix
-## pivot_wider then puts M and SD in their own columns alongside `feature`
-feat_summary <- participant_features %>%
-  summarise(
-    across(c(mean_p_efficient, learning_slope, transition_trial,
-             end_p_efficient, cd_learning_slope, vd_learning_slope,
+    across(c(learning_slope, transition_trial, end_p_efficient,
              overall_suppress, suppress_growth),
            list(M = ~mean(., na.rm = TRUE),
                 SD = ~sd(., na.rm = TRUE)),
@@ -518,213 +178,416 @@ feat_summary <- participant_features %>%
                names_pattern = "(.+)_(M|SD)") %>%
   pivot_wider(names_from = stat, values_from = value)
 
-kable(feat_summary, digits = 4,
-      caption = "Table 5. Descriptive statistics for participant-level HMM features (VST-first group).")
+kable(predictor_summary, digits = 4,
+      caption = "Table 2. Descriptive statistics for HMM-derived predictors (VST-first group).")
 ```
 
 
-## Feature Distributions
+# Bivariate Correlations
 
-```{r feature-distributions, fig.width=10, fig.height=8, fig.cap="Figure 5. Distributions of participant-level HMM features. Each histogram shows between-participant variability in a key suppression learning metric. The dashed line marks zero."}
-feat_long <- participant_features %>%
-  select(subjnum, learning_slope, overall_suppress,
-         suppress_growth, end_p_efficient) %>%
-  pivot_longer(-subjnum, names_to = "feature", values_to = "value") %>%
-  mutate(feature = recode(feature,
-    "learning_slope" = "Learning Slope\n(P(Efficient) ~ trial)",
-    "overall_suppress" = "Overall Suppression\n(VD - CD)",
-    "suppress_growth" = "Suppression Growth\n(late - early)",
-    "end_p_efficient" = "End-State\nP(Efficient Search)"
-  ))
+We first examine individual Pearson correlations between each HMM feature and Blink_CD. This step identifies which features show the strongest zero-order relationships with transfer before entering them into a multiple regression.
 
-ggplot(feat_long, aes(x = value)) +
-  geom_histogram(fill = col_efficient, alpha = 0.7, bins = 12,
-                 color = "white") +
-  geom_vline(xintercept = 0, linetype = "dashed", color = "grey50") +
-  facet_wrap(~ feature, scales = "free", ncol = 2) +
-  labs(x = "Value", y = "Count") +
-  manuscript_theme +
-  theme(strip.text = element_text(size = 12))
-```
+The expected sign of each correlation differs across features. Because a smaller blink (lower Blink_CD value) reflects better RSVP performance, stronger or faster suppression learning during the VST should produce a negative correlation with Blink_CD for `learning_slope`, `end_p_efficient`, `overall_suppress`, and `suppress_growth` - i.e., participants who learned more should have less blink. `transition_trial` runs in the opposite direction: faster learning yields a lower trial number, so the expected correlation with Blink_CD is positive (low transition trial paired with low blink). The same sign logic applies to the regression coefficients in the model below.
 
-```{r feature-correlations, fig.width=8, fig.height=6, fig.cap="Figure 6. Relationship between learning slope and overall suppression score. Each point represents one participant. Participants who shifted more rapidly toward Efficient Search (steeper learning slope) tended to show stronger VD-CD suppression."}
-ggplot(participant_features,
-       aes(x = learning_slope, y = overall_suppress)) +
-  geom_point(size = 3, color = "gray35", alpha = 0.8) +
-  geom_smooth(method = "lm", se = TRUE,
-              color = "black", fill = "gray80", linewidth = 1.1) +
-  labs(x = "Learning Slope (P(Efficient) ~ trial)",
-       y = "Overall Suppression Score (VD - CD)") +
-  manuscript_theme
+```{r bivariate-correlations}
+# Predictor vector (used here and reused throughout the file) plus a named lookup for nicely formatted labels in tables and figures.
+predictors <- c("learning_slope", "transition_trial", "end_p_efficient",
+                "overall_suppress", "suppress_growth")
 
-cor_ls <- cor.test(participant_features$learning_slope,
-                   participant_features$overall_suppress)
-```
-
-A Pearson correlation between learning slope and overall suppression score yielded r = `r sprintf("%.3f", cor_ls$estimate)`, t(`r cor_ls$parameter`) = `r sprintf("%.2f", cor_ls$statistic)`, p = `r sprintf("%.4f", cor_ls$p.value)`. `r if (cor_ls$p.value < .05) "This significant association suggests that participants who shifted more rapidly toward Efficient Search also showed stronger condition-specific suppression." else "This correlation did not reach significance, suggesting that the overall rate of state change and the condition-specific suppression signal may reflect partially independent processes."`
-
-
-# Block-Level Parameter Evolution
-
-To examine whether the HMM emission profiles themselves change with learning-as opposed to just the prevalence of fixed states-we fit separate 2-state joint HMMs for each experimental block, using the VST-first group's data. If learning involves a qualitative shift in processing (not just a redistribution across stable modes), the emission parameters should evolve across blocks.
-
-Two caveats apply here. First, each block's HMM is fit independently, so the state indices (1, 2) returned by depmixS4 are arbitrary per block - we re-label states block-by-block as "Efficient Search" (whichever state has higher P(Target)) and "Distractor Engagement" to enable cross-block comparison, but this re-labeling can be unstable in blocks where state separation is weak (e.g., very early blocks before learning has begun). Second, the per-block fit relies on much less data than the full-sample model, so block-level estimates are noisier and should be read as descriptive trends rather than precise parameter trajectories.
-
-```{r block-hmm, message=FALSE}
-hmm_data_vst <- hmm_data %>% filter(TaskOrder == 1)
-block_params <- data.frame()
-
-for (b in sort(unique(hmm_data_vst$block_Norm))) {
-  d_block <- hmm_data_vst %>%
-    filter(block_Norm == b) %>%
-    arrange(subjnum, trial_num, saccindex)
-  sl_block <- rle(as.character(d_block$trial_id))$lengths
-
-  # Skip any block with fewer than 20 trial sequences. 
-  # A 2-state joint HMM has ~10 free parameters (initial probs, transitions, two multinomial emissions, two Gaussian means and SDs); 
-  # A 20-trial floor is a conservative minimum for the EM algorithm to converge to a stable solution. 
-  # With ~80 trials per block × 24 VST-first participants this floor is never tripped in the current dataset, but the guard makes the code robust to subsetting.
-  if (length(sl_block) < 20) next
-
-  best_block <- NULL
-  best_block_ll <- -Inf
-
-  for (r in 1:5) {
-    set.seed(r * 7 + 13)
-    tryCatch({
-      mod_b <- depmix(
-        list(obs_factor ~ 1, log_dur ~ 1),
-        data = d_block,
-        nstates = 2,
-        family = list(multinomial("identity"), gaussian()),
-        ntimes = sl_block
-      )
-      fit_b <- fit(mod_b, verbose = FALSE)
-      ll_b <- as.numeric(logLik(fit_b))
-      if (ll_b > best_block_ll) {
-        best_block_ll <- ll_b
-        best_block <- fit_b
-      }
-    }, error = function(e) {})
-  }
-
-  if (is.null(best_block)) next
-
-  # Re-label states by content rather than by depmixS4's arbitrary state index, since per-block fits are independent and the index for the target-bearing  state can flip from block to block (the "label-switching" problem). 
-  # The Efficient Search state is identified as whichever has higher P(Target); this assignment can be unstable in blocks where state separation is weak.
-  for (s in 1:2) {
-    rp_cat <- best_block@response[[s]][[1]]@parameters$coefficients
-    rp_gauss <- best_block@response[[s]][[2]]@parameters
-    eff_s <- which.max(sapply(1:2, function(x)
-      best_block@response[[x]][[1]]@parameters$coefficients[1]))
-    slabel <- ifelse(s == eff_s, "Efficient Search", "Distractor Engagement")
-
-    block_params <- bind_rows(block_params, data.frame(
-      block_Norm = b, state = s, state_label = slabel,
-      p_target = rp_cat[1], p_tcd = rp_cat[2], p_distractor = rp_cat[3],
-      median_dur_ms = exp(rp_gauss$coefficients),
-      sd_log_dur = rp_gauss$sd,
-      n_trials = length(sl_block), ll = best_block_ll
-    ))
-  }
-}
-```
-
-```{r emission-evolution, fig.width=10, fig.height=5, fig.cap="Figure 7. Evolution of item-type emission probabilities across blocks (separate HMM per block). Stable emission profiles would indicate that the states remain qualitatively constant and that learning is captured purely by state prevalence changes."}
-if (nrow(block_params) > 0) {
-  bp_long <- block_params %>%
-    select(block_Norm, state_label, p_target, p_tcd, p_distractor) %>%
-    pivot_longer(c(p_target, p_tcd, p_distractor),
-                 names_to = "item", values_to = "prob") %>%
-    mutate(
-      item = recode(item,
-        "p_target" = "Target", "p_tcd" = "TCD", "p_distractor" = "Distractor"),
-      item = factor(item, levels = c("Target", "TCD", "Distractor"))
-    )
-
-  ggplot(bp_long,
-         aes(x = block_Norm, y = prob, color = item, shape = item)) +
-    geom_line(linewidth = 0.8) +
-    geom_point(size = 2.5) +
-    facet_wrap(~ state_label) +
-    scale_color_manual(values = c("Target" = "#4CAF50", "TCD" = "#FF9800",
-                                  "Distractor" = "#2196F3")) +
-    ylim(0, 1) +
-    labs(x = "Block", y = "Emission Probability",
-         color = "Item Type", shape = "Item Type") +
-    manuscript_theme +
-    theme(strip.text = element_text(size = 13))
-}
-```
-
-```{r duration-evolution, fig.width=10, fig.height=5, fig.cap="Figure 8. Evolution of median fixation duration by state across blocks (separate HMM per block, back-transformed from Gaussian on log duration). Duration spread is the primary discriminative signal between states; medians are reported here because exp(μ_log) is the median, not the arithmetic mean, of the log-normal duration distribution."}
-if (nrow(block_params) > 0) {
-  ggplot(block_params,
-         aes(x = block_Norm, y = median_dur_ms, color = state_label)) +
-    geom_line(linewidth = 1.1) +
-    geom_point(size = 3) +
-    scale_color_manual(values = state_colors) +
-    labs(x = "Block", y = "Median Fixation Duration (ms)",
-         color = "Hidden State") +
-    manuscript_theme
-}
-```
-
-Figures 7 and 8 show that the per-block emission profiles are broadly stable across the experiment: the Efficient Search state continues to be the only state carrying target fixations, while the Distractor Engagement state remains anchored on TCD and Distractor fixations, and the median-duration ordering between states is preserved. This stability is consistent with the assumption underlying the participant-level feature extraction above-namely, that learning is captured primarily by changes in *state prevalence* (how often each mode is occupied) rather than by qualitative redrawing of the states themselves. Block-to-block jitter in the parameter trajectories reflects the smaller per-block sample and the label-switching caveat noted earlier; the stable cross-block pattern of state content is what matters for the interpretation.
-
-
-# Individual Learning Trajectories
-
-To illustrate the variability in learning patterns, we plot trial-by-trial P(Efficient Search) for a subset of participants, smoothed with a LOESS curve. These individual trajectories highlight the heterogeneity that the participant-level features are designed to capture.
-
-```{r individual-trajectories, fig.width=12, fig.height=8, fig.cap="Figure 9. Individual P(Efficient Search) trajectories for 8 example participants. Blue = CD, orange = VD. Lines are LOESS-smoothed. Between-participant variability in learning speed and endpoint motivates the feature extraction approach."}
-example_subjs <- sort(unique(trial_states$subjnum))[1:min(8, n_distinct(trial_states$subjnum))]
-
-trial_states %>%
-  filter(subjnum %in% example_subjs) %>%
-  ggplot(aes(x = trial_num, y = p_efficient, color = condition)) +
-  geom_point(alpha = 0.3, size = 0.8) +
-  geom_smooth(method = "loess", se = FALSE, span = 0.3, linewidth = 0.8) +
-  facet_wrap(~ subjnum, ncol = 4) +
-  scale_color_manual(
-    values = c("CD" = "#2196F3", "VD" = "#FF9800"),
-    labels = c("CD" = "Consistent Distractor", "VD" = "Variable Distractor")) +
-  ylim(0, 1) +
-  labs(x = "Trial Number", y = "P(Efficient Search)", color = "Condition") +
-  manuscript_theme +
-  theme(
-    strip.text = element_text(size = 11),
-    axis.title = element_text(size = 13),
-    axis.text = element_text(size = 10),
-    legend.text = element_text(size = 11)
-  )
-```
-
-
-# Save Output
-
-```{r save-output}
-if (!dir.exists("output")) dir.create("output")
-
-# Full sample decoded data (all 48 participants)
-write_csv(
-  hmm_data %>%
-    select(subjnum, TaskOrder, block_Norm, trial, trial_num, trial_id,
-           condition, saccindex, curritem, obs, Dwell, log_dur,
-           p_efficient, p_engaged, decoded),
-  "output/stage2_fixation_decoded_all.csv"
+predictor_labels <- c(
+  learning_slope = "Learning Slope",
+  transition_trial = "Transition Trial",
+  end_p_efficient = "End-State P(Efficient)",
+  overall_suppress = "Overall Suppression",
+  suppress_growth = "Suppression Growth"
 )
 
-# VST-first group outputs (for Stage 3)
-write_csv(trial_states, "output/stage2_trial_states_vst_first.csv")
-write_csv(block_states, "output/stage2_block_states_vst_first.csv")
-write_csv(hmm_suppress, "output/stage2_suppression_scores_vst_first.csv")
-write_csv(participant_features, "output/stage2_participant_features_vst_first.csv")
-if (nrow(block_params) > 0) {
-  write_csv(block_params, "output/stage2_block_parameters_vst_first.csv")
-}
-write_csv(emission_df, "output/stage2_emission_params.csv")
+# Run bivariate correlations with map_dfr (apply the function to each predictor name and row-bind the results into a tibble). 
+cor_results <- map_dfr(predictors, function(pred) {
+  d <- transfer_data %>%
+    select(Blink_CD, all_of(pred)) %>%
+    drop_na()
+
+  ct <- cor.test(d[[pred]], d$Blink_CD)
+
+  tibble(
+    Predictor = predictor_labels[pred],
+    variable = pred,
+    r = ct$estimate,
+    t = ct$statistic,
+    df = ct$parameter,
+    p = ct$p.value,
+    CI_lower = ct$conf.int[1],
+    CI_upper = ct$conf.int[2],
+    n = nrow(d)
+  )
+})
+
+kable(cor_results %>% select(Predictor, n, r, t, df, p, CI_lower, CI_upper),
+      digits = c(0, 0, 3, 2, 0, 4, 3, 3),
+      caption = "Table 3. Bivariate Pearson correlations between HMM features and Blink_CD.",
+      col.names = c("Predictor", "n", "r", "t", "df", "p", "95% CI Lower", "95% CI Upper"))
 ```
 
-The participant-level features saved in `output/stage2_participant_features_vst_first.csv` will serve as predictors in Stage 3, where we test whether individual differences in VST suppression learning (learning slope, end-state efficiency, suppression growth) predict cross-task transfer to the RSVP task. The full-sample decoded fixation data (`output/stage2_fixation_decoded_all.csv`) is also saved in case future analyses require state information for the RSVP-first group.
+```{r correlation-interpretation}
+# Pre-compute summary counts for inline reporting in the prose below.
+sig_predictors <- cor_results %>% filter(p < .05)
+trend_predictors <- cor_results %>% filter(p >= .05 & p < .10)
+
+n_sig <- nrow(sig_predictors)
+n_trend <- nrow(trend_predictors)
+
+# "Strongest" = predictor with the smallest p-value (which here also corresponds to the largest |r| up to df differences across predictors).
+strongest <- cor_results %>% arrange(p) %>% slice(1)
+```
+
+
+## Scatterplots: Each HMM Feature × Blink_CD
+
+```{r scatter-all, fig.width=12, fig.height=8, fig.cap="Figure 2. Bivariate relationships between each HMM feature and Blink_CD. Each point is one VST-first participant. The regression line (with 95% CI band) shows the direction and strength of the linear association. Stronger suppression learning during VST (e.g., steeper learning slope, higher end-state efficiency) should predict a smaller attentional blink for the consistent distractor color in the RSVP task."}
+scatter_data <- transfer_data %>%
+  select(subjnum, Blink_CD, all_of(predictors)) %>%
+  pivot_longer(cols = all_of(predictors),
+               names_to = "feature", values_to = "value") %>%
+  mutate(feature_label = unname(predictor_labels[feature]))
+
+ggplot(scatter_data, aes(x = value, y = Blink_CD)) +
+  geom_point(size = 2.5, color = "gray35", alpha = 0.8) +
+  geom_smooth(method = "lm", se = TRUE,
+              color = "black", fill = "gray80", linewidth = 1) +
+  facet_wrap(~ feature_label, scales = "free_x", ncol = 3) +
+  labs(x = "HMM Feature Value", y = "Blink_CD") +
+  manuscript_theme +
+  theme(strip.text = element_text(size = 11))
+```
+
+
+# Predictor Intercorrelations
+
+Before fitting the multiple regression, we check intercorrelations among predictors to assess potential multicollinearity.
+
+```{r predictor-intercorrelations}
+# Compute the full predictor x predictor correlation matrix. 
+# We drop_na() first to align all pairwise correlations on the same set of complete cases
+# the `use = "pairwise.complete.obs"` argument is then a defensive default in case any NAs slip through. 
+# High intercorrelations (|r| > .70 is a common rule of thumb) flag potential multicollinearity that would inflate VIFs and destabilise the unique-effect estimates in the multiple regression.
+pred_matrix <- transfer_data %>%
+  select(all_of(predictors)) %>%
+  drop_na()
+
+cor_matrix <- cor(pred_matrix, use = "pairwise.complete.obs")
+
+kable(round(cor_matrix, 3),
+      caption = "Table 4. Intercorrelation matrix among HMM predictors.")
+```
+
+```{r correlation-heatmap, fig.width=8, fig.height=7, fig.cap="Figure 3. Heatmap of intercorrelations among HMM predictors. Darker blue = stronger positive correlation; darker red = stronger negative correlation. High intercorrelations (|r| > .70) would signal multicollinearity concerns for the multiple regression."}
+cor_long <- as.data.frame(as.table(cor_matrix)) %>%
+  rename(Var1 = Var1, Var2 = Var2, r = Freq) %>%
+  mutate(
+    Var1 = unname(predictor_labels[as.character(Var1)]),
+    Var2 = unname(predictor_labels[as.character(Var2)])
+  )
+
+ggplot(cor_long, aes(x = Var1, y = Var2, fill = r)) +
+  geom_tile(color = "white") +
+  geom_text(aes(label = sprintf("%.2f", r)), size = 3.5) +
+  scale_fill_gradient2(low = col_engaged, mid = "white", high = col_efficient,
+                       midpoint = 0, limits = c(-1, 1)) +
+  labs(x = NULL, y = NULL, fill = "r") +
+  theme_minimal(base_size = 12) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1, size = 10),
+        axis.text.y = element_text(size = 10))
+```
+
+
+# Multiple Regression: HMM Features Predicting Blink_CD
+
+We fit a multiple regression entering all five HMM features as simultaneous predictors of Blink_CD. This tests whether the features carry unique predictive information about transfer beyond their shared variance. With *n* = 24 and 5 predictors, the model has only 18 residual degrees of freedom; estimates of unique predictor contributions are therefore underpowered, and small-to-moderate true effects may not reach significance even if they exist. The standardized coefficients reported below should be read alongside the bivariate correlations rather than as a definitive test of any single feature's predictive value.
+
+```{r multiple-regression}
+# Fit the full model (listwise deletion for transition_trial NAs)
+reg_data <- transfer_data %>%
+  select(subjnum, Blink_CD, all_of(predictors)) %>%
+  drop_na()
+
+model_full <- lm(Blink_CD ~ learning_slope + transition_trial +
+                   end_p_efficient + overall_suppress + suppress_growth,
+                 data = reg_data)
+
+summary(model_full)
+```
+
+
+## Regression Diagnostics
+
+```{r regression-diagnostics}
+# Variance Inflation Factors
+vif_values <- vif(model_full)
+print(round(vif_values, 2))
+
+vif_concern <- any(vif_values > 5)
+if (vif_concern) {
+  cat("\nWARNING: VIF > 5 detected - multicollinearity may inflate standard errors.\n")
+} else {
+  cat("\nAll VIFs < 5 - no severe multicollinearity concerns.\n")
+}
+```
+
+```{r diagnostic-plots, fig.width=10, fig.height=8, fig.cap="Figure 4. Regression diagnostic plots. Top-left: residuals vs. fitted (check for non-linearity and heteroscedasticity). Top-right: Q-Q plot (check for normality of residuals). Bottom-left: scale-location (check for homoscedasticity). Bottom-right: residuals vs. leverage (identify influential cases with high Cook's distance)."}
+# `plot.lm()` returns four diagnostic panels in sequence; par(mfrow) lays
+# them out in a 2x2 grid so they render as one figure. Reset to single-panel
+# afterwards so subsequent base-R plots are not affected.
+par(mfrow = c(2, 2))
+plot(model_full)
+par(mfrow = c(1, 1))
+```
+
+```{r influential-cases}
+# Cook's D > 4/n is a widely used cutoff (Bollen & Jackman, 1990 - but cited
+# only as a heuristic here, not a strict rule). It flags observations whose
+# leverage * residual product is large enough to materially shift the fitted
+# coefficients. With n = 24 the threshold is generous (~0.17), so a flagged
+# case warrants inspection rather than automatic removal.
+cooks_d <- cooks.distance(model_full)
+threshold <- 4 / nrow(reg_data)
+influential <- which(cooks_d > threshold)
+
+if (length(influential) > 0) {
+  cat(sprintf("Influential cases (Cook's D > %.3f):\n", threshold))
+  cat("  Row indices:", paste(influential, collapse = ", "), "\n")
+  cat("  Subject numbers:", paste(reg_data$subjnum[influential], collapse = ", "), "\n")
+  cat("  Cook's D values:", paste(round(cooks_d[influential], 3), collapse = ", "), "\n")
+} else {
+  cat("No influential cases detected.\n")
+}
+```
+
+
+## Standardized Coefficients
+
+```{r standardized-regression}
+# Standardize all variables (X and Y) for comparable effect sizes; the
+# resulting lm coefficients are standardized betas. We wrap scale() in
+# as.numeric() because scale() returns a 1-column matrix with attributes,
+# which dplyr would store as a matrix column - fine for lm() in most cases
+# but fragile for downstream broom::tidy() across versions.
+reg_data_z <- reg_data %>%
+  mutate(across(c(Blink_CD, all_of(predictors)), ~ as.numeric(scale(.))))
+
+model_std <- lm(Blink_CD ~ learning_slope + transition_trial +
+                  end_p_efficient + overall_suppress + suppress_growth,
+                data = reg_data_z)
+
+# Extract standardized coefficients
+std_coefs <- broom::tidy(model_std) %>%
+  filter(term != "(Intercept)") %>%
+  mutate(term = unname(predictor_labels[term]))
+
+kable(std_coefs, digits = c(0, 3, 3, 2, 4),
+      caption = "Table 5. Standardized regression coefficients predicting Blink_CD from HMM features.",
+      col.names = c("Predictor", "β", "SE", "t", "p"))
+```
+
+```{r coefficient-plot, fig.width=8, fig.height=5, fig.cap="Figure 5. Standardized regression coefficients (β) with 95% confidence intervals. Bars crossing zero indicate non-significant predictors at α = .05."}
+# Reorder the predictor factor by |β| so the largest-magnitude coefficient
+# sits at the top of the y-axis and the weakest at the bottom - this puts
+# the most informative predictors visually first regardless of sign.
+std_coefs_ci <- broom::tidy(model_std, conf.int = TRUE) %>%
+  filter(term != "(Intercept)") %>%
+  mutate(term = unname(predictor_labels[term]),
+         term = fct_reorder(term, abs(estimate)))
+
+ggplot(std_coefs_ci, aes(x = estimate, y = term)) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "gray50") +
+  geom_errorbarh(aes(xmin = conf.low, xmax = conf.high),
+                 height = 0.2, linewidth = 0.8) +
+  geom_point(size = 3, color = col_efficient) +
+  labs(x = "Standardized Coefficient (β)",
+       y = NULL) +
+  manuscript_theme
+```
+
+
+# Exploratory: Alternative RSVP Outcomes
+
+As an exploratory extension, we examine whether HMM features also predict the attentional blink for other distractor conditions (Blink_ND, Blink_VD_Match, Blink_VD_Mismatch). If the HMM-captured suppression is specific to the consistent distractor color, we would expect stronger prediction of Blink_CD than of other blink measures.
+
+```{r exploratory-outcomes}
+# Same map_dfr pattern as the primary bivariate-correlations chunk, but inverted: instead of iterating over predictors with one outcome (Blink_CD), we iterate over outcomes with one predictor (the strongest from the primary analysis). 
+# The expected pattern under CD-specific transfer is that the correlation magnitude is largest for Blink_CD and smaller for the other blink measures, where there was no opportunity for VST learning to help.
+outcomes <- c("Blink_CD", "Blink_ND", "Blink_VD_Match", "Blink_VD_Mismatch")
+outcome_labels <- c(
+  Blink_CD = "Consistent Distractor",
+  Blink_ND = "No Distractor",
+  Blink_VD_Match = "Variable (Match)",
+  Blink_VD_Mismatch = "Variable (Mismatch)"
+)
+
+best_pred <- strongest$variable
+
+exploratory_cors <- map_dfr(outcomes, function(outcome) {
+  d <- transfer_data %>%
+    select(all_of(outcome), all_of(best_pred)) %>%
+    drop_na()
+
+  ct <- cor.test(d[[best_pred]], d[[outcome]])
+
+  tibble(
+    Outcome = outcome_labels[outcome],
+    Predictor = predictor_labels[best_pred],
+    r = ct$estimate,
+    p = ct$p.value,
+    n = nrow(d)
+  )
+})
+
+kable(exploratory_cors, digits = c(0, 0, 3, 4, 0),
+      caption = sprintf("Table 6. Correlation between %s and each RSVP blink measure.",
+                        predictor_labels[best_pred]))
+```
+
+
+# Specificity Analysis: Blink Cost (CD - VD_Mismatch)
+
+The primary analysis above tested whether HMM features predict the absolute attentional blink for the consistent distractor color (Blink_CD). However, Blink_CD confounds the trained-distractor effect with general attentional ability. To quantify the transfer signal relative to a baseline distractor that participants had no opportunity to learn about, we compute a blink cost score: Blink_Cost = Blink_CD - Blink_VD_Mismatch. A negative cost indicates that the consistent distractor color produces *less* attentional blink than a variable-location distractor with a non-matching colour - consistent with learned suppression transferring to the RSVP task and reducing the attentional cost of the trained colour.
+
+If HMM features predict Blink_CD but not Blink_Cost, the apparent association reflects general attentional efficiency that lifts target accuracy across all conditions. If they predict Blink_Cost, that provides stronger evidence for transfer specific to the trained colour relative to an untrained-colour baseline.
+
+```{r blink-cost-compute}
+# Compute blink cost: CD - VD_Mismatch (untrained-colour baseline).
+# Negative = less blink for the trained CD colour than for an unmatched variable distractor - the expected direction if learned suppression transfers.
+transfer_data <- transfer_data %>%
+  mutate(Blink_Cost = Blink_CD - Blink_VD_Mismatch)
+
+# One-sample t-test: is blink cost different from zero?
+t.test(transfer_data$Blink_Cost)
+```
+
+```{r blink-cost-distribution, fig.width=6, fig.height=4, fig.cap="Figure 6. Distribution of blink cost scores (Blink_CD - Blink_VD_Mismatch). Negative values indicate that the consistent distractor colour produces less attentional blink than an unmatched-colour variable distractor - consistent with suppression transfer to the trained colour."}
+ggplot(transfer_data, aes(x = Blink_Cost)) +
+  geom_histogram(fill = col_engaged, alpha = 0.7, bins = 12,
+                 color = "white", linewidth = 0.5) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "gray30", linewidth = 0.8) +
+  geom_vline(xintercept = mean(transfer_data$Blink_Cost, na.rm = TRUE),
+             color = col_efficient, linewidth = 1.2) +
+  labs(x = "Blink Cost (CD - VD_Mismatch)",
+       y = "Count") +
+  manuscript_theme
+```
+
+## Bivariate Correlations: HMM Features × Blink Cost
+
+```{r blink-cost-correlations}
+# Run bivariate correlations with Blink_Cost
+cost_cors <- map_dfr(predictors, function(pred) {
+  d <- transfer_data %>%
+    select(all_of(pred), Blink_Cost) %>%
+    drop_na()
+
+  ct <- cor.test(d[[pred]], d$Blink_Cost)
+
+  tibble(
+    Predictor = predictor_labels[pred],
+    n = nrow(d),
+    r = ct$estimate,
+    t = ct$statistic,
+    df = ct$parameter,
+    p = ct$p.value,
+    CI_lower = ct$conf.int[1],
+    CI_upper = ct$conf.int[2]
+  )
+})
+
+kable(cost_cors, digits = c(0, 0, 3, 2, 0, 4, 3, 3),
+      caption = "Table 7. Bivariate correlations between HMM features and Blink Cost (CD - VD_Mismatch).")
+```
+
+```{r blink-cost-scatterplots, fig.width=10, fig.height=8, fig.cap="Figure 7. Scatterplots of each HMM feature against Blink Cost. Blue lines show least-squares fit with 95% CI."}
+plot_data_cost <- transfer_data %>%
+  select(all_of(predictors), Blink_Cost) %>%
+  pivot_longer(cols = all_of(predictors), names_to = "feature", values_to = "value") %>%
+  mutate(feature = unname(predictor_labels[feature]),
+         feature = factor(feature, levels = unname(predictor_labels)))
+
+ggplot(plot_data_cost, aes(x = value, y = Blink_Cost)) +
+  geom_point(size = 2.5, color = "gray35", alpha = 0.8) +
+  geom_smooth(method = "lm", se = TRUE, color = col_efficient, fill = col_efficient, alpha = 0.2) +
+  facet_wrap(~ feature, scales = "free_x", ncol = 3) +
+  labs(x = "Feature Value", y = "Blink Cost (CD - VD_Mismatch)") +
+  manuscript_theme +
+  theme(strip.text = element_text(size = 11))
+```
+
+## Multiple Regression: HMM Features Predicting Blink Cost
+
+```{r blink-cost-regression}
+# Fit the full model
+cost_reg_data <- transfer_data %>%
+  select(subjnum, Blink_Cost, all_of(predictors)) %>%
+  drop_na()
+
+model_cost <- lm(Blink_Cost ~ learning_slope + transition_trial +
+                   end_p_efficient + overall_suppress + suppress_growth,
+                 data = cost_reg_data)
+
+summary(model_cost)
+
+# Extract key statistics
+cost_r2 <- summary(model_cost)$r.squared
+cost_adj_r2 <- summary(model_cost)$adj.r.squared
+cost_f <- summary(model_cost)$fstatistic
+cost_f_p <- pf(cost_f[1], cost_f[2], cost_f[3], lower.tail = FALSE)
+
+cat(sprintf("\nBlink Cost model: R² = %.3f, adj R² = %.3f, F(%d, %d) = %.2f, p = %.4f\n",
+            cost_r2, cost_adj_r2, cost_f[2], cost_f[3], cost_f[1], cost_f_p))
+
+# Pre-compute Blink_CD model stats for inline text below
+r2 <- summary(model_full)$r.squared
+adj_r2 <- summary(model_full)$adj.r.squared
+f_stat <- summary(model_full)$fstatistic
+f_p <- pf(f_stat[1], f_stat[2], f_stat[3], lower.tail = FALSE)
+```
+
+```{r blink-cost-comparison, fig.width=9, fig.height=6, fig.cap="Figure 8. Comparison of bivariate correlations: HMM features predicting Blink_CD (general blink) vs. Blink Cost (CD - VD_Mismatch, transfer-specific). Larger absolute correlations with Blink_CD than Blink Cost would suggest general attentional efficiency drives the association rather than transfer to the trained colour."}
+# Side-by-side comparison of effect sizes for each predictor against the two outcomes: raw Blink_CD vs. Blink Cost (CD - VD_Mismatch). Same point styling encodes significance (filled triangle = p < .05, filled circle = p < .10, open circle = n.s.); position_dodge separates the two outcomes per predictor.
+comparison <- bind_rows(
+  cor_results %>%
+    select(Predictor, r, p) %>%
+    mutate(Outcome = "Blink_CD"),
+  cost_cors %>%
+    select(Predictor, r, p) %>%
+    mutate(Outcome = "Blink Cost\n(CD - VD_Mismatch)")
+) %>%
+  mutate(sig = case_when(p < .05 ~ "p < .05", p < .10 ~ "p < .10", TRUE ~ "n.s."),
+         Predictor = factor(Predictor, levels = rev(unname(predictor_labels))))
+
+ggplot(comparison, aes(x = r, y = Predictor, color = Outcome, shape = sig)) +
+  geom_vline(xintercept = 0, linetype = "dashed", color = "gray50") +
+  geom_point(size = 3.5, position = position_dodge(width = 0.5)) +
+  scale_color_manual(values = c("Blink_CD" = col_efficient,
+                                "Blink Cost\n(CD - VD_Mismatch)" = col_engaged)) +
+  scale_shape_manual(values = c("p < .05" = 17, "p < .10" = 16, "n.s." = 1)) +
+  labs(x = "Pearson r", y = NULL, color = "Outcome", shape = "Significance") +
+  manuscript_theme +
+  theme(legend.position = "bottom")
+```
+
+`r if(cost_f_p >= .05 & f_p >= .05) sprintf("Neither the Blink_CD model (R² = %.3f, p = %.4f) nor the Blink Cost model (R² = %.3f, p = %.4f) reached significance. The pattern of bivariate correlations can clarify whether the trend-level effects observed for Blink_CD reflect general efficiency or transfer to the trained colour.", r2, f_p, cost_r2, cost_f_p) else if(cost_f_p < .05) sprintf("The Blink Cost model was significant (R² = %.3f, p = %.4f), providing evidence that HMM features predict transfer to the trained distractor colour beyond general attentional efficiency.", cost_r2, cost_f_p) else sprintf("The Blink_CD model (R² = %.3f, p = %.4f) was significant but the Blink Cost model was not (R² = %.3f, p = %.4f), suggesting the predictive signal reflects general attentional efficiency rather than transfer to the trained colour.", r2, f_p, cost_r2, cost_f_p)`
+
+
+# Summary
+
+The multiple regression testing whether HMM-derived features from the VST predict attentional blink magnitude for the consistent distractor color (Blink_CD) in the RSVP task yielded R² = `r sprintf("%.3f", r2)` (adjusted R² = `r sprintf("%.3f", adj_r2)`), F(`r f_stat[2]`, `r f_stat[3]`) = `r sprintf("%.2f", f_stat[1])`, p = `r sprintf("%.4f", f_p)`.
+
+`r if(f_p < .05) "The overall model was significant, indicating that HMM-derived suppression learning features carry meaningful predictive information about cross-task transfer. This supports the view that learned distractor suppression - as captured by the latent state dynamics of the HMM - generalizes beyond the training task to influence attentional processing in a qualitatively different paradigm." else "The overall model did not reach significance, suggesting that the HMM-derived suppression learning features did not reliably predict attentional blink magnitude for the consistent distractor color in this sample. This null result may reflect several factors: the modest sample size (n = 24) limits power to detect moderate effects; the RSVP blink measure may capture processes partially distinct from the spatial suppression indexed by the HMM; or transfer of learned suppression may operate through mechanisms not fully captured by the five features extracted here. Nonetheless, the direction and magnitude of individual predictor effects remain informative for guiding future work with larger samples."`
+
+At the bivariate level, `r if(n_sig > 0) sprintf("%d predictor(s) showed significant correlations with Blink_CD (p < .05): %s.", n_sig, paste(sig_predictors$Predictor, collapse = ", ")) else "no individual predictor reached significance at p < .05."` `r if(n_trend > 0) sprintf("%d predictor(s) showed trends (p < .10): %s.", n_trend, paste(trend_predictors$Predictor, collapse = ", ")) else ""` The strongest zero-order relationship was with `r strongest$Predictor` (r = `r sprintf("%.3f", strongest$r)`, p = `r sprintf("%.4f", strongest$p)`).
+
+## Specificity: Blink Cost (CD - VD_Mismatch)
+
+To test whether the HMM features predict transfer to the trained distractor colour rather than general attentional efficiency, we computed a blink cost score (Blink_CD - Blink_VD_Mismatch) that benchmarks the trained-colour blink against a variable distractor with a non-matching colour - a baseline that participants had no opportunity to learn about. `r if(cost_f_p < .05) sprintf("The Blink Cost regression was significant (R² = %.3f, p = %.4f), supporting transfer specific to the trained distractor colour beyond what general attentional efficiency would explain.", cost_r2, cost_f_p) else sprintf("The Blink Cost regression was not significant (R² = %.3f, p = %.4f).", cost_r2, cost_f_p)` `r if(cost_f_p >= .05 & f_p >= .05) "Neither the raw Blink_CD model nor the Blink Cost model reached significance, consistent with the overall null transfer finding." else if(cost_f_p >= .05 & f_p < .05) "The fact that Blink_CD was predicted but Blink Cost was not suggests the HMM features capture general attentional efficiency rather than transfer specific to the trained colour." else ""`
+
+The comparison of bivariate correlation patterns across the two outcomes (Figure 8) provides the clearest diagnostic: if correlations weaken when moving from Blink_CD to Blink Cost, the original associations were partially driven by general capacity differences rather than suppression-specific transfer. This distinction is important for interpreting the theoretical significance of any HMM-RSVP relationship.
+
 
