@@ -278,6 +278,12 @@ $(document).ready(function () {
 <li>
   <a href="p10.html">Portfolio 10</a>
 </li>
+<li>
+  <a href="p11.html">Portfolio 11</a>
+</li>
+<li>
+  <a href="p12.html">Portfolio 12</a>
+</li>
       </ul>
       <ul class="nav navbar-nav navbar-right">
         
@@ -305,21 +311,43 @@ Science for Psychologists</a>. You can find the links to individual
 portfolio pieces in the header. Each piece has a description of the
 goal, the product (computer program, hand graph, computer graph, etc.),
 the data, and some interpretation. I encourage you to explore them.</p>
-<p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Phasellus eu
-tortor ac lectus vestibulum imperdiet eget nec elit. Nam enim elit,
-condimentum vel vulputate et, bibendum id leo. Nam faucibus enim nec
-libero auctor finibus. Integer eu nisl a leo commodo interdum vel eu
-augue. Fusce gravida enim non augue porttitor malesuada. Integer tempor
-mattis quam at scelerisque. Sed scelerisque tristique gravida.
-Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere
-cubilia curae;</p>
-<p>Vivamus non faucibus erat. Class aptent taciti sociosqu ad litora
-torquent per conubia nostra, per inceptos himenaeos. Proin facilisis
-nunc non tristique molestie. Ut semper laoreet dignissim. Integer
-venenatis augue quis metus finibus rhoncus. Praesent et metus auctor,
-tempus magna ac, euismod purus. Sed nulla augue, maximus vel convallis
-viverra, interdum et nulla. Aenean neque magna, varius vitae mi sed,
-consequat lobortis quam.</p>
+<p>The portfolio is organised into three connected mini-projects, all
+grounded in real eye-movement data analysis. Each piece picks up where
+the previous one left off, often by directly addressing a limitation
+flagged in the discussion.</p>
+<ul>
+<li><p><strong>Eye-tracking in reading (Portfolios 2–4).</strong> Using
+the OneStop Eye Movements Dataset (Berzak et al., 2025; 360 participants
+reading news articles), I move from exploratory visualisation of
+word-length and frequency effects on fixation behaviour (P2), to linear
+mixed-effects models of the GPT-2 surprisal × word-frequency interaction
+on dwell time (P3), and then decompose that interaction across
+first-pass and re-reading measures to isolate the processing stage at
+which it operates (P4).</p></li>
+<li><p><strong>Secondary analyses of an attention-capture experiment
+(Portfolios 5–9).</strong> Building on Zhang &amp; Gaspelin (2026,
+Experiment 3), I run three secondary analyses the original paper did not
+report — response time, saccade reaction time, and target fixation rate
+(P5–P7) — followed by a full first-fixation probability decomposition
+that tracks where freed attention goes once the singleton is suppressed
+(P8), and a within-trial sequence analysis of post-capture recovery and
+search efficiency (P9).</p></li>
+<li><p><strong>Hidden Markov modelling of suppression learning
+(Portfolios 10–12).</strong> A three-stage build of a 2-state joint HMM
+(item type + fixation duration) fit to Visual Search Task data: a
+proof-of-concept that recovers an Efficient-Search
+vs. Distractor-Engagement state structure (P10), participant-level
+feature extraction in the VST-first group (P11), and a regression
+testing whether those latent learning features predict cross-task
+transfer to an RSVP attentional blink for the consistent-distractor
+colour (P12).</p></li>
+</ul>
+<p>The skills progress alongside the science — from <code>ggplot2</code>
+and base R, to <code>lme4</code>/<code>lmerTest</code> mixed-effects
+models, to fitting and decoding HMMs with <code>depmixS4</code>. The
+full source for every page lives in the <a
+href="https://github.com/mumizz/DS4P_Portfolio">GitHub
+repository</a>.</p>
 
 
 

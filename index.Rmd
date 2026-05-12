@@ -1,10 +1,16 @@
 ---
-title: "My Portfolio"
+title: "Barbara's Portfolio"
 ---
 
-This website hosts my [portfolio](https://datascience4psych.github.io/DataScience4Psych/guidance.html#portfolio) and [accompanying documentation](https://datascience4psych.github.io/DataScience4Psych/guidance.html#documenting-your-project) that I developed as part of [Data Science for Psychologists](https://datascience4psych.github.io/DataScience4Psych/). You can find the links to individual portfolio pieces in the header. Each piece has a description of the goal, the product (computer program, hand graph, computer graph, etc.), the data, and some interpretation. I encourage you to explore them.
+This website hosts my [portfolio](https://datascience4psych.github.io/DataScience4Psych/guidance.html#portfolio) that I developed as part of [Data Science for Psychologists](https://datascience4psych.github.io/DataScience4Psych/). You can find the links to individual portfolio pieces in the header. Each piece has a description of the goal, the product (computer program, hand graph, computer graph, etc.), the data, and some interpretation. 
 
-Lorem ipsum dolor sit amet, consectetur adipiscing elit. Phasellus eu tortor ac lectus vestibulum imperdiet eget nec elit. Nam enim elit, condimentum vel vulputate et, bibendum id leo. Nam faucibus enim nec libero auctor finibus. Integer eu nisl a leo commodo interdum vel eu augue. Fusce gravida enim non augue porttitor malesuada. Integer tempor mattis quam at scelerisque. Sed scelerisque tristique gravida. Vestibulum ante ipsum primis in faucibus orci luctus et ultrices posuere cubilia curae;
+The portfolio is organised into three connected mini-projects, all grounded in real eye-movement data analysis. Each piece picks up where the previous one left off, often by directly addressing a limitation flagged in the discussion.
 
-Vivamus non faucibus erat. Class aptent taciti sociosqu ad litora torquent per conubia nostra, per inceptos himenaeos. Proin facilisis nunc non tristique molestie. Ut semper laoreet dignissim. Integer venenatis augue quis metus finibus rhoncus. Praesent et metus auctor, tempus magna ac, euismod purus. Sed nulla augue, maximus vel convallis viverra, interdum et nulla. Aenean neque magna, varius vitae mi sed, consequat lobortis quam.
+- **Eye-tracking in reading (Portfolios 2-4).** Using the OneStop Eye Movements Dataset (Berzak et al., 2025; 360 participants reading news articles), I move from exploratory visualization of word-length and frequency effects on fixation behaviour (P2), to linear mixed-effects models of the GPT-2 surprisal × word-frequency interaction on dwell time (P3), and then decompose that interaction across first-pass and re-reading measures to isolate the processing stage at which it operates (P4).
+
+- **Secondary analyses of an attention-capture experiment (Portfolios 5-9).** Building on Zhang & Gaspelin (2026, Experiment 3), I run three secondary analyses the original paper did not report - response time, saccade reaction time, and target fixation rate (P5-P7), followed by a full first-fixation probability decomposition that tracks where freed attention goes once the singleton is suppressed (P8), and a within-trial sequence analysis of post-capture recovery and search efficiency (P9).
+
+- **Hidden Markov modelling of suppression learning (Portfolios 10-12).** A three-stage build of a 2-state joint HMM (item type + fixation duration) fit to Visual Search Task data: a proof-of-concept that recovers an Efficient-Search vs. Distractor-Engagement state structure (P10), participant-level feature extraction in the VST-first group (P11), and a regression testing whether those latent learning features predict cross-task transfer to an RSVP attentional blink for the consistent-distractor colour (P12).
+
+The skills progress alongside the science — from `ggplot2` and base R, to `lme4`/`lmerTest` mixed-effects models, to fitting and decoding HMMs with `depmixS4`. The full source for every page lives in the [GitHub repository](https://github.com/mumizz/DS4P_Portfolio).
 
